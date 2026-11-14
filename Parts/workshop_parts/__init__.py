@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-"""FreeCAD Workshop · Parts: standard parts made to size — Gridfinity bins
+"""Workshop for FreeCAD · Parts: standard parts made to size — Gridfinity bins
 and baseplates, project boxes with lids, enclosures round a board.
 
     from workshop_parts import api

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# FreeCAD Workshop · Parts: its commands in the Workshop workbench.
+# Workshop for FreeCAD · Parts: its commands in the Workshop workbench.
 try:
     from workshop_common import workbench
     from workshop_parts import commands

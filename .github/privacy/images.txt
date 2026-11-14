@@ -1,0 +1,3 @@
+# Raster images (screenshots, renders) a person or agent has looked at and
+# found free of personal data. One line each: "<sha256> <path>".
+# Add a line only after looking at the image itself.

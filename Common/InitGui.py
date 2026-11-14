@@ -5,7 +5,7 @@ import FreeCADGui
 
 class WorkshopWorkbench(FreeCADGui.Workbench):
     MenuText = "Workshop"
-    ToolTip = "Making things: printable parts, standard parts, boards and documents (FreeCAD Workshop add-ons)"
+    ToolTip = "Making things: printable parts, standard parts, boards and documents (Workshop for FreeCAD add-ons)"
 
     def Initialize(self):
         from workshop_common import workbench
