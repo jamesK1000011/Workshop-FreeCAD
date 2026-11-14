@@ -20,6 +20,7 @@ from addonkit import ccx
 from addonkit import records as store
 
 from . import orcalib
+from .tooldefs import _agent
 
 LAYER_FACTOR = 0.5  # across-layer strength taken as this share of the yield
 KEY = "fea"  # the study's record (Agent Link's strength family keeps it there)
@@ -48,18 +49,6 @@ def build_dir(v):
         if n > 0:
             return [float(x) / n for x in v]
     raise Refused("buildDir: +x, -x, +y, -y, +z, -z or [x, y, z].")
-
-
-def _agent(fn):
-    def run(*a):
-        from addonkit import Refused
-        from agentlink.protocol import ToolError
-
-        try:
-            return fn(*a)
-        except Refused as e:
-            raise ToolError(e.code, e.message)
-    return run
 
 
 @_agent

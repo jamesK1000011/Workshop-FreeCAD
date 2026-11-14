@@ -15,9 +15,9 @@ installed, the same functions are also tools an AI agent can call.
 | `Common` | Workshop Common | The Workshop workbench the others add their commands to. Records, shape helpers and fits come from [AddonKit for FreeCAD](https://github.com/jamesK1000011/AddonKit-FreeCAD), which every add-on here needs. |
 | `Parts` | Workshop Parts | Standard parts made to size: Gridfinity bins and baseplates, project boxes with lids, enclosures round a circuit board. |
 | `Make` | Workshop Make | Getting a part made: how each part is made (setups) and the limits it must meet, the printability check and a pass/fix verdict, mass as printed and ballast, slicing with PrusaSlicer, fits and hardware holes sized for your printer, screw threads from the standards, parts encased mid-print and the pauses to drop them in, and a wall-thickness map; slicing with PrusaSlicer, OrcaSlicer and Bambu Studio (their command lines and presets from [Agent Link for OrcaSlicer](https://github.com/jamesK1000011/AgentLink-OrcaSlicer), installed beside it), printers on the network (OctoPrint, Moonraker, PrusaLink); sheet parts checked and laid out as DXF/SVG for laser, waterjet, plasma or router; milled parts checked with STEP and a setup sheet; frames by beam elements (CalculiX); and strength as printed: the tension across the layers and the print's walls and infill read back on Agent Link's FEM study. |
+| `Electronics` | Workshop Electronics | KiCad boards read without KiCad (outline, cut-outs, mounting holes, tall parts with their heights), enclosures made round them with standoffs and openings for the edge connectors, PCB order packages for JLCPCB, PCBWay or OSH Park (nothing uploaded or ordered), and channels inside printed parts for wire or conductive traces with their resistance. Needs Parts for the enclosures. |
 
-More are on the way: Electronics (the KiCad bridge) and Documents (assembly
-manuals, BOMs, library packs).
+More are on the way: Documents (assembly manuals, BOMs, library packs).
 
 ## Data
 
@@ -31,7 +31,7 @@ touch that folder and your entries win.
 
 Each folder is an add-on of its own. Copy or link `Common` and the ones you
 want into FreeCAD's `Mod` folder (for example `Mod/WorkshopCommon`,
-`Mod/WorkshopParts`, `Mod/WorkshopMake`), plus AddonKit (`Mod/AddonKit`), then restart FreeCAD. The Claude extension of FreeCAD
+`Mod/WorkshopParts`, `Mod/WorkshopMake`, `Mod/WorkshopElectronics`), plus AddonKit (`Mod/AddonKit`), then restart FreeCAD. The Claude extension of FreeCAD
 Agent Link installs them for you.
 
 ## Use
@@ -49,7 +49,7 @@ Agent Link installs them for you.
   api.thread("M6")                                  # sizes from the standards
   api.hole(App.ActiveDocument, "Bracket", "counterbore", "M3", at=[10, 10, 5])
   ```
-- **From an agent (with Agent Link):** `gen_make`, `gen_part`; `setup`, `part_spec`, `dfm_check`, `part_review`, `slice`, `mass_calibrate`, `mass_properties`, `mass_target`, `mass_ballast`, `slicer_presets`, `slice_with`, `slice_read`, `slice_open`, `printer_add`, `printer_list`, `printer_status`, `printer_send`, `printer_pause`, `printer_stop`, `fit`, `hw_hole`, `thread_lookup`, `thread_identify`, `thread_cut`, `hw_embed`, `hw_embed_list`, `hw_unembed`, `hw_pauses`, `cut_check`, `cut_export`, `mill_check`, `mill_export`, `fea_frame`; and `buildDir` / `printed` added to `fea_setup` and `fea_solve`.
+- **From an agent (with Agent Link):** `gen_make`, `gen_part`; `setup`, `part_spec`, `dfm_check`, `part_review`, `slice`, `mass_calibrate`, `mass_properties`, `mass_target`, `mass_ballast`, `slicer_presets`, `slice_with`, `slice_read`, `slice_open`, `printer_add`, `printer_list`, `printer_status`, `printer_send`, `printer_pause`, `printer_stop`, `fit`, `hw_hole`, `thread_lookup`, `thread_identify`, `thread_cut`, `hw_embed`, `hw_embed_list`, `hw_unembed`, `hw_pauses`, `cut_check`, `cut_export`, `mill_check`, `mill_export`, `fea_frame`, `kicad_import`, `board_enclosure`, `pcb_order_package`, `printed_channel`; and `buildDir` / `printed` added to `fea_setup` and `fea_solve`.
 
 ## Tests
 

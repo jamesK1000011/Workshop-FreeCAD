@@ -7,4 +7,5 @@ workshop_common/fits.py
 workshop_common/form.py
 workshop_common/geo.py
 workshop_common/records.py
+workshop_common/tooldefs.py
 workshop_common/workbench.py
