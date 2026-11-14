@@ -18,6 +18,13 @@ try:
 except ImportError:
     HAVE = False
 
+try:
+    import agentlink.protocol  # noqa: F401
+
+    AGENT = True
+except ImportError:
+    AGENT = False
+
 from workshop_make import orcalib  # noqa: E402
 
 try:
@@ -67,7 +74,7 @@ class GcodeAnySlicer(unittest.TestCase):
             self.assertEqual(json.load(f)["printable_height"], "256")
 
 
-@unittest.skipUnless(HAVE and slicers, "FreeCAD or Agent Link for OrcaSlicer is not here")
+@unittest.skipUnless(HAVE and slicers and AGENT, "FreeCAD, Agent Link or Agent Link for OrcaSlicer is not here")
 class SliceWith(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
