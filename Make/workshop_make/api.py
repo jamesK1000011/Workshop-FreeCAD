@@ -16,7 +16,7 @@ from addonkit import Refused, fits, geo, records
 
 from . import embeds, threads
 
-addonkit.require(">=1.1,<2", "Workshop Make")
+addonkit.require(">=1.3,<2", "Workshop Make")
 
 FIT_KINDS = tuple(fits.FITS)
 HOLE_KINDS = fits.KINDS

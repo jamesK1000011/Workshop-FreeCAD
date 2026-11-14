@@ -981,6 +981,265 @@
    "changes": false,
    "source": "Agent Link for FreeCAD 25bafcb (moved to Workshop Make)",
    "date": "2026-11-14"
+  },
+  "cut_check": {
+   "group": "cut",
+   "description": "Can a body in a cut setup be cut from sheet: two parallel flat faces a constant thickness apart and every other face square to them (faces that are not named); its thickness against the setup's sheet; holes, webs (material between cuts) and slots under the least feature for the machine (laser, waterjet, plasma, router), material and thickness; a router's inside corners tighter than its cutter; plasma holes under the thickness; sheet [w,h] fit. Verdict fix, pass with warnings or pass. Trap: the least features are rules of thumb, said under assumed with the kerf and material when the setup leaves them out.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "body": {
+      "type": "string",
+      "description": "A body's name; may be left out when there is one."
+     },
+     "machine": {
+      "type": "string",
+      "enum": [
+       "laser",
+       "waterjet",
+       "plasma",
+       "router"
+      ]
+     },
+     "material": {
+      "type": "string"
+     },
+     "sheet": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "description": "The sheet [w, h], mm."
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 5b1bbde (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "cut_export": {
+   "group": "cut",
+   "description": "The flat profiles of one or more sheet bodies (bodies, copies n or { body: n }) laid out in rows on the sheet [w,h] (a gap between, 3 mm or two kerfs by default), as DXF (R12: LINE, ARC, CIRCLE, POLYLINE; layers OUTER and HOLES) and SVG in mm, read back and counted. compensate: true offsets each profile by half the kerf (outside out, holes in) — leave it off when the cutter's software does that. One thickness per file.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "body": {
+      "type": "string",
+      "description": "A body's name; may be left out when there is one."
+     },
+     "bodies": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "copies": {
+      "type": [
+       "integer",
+       "object"
+      ]
+     },
+     "sheet": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "description": "The sheet [w, h], mm."
+     },
+     "gap": {
+      "type": "number"
+     },
+     "compensate": {
+      "type": "boolean"
+     },
+     "formats": {
+      "type": "array",
+      "items": {
+       "type": "string",
+       "enum": [
+        "dxf",
+        "svg"
+       ]
+      }
+     },
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 5b1bbde (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "mill_check": {
+   "group": "mill",
+   "description": "Can a body in a mill setup be milled: faces no tool direction reaches (undercuts, named), faces past the tool's reach, inside corners along a direction rounder than the least tool can make, holes and pockets past the reach or over 4 times as deep as wide, thin walls for the material, the stock. Directions from the setup's axes (3: +z only; 3+2: all six) unless given. Verdict fix, pass with warnings or pass. Trap: tool, reach, material and stock the setup leaves out are assumed and said so; a face on the stock's outside counts as the stock's.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "body": {
+      "type": "string",
+      "description": "A body's name; may be left out when there is one."
+     },
+     "directions": {
+      "type": "array",
+      "items": {
+       "type": "string",
+       "enum": [
+        "+x",
+        "-x",
+        "+y",
+        "-y",
+        "+z",
+        "-z"
+       ]
+      },
+      "description": "Sides the tool comes from; by default the setup's axes: 3 is +z, 3+2 all six."
+     },
+     "tool": {
+      "type": "number",
+      "description": "The least end mill's diameter, mm (the setup's minTool)."
+     },
+     "reach": {
+      "type": "number",
+      "description": "How deep the tool reaches, mm."
+     },
+     "material": {
+      "type": "string",
+      "description": "aluminium, aluminum, steel, stainless, brass, copper, titanium, plastic, pom, wood"
+     },
+     "stock": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "description": "[x, y, z] mm, as the part stands."
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 5b1bbde (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "mill_export": {
+   "group": "mill",
+   "description": "STEP of a milled body (read back) and a setup sheet in Markdown beside it: stock, directions, tools, the check's findings and what was assumed. Takes mill_check's inputs.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "body": {
+      "type": "string",
+      "description": "A body's name; may be left out when there is one."
+     },
+     "directions": {
+      "type": "array",
+      "items": {
+       "type": "string",
+       "enum": [
+        "+x",
+        "-x",
+        "+y",
+        "-y",
+        "+z",
+        "-z"
+       ]
+      },
+      "description": "Sides the tool comes from; by default the setup's axes: 3 is +z, 3+2 all six."
+     },
+     "tool": {
+      "type": "number",
+      "description": "The least end mill's diameter, mm (the setup's minTool)."
+     },
+     "reach": {
+      "type": "number",
+      "description": "How deep the tool reaches, mm."
+     },
+     "material": {
+      "type": "string",
+      "description": "aluminium, aluminum, steel, stainless, brass, copper, titanium, plastic, pom, wood"
+     },
+     "stock": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "description": "[x, y, z] mm, as the part stands."
+     },
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 5b1bbde (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "fea_frame": {
+   "group": "strength",
+   "description": "A frame of straight members by beam elements (CalculiX B32): members [{ name, from, to, section { kind rect (b, d) | circ (d) | pipe (d, t) | box (b, d, t) }, material }] or bodies [box-like BIM members: their centre lines and sizes]; supports [{ at a member's end (within tolerance mm: 1, or the largest section with bodies), kind pinned | fixed | roller }]; loads [{ member, w N/mm down (or [wx,wy,wz]) | kPa with width mm }, { at a joint, force [fx,fy,fz] N }], gravity (own weight). Answers each member's stress along it, von Mises and safety, its deflection (span over deflection; deflectionLimit 360 judges it) and each support's reaction. Beams, rafters, portal frames, trusses, shelving.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "members": {
+      "type": "array",
+      "items": {
+       "type": "object"
+      }
+     },
+     "bodies": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "material": {
+      "type": "string"
+     },
+     "supports": {
+      "type": "array",
+      "items": {
+       "type": "object"
+      }
+     },
+     "loads": {
+      "type": "array",
+      "items": {
+       "type": "object"
+      }
+     },
+     "gravity": {
+      "type": "boolean"
+     },
+     "deflectionLimit": {
+      "type": "number"
+     },
+     "tolerance": {
+      "type": "number"
+     },
+     "elements": {
+      "type": "integer"
+     },
+     "name": {
+      "type": "string"
+     },
+     "timeout": {
+      "type": "number"
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 5b1bbde (moved to Workshop Make)",
+   "date": "2026-11-14"
   }
  }
 }
