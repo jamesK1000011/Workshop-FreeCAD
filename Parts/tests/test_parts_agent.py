@@ -129,7 +129,7 @@ class Params(unittest.TestCase):
 
     @unittest.skipUnless(HAVE, "boxes imports FreeCAD")
     def test_checks(self):
-        from agentlink import boxes
+        from workshop_parts import boxes
 
         p = boxes.check(boxes.PROJECT_BOX, {"length": 100})
         self.assertEqual(p["width"], 60)
