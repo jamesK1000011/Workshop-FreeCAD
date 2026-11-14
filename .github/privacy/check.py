@@ -170,9 +170,12 @@ class Checker:
             self.findings.append((where, kind, snippet))
 
     def text(self, where, text):
+        # The check's own rule files name what they look for; only the
+        # personal terms are checked there.
+        own = where.startswith(".github/privacy/")
         for lineno, line in enumerate(text.splitlines(), 1):
             w = "%s:%d" % (where, lineno)
-            for kind, rx in TEXT_RULES:
+            for kind, rx in () if own else TEXT_RULES:
                 for m in rx.finditer(line):
                     s = m.group(0)
                     if kind == "email" and OK_EMAIL.search(s):
