@@ -247,12 +247,12 @@ def tools(session):
         if (sorted_["bom"] or sorted_["cpl"]) and not (sorted_["bom"] and sorted_["cpl"]):
             warnings.append("Assembly needs both a BOM and a placement (CPL) file; one is here.")
         drc, drc_out = None, None
-        pcb = a.get("kicadPcb") or ((boards().get(ref) or {}).get("path") if ref else None)
+        pcb_file = a.get("kicadPcb") or ((boards().get(ref) or {}).get("path") if ref else None)
         cli = shutil.which("kicad-cli")
-        if pcb and cli and os.path.isfile(pcb):
+        if pcb_file and cli and os.path.isfile(pcb_file):
             rep = os.path.join(tempfile.mkdtemp(), "drc.json")
             try:
-                subprocess.run([cli, "pcb", "drc", "--format", "json", "--output", rep, pcb], capture_output=True, timeout=180, check=False)
+                subprocess.run([cli, "pcb", "drc", "--format", "json", "--output", rep, pcb_file], capture_output=True, timeout=180, check=False)
                 with open(rep, encoding="utf-8") as f:
                     r = json.load(f)
                 errs = [v for v in r.get("violations", []) if v.get("severity") == "error"]
@@ -280,7 +280,7 @@ def tools(session):
             "vendor": pcb.vendors()[vendor]["name"],
             "board": {k: board[k] for k in ("size", "layers", "thickness")},
             "files": {k: len(v) for k, v in sorted_.items()},
-            "drc": drc_out if drc_out else ("not run: kicad-cli is not on this computer's PATH" if not cli else ("not run: kicadPcb (the .kicad_pcb) not given" if not pcb else drc)),
+            "drc": drc_out if drc_out else ("not run: kicad-cli is not on this computer's PATH" if not cli else ("not run: kicadPcb (the .kicad_pcb) not given" if not pcb_file else drc)),
             "note": "Uploading and paying are the person's to do.",
         }
         if warnings:
