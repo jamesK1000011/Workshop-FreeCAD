@@ -173,6 +173,14 @@ def roof_over(solid, pts, z):
 
 def tools(session):
     s = session
+    # Slicing asks for the pauses through Agent Link's services; offered on
+    # every server built, so it is there whatever ran before.
+    try:
+        from agentlink import hooks
+
+        hooks.provide("print_pauses", pauses_for)
+    except ImportError:
+        pass
 
     def print_setup(o):
         setup = store.setup_of(s.doc, o.Label, "print")
