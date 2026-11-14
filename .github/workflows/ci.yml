@@ -39,6 +39,11 @@ jobs:
         with:
           repository: jamesK1000011/AgentLink-FreeCAD
           path: agentlink-addon
+      - uses: actions/checkout@v5
+        # Agent Link for OrcaSlicer: the slicers' command lines Make slices through.
+        with:
+          repository: jamesK1000011/AgentLink-OrcaSlicer
+          path: orcalink-addon
       - uses: mamba-org/setup-micromamba@v2
         with:
           environment-name: fc-${{ matrix.series }}
@@ -51,7 +56,13 @@ jobs:
       - name: FreeCAD imports
         run: |
           echo "FREECAD_LIB=$CONDA_PREFIX/lib" >> "$GITHUB_ENV"
+          echo "ORCALINK_DIR=$GITHUB_WORKSPACE/orcalink-addon" >> "$GITHUB_ENV"
           python -c "import sys; sys.path.append('$CONDA_PREFIX/lib'); import FreeCAD, Part; print('FreeCAD', FreeCAD.Version()[:3])"
+      - name: PrusaSlicer and a virtual screen
+        # The apt mirror sometimes hangs: the slicing tests skip without it.
+        timeout-minutes: 6
+        continue-on-error: true
+        run: sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 update -qq && sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 install -y -qq --no-install-recommends prusa-slicer xvfb libopengl0 libegl1 libgl1 > /dev/null
       - name: Each add-on alone (no Agent Link)
         # Not exit: a login shell's exit runs ~/.bash_logout, whose
         # clear_console fails on the runner and turns a pass into 1.

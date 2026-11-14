@@ -653,6 +653,334 @@
    "changes": true,
    "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
    "date": "2026-11-14"
+  },
+  "slicer_presets": {
+   "group": "slice",
+   "description": "The person's own slicer presets, as data: action list { slicer (bambustudio, orcaslicer), kind, query }; fetch { vendors } (OrcaSlicer, whose own system presets are packed: the same version's, as JSON, by git) the printer, process and filament presets on this computer (their own first) and the saved bundles; use { body, machine, process, filament | bundle } puts them on the body's print setup, which then takes its layer height, walls, infill and shells from them and slices with them; export { machine, process, filament | bundle | body, path, name } writes one flattened JSON bundle (and keeps it); import { path, name } keeps a bundle to use. Nothing of a printer is in the code.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "list",
+       "use",
+       "export",
+       "import",
+       "fetch"
+      ]
+     },
+     "vendors": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "vendor": {
+      "type": "string"
+     },
+     "version": {
+      "type": "string"
+     },
+     "slicer": {
+      "type": "string",
+      "enum": [
+       "bambustudio",
+       "orcaslicer"
+      ]
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "machine",
+       "process",
+       "filament"
+      ]
+     },
+     "query": {
+      "type": "string"
+     },
+     "body": {
+      "type": "string"
+     },
+     "machine": {
+      "type": "string"
+     },
+     "process": {
+      "type": "string"
+     },
+     "filament": {
+      "type": "string"
+     },
+     "bundle": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 25bafcb (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "slice_with": {
+   "group": "slice",
+   "description": "Slice a body in a print setup with slicer prusaslicer (default), orcaslicer or bambustudio, by its command line: profiles { machine, process, filament } JSON paths for OrcaSlicer and Bambu Studio (minimal ones written from the setup when left out), { config } an .ini for PrusaSlicer. Gives time, filament and layers, and writes in a pause after the layer over each encased part (hw_embed, gen_make magnets; M601, Bambu M400 U1, or pauseCommand). OrcaSlicer and Bambu Studio also take bodies (several on one plate, arranged), orient and arrange (the slicer's own), and project: true (the sliced plate as a .3mf its window opens). Trap: a slicer not on this computer is refused unavailable, naming those present (AGENTLINK_ORCASLICER, AGENTLINK_BAMBUSTUDIO set their paths).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "body": {
+      "type": "string"
+     },
+     "bodies": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "slicer": {
+      "type": "string",
+      "enum": [
+       "prusaslicer",
+       "orcaslicer",
+       "bambustudio"
+      ]
+     },
+     "profiles": {
+      "type": "object"
+     },
+     "pauseCommand": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "orient": {
+      "type": "boolean"
+     },
+     "arrange": {
+      "type": "boolean"
+     },
+     "project": {
+      "type": "boolean"
+     },
+     "overrides": {
+      "type": "object"
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 25bafcb (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "slice_read": {
+   "group": "slice",
+   "description": "Read an OrcaSlicer or Bambu Studio project (.3mf) back — one Agent Link wrote, or one the person changed and saved in the slicer's window: the presets it names and each setting changed from them (project-wide and per filament), every object's own settings (and its modifier parts), the plates, the slicer's warnings, and when sliced its time, weight, cost and features. slice: true slices it as it stands first (its own settings, headless), with the same answer.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "string"
+     },
+     "slice": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "path"
+    ],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 25bafcb (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "slice_open": {
+   "group": "slice",
+   "description": "Open a project (.3mf) in the slicer's own window for the person (OrcaSlicer by default, or bambustudio): they change what they like there and save, then slice_read brings it back. Window only.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "string"
+     },
+     "slicer": {
+      "type": "string",
+      "enum": [
+       "orcaslicer",
+       "bambustudio"
+      ]
+     }
+    },
+    "required": [
+     "path"
+    ],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 25bafcb (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "printer_add": {
+   "group": "printer",
+   "description": "Keep a printer on the network by name: kind octoprint (key: its API key), moonraker or klipper (key only if it asks for one), prusalink (key, or user and password for its digest login); url its address. Kept in .agentlink-printers.json in the session's folder, the key never given back; it is tried at once (check: false skips that). Trap: Bambu Lab printers are refused — they need LAN mode with their own protocol, or Bambu Studio.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "kind": {
+      "type": "string"
+     },
+     "url": {
+      "type": "string"
+     },
+     "key": {
+      "type": "string"
+     },
+     "user": {
+      "type": "string"
+     },
+     "password": {
+      "type": "string"
+     },
+     "check": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "name",
+     "kind",
+     "url"
+    ],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 25bafcb (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "printer_list": {
+   "group": "printer",
+   "description": "The printers kept: name, kind, address and how it logs in (no keys). remove: a name forgets it.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "remove": {
+      "type": "string"
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 25bafcb (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "printer_status": {
+   "group": "printer",
+   "description": "A printer's state now: idle, printing, paused …, nozzle and bed temperatures (now and target, °C), the job's file and progress (percent).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "printer": {
+      "type": "string",
+      "description": "The printer's name, as printer_add kept it; may be left out when there is one."
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 25bafcb (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "printer_send": {
+   "group": "printer",
+   "description": "Upload a G-code file (path, or a name in the session's folder) to a printer. It is not started unless start: true AND confirm: \"start <printer name>\" — starting a print is the person's call: ask them, never start one on your own. Refused while the printer has a job.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "printer": {
+      "type": "string",
+      "description": "The printer's name, as printer_add kept it; may be left out when there is one."
+     },
+     "file": {
+      "type": "string"
+     },
+     "start": {
+      "type": "boolean"
+     },
+     "confirm": {
+      "type": "string"
+     },
+     "storage": {
+      "type": "string",
+      "description": "Where on the printer: local (OctoPrint), gcodes (Moonraker), usb (PrusaLink) by default."
+     }
+    },
+    "required": [
+     "file"
+    ],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 25bafcb (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "printer_pause": {
+   "group": "printer",
+   "description": "Pause the printer's job: confirm: \"pause <printer name>\" — the person's call.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "printer": {
+      "type": "string",
+      "description": "The printer's name, as printer_add kept it; may be left out when there is one."
+     },
+     "confirm": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "confirm"
+    ],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 25bafcb (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "printer_stop": {
+   "group": "printer",
+   "description": "Stop (cancel) the printer's job — it cannot be resumed: confirm: \"stop <printer name>\" — the person's call.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "printer": {
+      "type": "string",
+      "description": "The printer's name, as printer_add kept it; may be left out when there is one."
+     },
+     "confirm": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "confirm"
+    ],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 25bafcb (moved to Workshop Make)",
+   "date": "2026-11-14"
   }
  }
 }
