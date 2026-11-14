@@ -8,6 +8,7 @@
   <license file="../LICENSE">LGPL-2.1-or-later</license>
   <url type="repository" branch="main">https://github.com/jamesK1000011/Workshop-FreeCAD</url>
   <freecadmin>1.0.0</freecadmin>
+  <depend>AddonKit</depend>
   <depend>Workshop Common</depend>
   <tag>Gridfinity</tag>
   <tag>3D printing</tag>
