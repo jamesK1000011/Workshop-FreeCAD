@@ -1,0 +1,28 @@
+{
+ "$schema": "cut-machines.schema.json",
+ "dataVersion": "1.0.0",
+ "licence": "CC-BY-4.0",
+ "about": "Sheet-cutting machines: the kerf assumed when none is given, mm (router: the cutter's diameter).",
+ "entries": {
+  "laser": {
+   "kerf": 0.2,
+   "source": "Typical shop figures (Agent Link's rules of thumb); your machine's own kerf wins",
+   "date": "2026-11-14"
+  },
+  "waterjet": {
+   "kerf": 0.9,
+   "source": "Typical shop figures (Agent Link's rules of thumb); your machine's own kerf wins",
+   "date": "2026-11-14"
+  },
+  "plasma": {
+   "kerf": 1.5,
+   "source": "Typical shop figures (Agent Link's rules of thumb); your machine's own kerf wins",
+   "date": "2026-11-14"
+  },
+  "router": {
+   "kerf": 3.175,
+   "source": "Typical shop figures (Agent Link's rules of thumb); your machine's own kerf wins",
+   "date": "2026-11-14"
+  }
+ }
+}

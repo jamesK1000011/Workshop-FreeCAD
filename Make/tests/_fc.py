@@ -45,3 +45,11 @@ def add_body(session, label, shape):
     o.Shape = shape
     session.doc.recompute()
     return o
+
+
+def add_body(session, label, shape):
+    o = session.doc.addObject("Part::Feature", "Body")
+    o.Label = label
+    o.Shape = shape
+    session.doc.recompute()
+    return o
