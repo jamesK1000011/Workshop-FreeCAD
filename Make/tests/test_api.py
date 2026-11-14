@@ -39,7 +39,7 @@ class Data(unittest.TestCase):
     def test_tool_definitions(self):
         with open(os.path.join(DATA, "tools.json"), encoding="utf-8") as f:
             tools = json.load(f)["entries"]
-        self.assertEqual(sorted({v["group"] for v in tools.values()}), ["embed", "fits", "thread"])
+        self.assertEqual(sorted({v["group"] for v in tools.values()}), ["embed", "fits", "make", "mass", "thread"])
         for name, t in tools.items():
             self.assertLessEqual(len(t["description"]), 1500, name)
             self.assertFalse(t["inputSchema"].get("additionalProperties", False), name)

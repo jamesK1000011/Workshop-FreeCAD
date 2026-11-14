@@ -8,6 +8,7 @@ from workshop_common import Refused
 from . import api
 
 GROUP = "parts"
+LEAN = True  # listed by default
 INFO = "Standard parts made to size (Workshop for FreeCAD · Parts): Gridfinity bins (gen_make), baseplates, project boxes and board enclosures with lids (gen_part)."
 
 

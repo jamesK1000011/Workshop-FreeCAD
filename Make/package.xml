@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
   <name>Workshop Make</name>
-  <description>Getting a part made: fits and hardware holes sized for your printer, screw threads from the standards, and parts encased mid-print (nuts, magnets, bearings, inserts) with the pauses to drop them in. A Python API (workshop_make.api); tools for agents through Agent Link when it is installed.</description>
+  <description>Getting a part made: setups and specs, a printability check and a pass/fix verdict, mass as printed, slicing, fits and hardware holes sized for your printer, screw threads from the standards, and parts encased mid-print (nuts, magnets, bearings, inserts) with the pauses to drop them in. A Python API (workshop_make.api); tools for agents through Agent Link when it is installed.</description>
   <version>0.1.0</version>
   <date>2026-11-14</date>
   <maintainer email="jamesK1000011@users.noreply.github.com">jamesK1000011</maintainer>

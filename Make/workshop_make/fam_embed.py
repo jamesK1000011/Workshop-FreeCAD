@@ -15,10 +15,9 @@ import Part
 from addonkit import fits as fits_hw
 from addonkit import geo
 from addonkit import records as store
-from agentlink import printability
 from agentlink.protocol import ToolError
 
-from . import api, tooldefs
+from . import api, printability, tooldefs
 from . import embeds as E
 
 GROUP = "embed"
