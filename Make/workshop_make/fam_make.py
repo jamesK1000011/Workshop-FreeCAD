@@ -12,7 +12,7 @@ from addonkit import Refused, geo
 from addonkit import materials as fil
 from addonkit import records as store
 
-from . import api, printability, printmass, slicer, tooldefs
+from . import api, orcalib, printability, printmass, tooldefs
 
 GROUP = "make"
 INFO = "How each part is made (setups), its limits and material, the printability check, the verdict, slicing (Workshop for FreeCAD · Make)."
@@ -263,11 +263,9 @@ def tools(session):
             want = chosen.get("slicer")
             if chosen.get("bundle"):
                 try:
-                    from agentlink import slicer_presets
-
-                    want = slicer_presets.load_saved(s.out_dir, chosen["bundle"])["slicer"]
-                except ImportError:
-                    pass
+                    want = orcalib.module("presets").load_saved(s.out_dir, chosen["bundle"])["slicer"]
+                except Refused:
+                    raise
                 except Exception as e:  # noqa: BLE001 — PresetError: the bundle cannot be read
                     raise ToolError("invalid_state", f"The setup's presets cannot be read: {e}")
             return slice_with({k: v for k, v in {**a, "slicer": want}.items() if k in ("body", "slicer", "pauseCommand", "name")})
@@ -283,18 +281,14 @@ def tools(session):
         base = os.path.join(s.out_dir, a.get("name") or o.Label.replace(" ", "_"))
         stl, gcode = base + ".stl", base + ".gcode"
         MeshPart.meshFromShape(Shape=o.Shape, LinearDeflection=0.01, AngularDeflection=0.0873, Relative=False).write(stl)
+        slicer = orcalib.module("prusa")
         try:
             exe = slicer.slice_stl(stl, gcode, settings)
         except FileNotFoundError as e:
             # No PrusaSlicer: the slicer the person has, by slice_with.
             if slice_with is None:
                 raise ToolError("unavailable", f"{e}")
-            try:
-                from agentlink import slicers
-
-                other = next((n for n, here in slicers.present().items() if here and n != "prusaslicer"), None)
-            except ImportError:
-                other = None
+            other = next((n for n, here in orcalib.module("cli").present().items() if here and n != "prusaslicer"), None)
             if not other:
                 raise ToolError("unavailable", f"{e} OrcaSlicer and Bambu Studio are not here either.")
             out = slice_with({k: v for k, v in {**a, "slicer": other}.items() if k in ("body", "slicer", "pauseCommand", "name", "profiles")})

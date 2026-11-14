@@ -8,10 +8,10 @@
 # Agent Link it is never loaded.
 import os
 
-from . import fam_embed, fam_fits, fam_make, fam_mass, fam_thread, maps, printability
+from . import fam_embed, fam_fits, fam_make, fam_mass, fam_printer, fam_slicing, fam_thread, maps, printability
 
 AGENTLINK_API = ">=1,<2"
-FAMILIES = [fam_make, fam_fits, fam_mass, fam_thread, fam_embed]
+FAMILIES = [fam_make, fam_fits, fam_mass, fam_thread, fam_embed, fam_slicing, fam_printer]
 CREDIT = None
 LICENSE = "LGPL-2.1-or-later"
 
@@ -22,7 +22,6 @@ def _register():
 
     al_tools.register_guides(os.path.join(os.path.dirname(os.path.abspath(__file__)), "guides"))
     hooks.provide("print_pauses", fam_embed.pauses_for)
-    hooks.provide("printer_volume", lambda name: printability.PRINTERS.get(name or "generic", printability.PRINTERS["generic"]))
     # One list of wall readers: whatever add-on reads walls better is asked
     # by the printability check here.
     printability.WALL_READERS = hooks.readers("wall")

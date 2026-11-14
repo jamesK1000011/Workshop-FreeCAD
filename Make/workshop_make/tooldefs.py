@@ -24,4 +24,18 @@ def build(group, handlers):
     missing, extra = set(mine) - set(handlers), set(handlers) - set(mine)
     if missing or extra:
         raise RuntimeError(f"Make's {group} tools: no handler for {sorted(missing)}, no definition for {sorted(extra)}")
-    return [Tool(k, v["description"], v["inputSchema"], handlers[k], changes=v.get("changes", False)) for k, v in mine.items()]
+    return [Tool(k, v["description"], v["inputSchema"], _agent(handlers[k]), changes=v.get("changes", False)) for k, v in mine.items()]
+
+
+def _agent(fn):
+    """A handler whose addonkit.Refused reaches the agent as a refusal."""
+    from addonkit import Refused
+    from agentlink.protocol import ToolError
+
+    def run(a):
+        try:
+            return fn(a)
+        except Refused as e:
+            raise ToolError(e.code, e.message)
+
+    return run
