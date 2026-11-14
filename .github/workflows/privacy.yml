@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Privacy and identity check: no personal data in files, history, tags or
+# release artefacts. See .github/privacy/README.md.
+name: Privacy check
+
+on:
+  push:
+    branches: ['**']
+    tags: ['*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  privacy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Files, history and tags
+        run: python3 .github/privacy/check.py --git .

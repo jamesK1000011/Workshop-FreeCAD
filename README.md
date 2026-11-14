@@ -1,11 +1,13 @@
 <!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
-# FreeCAD Workshop
+# Workshop for FreeCAD
+
+> Not affiliated with or endorsed by the FreeCAD project or the FreeCAD project association (FPA); FreeCAD is the FPA's trademark. Get FreeCAD itself from [freecad.org](https://freecad.org).
 
 FreeCAD add-ons for making things. Each one is a plain FreeCAD add-on that
 works on its own, with commands in the **Workshop** workbench and a Python
 API. Each is designed agent-first: every function takes and gives plain
 values in millimetres, and a refusal says what to do instead. When
-[FreeCAD Agent Link](https://github.com/jamesK1000011/FreeCAD-AgentLink) is
+[Agent Link for FreeCAD](https://github.com/jamesK1000011/AgentLink-FreeCAD) is
 installed, the same functions are also tools an AI agent can call.
 
 | Folder | Add-on | What it does |
@@ -47,7 +49,7 @@ PYTHONPATH=Common:Parts python -m unittest discover -s Parts/tests
 
 ## History and licence
 
-Parts moved here from FreeCAD Agent Link on 14 Nov 2026. Its history before
+Parts moved here from Agent Link for FreeCAD on 14 Nov 2026. Its history before
 that is in that repository: `agentlink/gridfinity.py`, `agentlink/boxes.py`
 and `agentlink/families/parts.py` up to commit c954763.
 

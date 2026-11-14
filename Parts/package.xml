@@ -6,7 +6,7 @@
   <date>2026-11-14</date>
   <maintainer email="jamesK1000011@users.noreply.github.com">jamesK1000011</maintainer>
   <license file="../LICENSE">LGPL-2.1-or-later</license>
-  <url type="repository" branch="main">https://github.com/jamesK1000011/FreeCAD-Workshop</url>
+  <url type="repository" branch="main">https://github.com/jamesK1000011/Workshop-FreeCAD</url>
   <freecadmin>1.0.0</freecadmin>
   <depend>Workshop Common</depend>
   <tag>Gridfinity</tag>
