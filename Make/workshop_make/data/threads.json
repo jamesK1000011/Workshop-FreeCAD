@@ -1,0 +1,497 @@
+{
+ "$schema": "threads.schema.json",
+ "dataVersion": "1.0.0",
+ "licence": "CC-BY-4.0",
+ "about": "Screw thread sizes: ISO metric coarse and fine, Unified UNC and UNF. Order is the lookup order.",
+ "entries": {
+  "M1.6": {
+   "series": "metric",
+   "nominal": 1.6,
+   "pitch": 0.35,
+   "tapDrill": 1.25,
+   "source": "ISO 261 coarse pitch; tap drill after ISO 2306",
+   "date": "2026-11-14"
+  },
+  "M2": {
+   "series": "metric",
+   "nominal": 2.0,
+   "pitch": 0.4,
+   "tapDrill": 1.6,
+   "source": "ISO 261 coarse pitch; tap drill after ISO 2306",
+   "date": "2026-11-14"
+  },
+  "M2.5": {
+   "series": "metric",
+   "nominal": 2.5,
+   "pitch": 0.45,
+   "tapDrill": 2.05,
+   "source": "ISO 261 coarse pitch; tap drill after ISO 2306",
+   "date": "2026-11-14"
+  },
+  "M3": {
+   "series": "metric",
+   "nominal": 3.0,
+   "pitch": 0.5,
+   "tapDrill": 2.5,
+   "source": "ISO 261 coarse pitch; tap drill after ISO 2306",
+   "date": "2026-11-14"
+  },
+  "M3.5": {
+   "series": "metric",
+   "nominal": 3.5,
+   "pitch": 0.6,
+   "tapDrill": 2.9,
+   "source": "ISO 261 coarse pitch; tap drill after ISO 2306",
+   "date": "2026-11-14"
+  },
+  "M4": {
+   "series": "metric",
+   "nominal": 4.0,
+   "pitch": 0.7,
+   "tapDrill": 3.3,
+   "source": "ISO 261 coarse pitch; tap drill after ISO 2306",
+   "date": "2026-11-14"
+  },
+  "M5": {
+   "series": "metric",
+   "nominal": 5.0,
+   "pitch": 0.8,
+   "tapDrill": 4.2,
+   "source": "ISO 261 coarse pitch; tap drill after ISO 2306",
+   "date": "2026-11-14"
+  },
+  "M6": {
+   "series": "metric",
+   "nominal": 6.0,
+   "pitch": 1.0,
+   "tapDrill": 5.0,
+   "source": "ISO 261 coarse pitch; tap drill after ISO 2306",
+   "date": "2026-11-14"
+  },
+  "M8": {
+   "series": "metric",
+   "nominal": 8.0,
+   "pitch": 1.25,
+   "tapDrill": 6.8,
+   "source": "ISO 261 coarse pitch; tap drill after ISO 2306",
+   "date": "2026-11-14"
+  },
+  "M10": {
+   "series": "metric",
+   "nominal": 10.0,
+   "pitch": 1.5,
+   "tapDrill": 8.5,
+   "source": "ISO 261 coarse pitch; tap drill after ISO 2306",
+   "date": "2026-11-14"
+  },
+  "M12": {
+   "series": "metric",
+   "nominal": 12.0,
+   "pitch": 1.75,
+   "tapDrill": 10.2,
+   "source": "ISO 261 coarse pitch; tap drill after ISO 2306",
+   "date": "2026-11-14"
+  },
+  "M14": {
+   "series": "metric",
+   "nominal": 14.0,
+   "pitch": 2.0,
+   "tapDrill": 12.0,
+   "source": "ISO 261 coarse pitch; tap drill after ISO 2306",
+   "date": "2026-11-14"
+  },
+  "M16": {
+   "series": "metric",
+   "nominal": 16.0,
+   "pitch": 2.0,
+   "tapDrill": 14.0,
+   "source": "ISO 261 coarse pitch; tap drill after ISO 2306",
+   "date": "2026-11-14"
+  },
+  "M18": {
+   "series": "metric",
+   "nominal": 18.0,
+   "pitch": 2.5,
+   "tapDrill": 15.5,
+   "source": "ISO 261 coarse pitch; tap drill after ISO 2306",
+   "date": "2026-11-14"
+  },
+  "M20": {
+   "series": "metric",
+   "nominal": 20.0,
+   "pitch": 2.5,
+   "tapDrill": 17.5,
+   "source": "ISO 261 coarse pitch; tap drill after ISO 2306",
+   "date": "2026-11-14"
+  },
+  "M22": {
+   "series": "metric",
+   "nominal": 22.0,
+   "pitch": 2.5,
+   "tapDrill": 19.5,
+   "source": "ISO 261 coarse pitch; tap drill after ISO 2306",
+   "date": "2026-11-14"
+  },
+  "M24": {
+   "series": "metric",
+   "nominal": 24.0,
+   "pitch": 3.0,
+   "tapDrill": 21.0,
+   "source": "ISO 261 coarse pitch; tap drill after ISO 2306",
+   "date": "2026-11-14"
+  },
+  "M3x0.35": {
+   "series": "metric-fine",
+   "nominal": 3.0,
+   "pitch": 0.35,
+   "source": "ISO 261 preferred fine pitch; tap drill D - P",
+   "date": "2026-11-14"
+  },
+  "M4x0.5": {
+   "series": "metric-fine",
+   "nominal": 4.0,
+   "pitch": 0.5,
+   "source": "ISO 261 preferred fine pitch; tap drill D - P",
+   "date": "2026-11-14"
+  },
+  "M5x0.5": {
+   "series": "metric-fine",
+   "nominal": 5.0,
+   "pitch": 0.5,
+   "source": "ISO 261 preferred fine pitch; tap drill D - P",
+   "date": "2026-11-14"
+  },
+  "M6x0.75": {
+   "series": "metric-fine",
+   "nominal": 6.0,
+   "pitch": 0.75,
+   "source": "ISO 261 preferred fine pitch; tap drill D - P",
+   "date": "2026-11-14"
+  },
+  "M8x1": {
+   "series": "metric-fine",
+   "nominal": 8.0,
+   "pitch": 1.0,
+   "source": "ISO 261 preferred fine pitch; tap drill D - P",
+   "date": "2026-11-14"
+  },
+  "M10x1.25": {
+   "series": "metric-fine",
+   "nominal": 10.0,
+   "pitch": 1.25,
+   "source": "ISO 261 preferred fine pitch; tap drill D - P",
+   "date": "2026-11-14"
+  },
+  "M10x1": {
+   "series": "metric-fine",
+   "nominal": 10.0,
+   "pitch": 1.0,
+   "source": "ISO 261 preferred fine pitch; tap drill D - P",
+   "date": "2026-11-14"
+  },
+  "M12x1.5": {
+   "series": "metric-fine",
+   "nominal": 12.0,
+   "pitch": 1.5,
+   "source": "ISO 261 preferred fine pitch; tap drill D - P",
+   "date": "2026-11-14"
+  },
+  "M12x1.25": {
+   "series": "metric-fine",
+   "nominal": 12.0,
+   "pitch": 1.25,
+   "source": "ISO 261 preferred fine pitch; tap drill D - P",
+   "date": "2026-11-14"
+  },
+  "M14x1.5": {
+   "series": "metric-fine",
+   "nominal": 14.0,
+   "pitch": 1.5,
+   "source": "ISO 261 preferred fine pitch; tap drill D - P",
+   "date": "2026-11-14"
+  },
+  "M16x1.5": {
+   "series": "metric-fine",
+   "nominal": 16.0,
+   "pitch": 1.5,
+   "source": "ISO 261 preferred fine pitch; tap drill D - P",
+   "date": "2026-11-14"
+  },
+  "M18x1.5": {
+   "series": "metric-fine",
+   "nominal": 18.0,
+   "pitch": 1.5,
+   "source": "ISO 261 preferred fine pitch; tap drill D - P",
+   "date": "2026-11-14"
+  },
+  "M18x2": {
+   "series": "metric-fine",
+   "nominal": 18.0,
+   "pitch": 2.0,
+   "source": "ISO 261 preferred fine pitch; tap drill D - P",
+   "date": "2026-11-14"
+  },
+  "M20x1.5": {
+   "series": "metric-fine",
+   "nominal": 20.0,
+   "pitch": 1.5,
+   "source": "ISO 261 preferred fine pitch; tap drill D - P",
+   "date": "2026-11-14"
+  },
+  "M20x2": {
+   "series": "metric-fine",
+   "nominal": 20.0,
+   "pitch": 2.0,
+   "source": "ISO 261 preferred fine pitch; tap drill D - P",
+   "date": "2026-11-14"
+  },
+  "M22x1.5": {
+   "series": "metric-fine",
+   "nominal": 22.0,
+   "pitch": 1.5,
+   "source": "ISO 261 preferred fine pitch; tap drill D - P",
+   "date": "2026-11-14"
+  },
+  "M22x2": {
+   "series": "metric-fine",
+   "nominal": 22.0,
+   "pitch": 2.0,
+   "source": "ISO 261 preferred fine pitch; tap drill D - P",
+   "date": "2026-11-14"
+  },
+  "M24x2": {
+   "series": "metric-fine",
+   "nominal": 24.0,
+   "pitch": 2.0,
+   "source": "ISO 261 preferred fine pitch; tap drill D - P",
+   "date": "2026-11-14"
+  },
+  "M24x1.5": {
+   "series": "metric-fine",
+   "nominal": 24.0,
+   "pitch": 1.5,
+   "source": "ISO 261 preferred fine pitch; tap drill D - P",
+   "date": "2026-11-14"
+  },
+  "#4-40": {
+   "series": "unc",
+   "name": "#4",
+   "majorInch": 0.112,
+   "tpi": 40,
+   "tapDrillInch": 0.089,
+   "tapDrillName": "#43",
+   "source": "ASME B1.1 basic sizes; the usual 75 % tap drill",
+   "date": "2026-11-14"
+  },
+  "#4-48": {
+   "series": "unf",
+   "name": "#4",
+   "majorInch": 0.112,
+   "tpi": 48,
+   "tapDrillInch": 0.0935,
+   "tapDrillName": "#42",
+   "source": "ASME B1.1 basic sizes; the usual 75 % tap drill",
+   "date": "2026-11-14"
+  },
+  "#5-40": {
+   "series": "unc",
+   "name": "#5",
+   "majorInch": 0.125,
+   "tpi": 40,
+   "tapDrillInch": 0.1015,
+   "tapDrillName": "#38",
+   "source": "ASME B1.1 basic sizes; the usual 75 % tap drill",
+   "date": "2026-11-14"
+  },
+  "#5-44": {
+   "series": "unf",
+   "name": "#5",
+   "majorInch": 0.125,
+   "tpi": 44,
+   "tapDrillInch": 0.104,
+   "tapDrillName": "#37",
+   "source": "ASME B1.1 basic sizes; the usual 75 % tap drill",
+   "date": "2026-11-14"
+  },
+  "#6-32": {
+   "series": "unc",
+   "name": "#6",
+   "majorInch": 0.138,
+   "tpi": 32,
+   "tapDrillInch": 0.1065,
+   "tapDrillName": "#36",
+   "source": "ASME B1.1 basic sizes; the usual 75 % tap drill",
+   "date": "2026-11-14"
+  },
+  "#6-40": {
+   "series": "unf",
+   "name": "#6",
+   "majorInch": 0.138,
+   "tpi": 40,
+   "tapDrillInch": 0.113,
+   "tapDrillName": "#33",
+   "source": "ASME B1.1 basic sizes; the usual 75 % tap drill",
+   "date": "2026-11-14"
+  },
+  "#8-32": {
+   "series": "unc",
+   "name": "#8",
+   "majorInch": 0.164,
+   "tpi": 32,
+   "tapDrillInch": 0.136,
+   "tapDrillName": "#29",
+   "source": "ASME B1.1 basic sizes; the usual 75 % tap drill",
+   "date": "2026-11-14"
+  },
+  "#8-36": {
+   "series": "unf",
+   "name": "#8",
+   "majorInch": 0.164,
+   "tpi": 36,
+   "tapDrillInch": 0.136,
+   "tapDrillName": "#29",
+   "source": "ASME B1.1 basic sizes; the usual 75 % tap drill",
+   "date": "2026-11-14"
+  },
+  "#10-24": {
+   "series": "unc",
+   "name": "#10",
+   "majorInch": 0.19,
+   "tpi": 24,
+   "tapDrillInch": 0.1495,
+   "tapDrillName": "#25",
+   "source": "ASME B1.1 basic sizes; the usual 75 % tap drill",
+   "date": "2026-11-14"
+  },
+  "#10-32": {
+   "series": "unf",
+   "name": "#10",
+   "majorInch": 0.19,
+   "tpi": 32,
+   "tapDrillInch": 0.159,
+   "tapDrillName": "#21",
+   "source": "ASME B1.1 basic sizes; the usual 75 % tap drill",
+   "date": "2026-11-14"
+  },
+  "#12-24": {
+   "series": "unc",
+   "name": "#12",
+   "majorInch": 0.216,
+   "tpi": 24,
+   "tapDrillInch": 0.177,
+   "tapDrillName": "#16",
+   "source": "ASME B1.1 basic sizes; the usual 75 % tap drill",
+   "date": "2026-11-14"
+  },
+  "#12-28": {
+   "series": "unf",
+   "name": "#12",
+   "majorInch": 0.216,
+   "tpi": 28,
+   "tapDrillInch": 0.182,
+   "tapDrillName": "#14",
+   "source": "ASME B1.1 basic sizes; the usual 75 % tap drill",
+   "date": "2026-11-14"
+  },
+  "1/4-20": {
+   "series": "unc",
+   "name": "1/4",
+   "majorInch": 0.25,
+   "tpi": 20,
+   "tapDrillInch": 0.201,
+   "tapDrillName": "#7",
+   "source": "ASME B1.1 basic sizes; the usual 75 % tap drill",
+   "date": "2026-11-14"
+  },
+  "1/4-28": {
+   "series": "unf",
+   "name": "1/4",
+   "majorInch": 0.25,
+   "tpi": 28,
+   "tapDrillInch": 0.213,
+   "tapDrillName": "#3",
+   "source": "ASME B1.1 basic sizes; the usual 75 % tap drill",
+   "date": "2026-11-14"
+  },
+  "5/16-18": {
+   "series": "unc",
+   "name": "5/16",
+   "majorInch": 0.3125,
+   "tpi": 18,
+   "tapDrillInch": 0.257,
+   "tapDrillName": "F",
+   "source": "ASME B1.1 basic sizes; the usual 75 % tap drill",
+   "date": "2026-11-14"
+  },
+  "5/16-24": {
+   "series": "unf",
+   "name": "5/16",
+   "majorInch": 0.3125,
+   "tpi": 24,
+   "tapDrillInch": 0.272,
+   "tapDrillName": "I",
+   "source": "ASME B1.1 basic sizes; the usual 75 % tap drill",
+   "date": "2026-11-14"
+  },
+  "3/8-16": {
+   "series": "unc",
+   "name": "3/8",
+   "majorInch": 0.375,
+   "tpi": 16,
+   "tapDrillInch": 0.3125,
+   "tapDrillName": "5/16",
+   "source": "ASME B1.1 basic sizes; the usual 75 % tap drill",
+   "date": "2026-11-14"
+  },
+  "3/8-24": {
+   "series": "unf",
+   "name": "3/8",
+   "majorInch": 0.375,
+   "tpi": 24,
+   "tapDrillInch": 0.332,
+   "tapDrillName": "Q",
+   "source": "ASME B1.1 basic sizes; the usual 75 % tap drill",
+   "date": "2026-11-14"
+  },
+  "7/16-14": {
+   "series": "unc",
+   "name": "7/16",
+   "majorInch": 0.4375,
+   "tpi": 14,
+   "tapDrillInch": 0.368,
+   "tapDrillName": "U",
+   "source": "ASME B1.1 basic sizes; the usual 75 % tap drill",
+   "date": "2026-11-14"
+  },
+  "7/16-20": {
+   "series": "unf",
+   "name": "7/16",
+   "majorInch": 0.4375,
+   "tpi": 20,
+   "tapDrillInch": 0.3906,
+   "tapDrillName": "25/64",
+   "source": "ASME B1.1 basic sizes; the usual 75 % tap drill",
+   "date": "2026-11-14"
+  },
+  "1/2-13": {
+   "series": "unc",
+   "name": "1/2",
+   "majorInch": 0.5,
+   "tpi": 13,
+   "tapDrillInch": 0.4219,
+   "tapDrillName": "27/64",
+   "source": "ASME B1.1 basic sizes; the usual 75 % tap drill",
+   "date": "2026-11-14"
+  },
+  "1/2-20": {
+   "series": "unf",
+   "name": "1/2",
+   "majorInch": 0.5,
+   "tpi": 20,
+   "tapDrillInch": 0.4531,
+   "tapDrillName": "29/64",
+   "source": "ASME B1.1 basic sizes; the usual 75 % tap drill",
+   "date": "2026-11-14"
+  }
+ }
+}

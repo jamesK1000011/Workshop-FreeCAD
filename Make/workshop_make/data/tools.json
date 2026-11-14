@@ -1,0 +1,346 @@
+{
+ "$schema": "tools.schema.json",
+ "dataVersion": "1.0.0",
+ "licence": "CC-BY-4.0",
+ "about": "Make's tools for agents (through Agent Link): name, what it does, its arguments as JSON Schema, its group, whether it changes the document.",
+ "entries": {
+  "fit": {
+   "group": "fits",
+   "description": "Fits for made parts: action size { nominal, of: hole|shaft, kind: press|snug|slide|free (all when left out), body } gives the size to model at, the printer calibration added; calibrate { hole, shaft } keeps how much this printer prints a hole small and a peg big (diametral mm); stack { items: [{ name, nominal, tol }], target: [lo, hi] } adds a tolerance stack worst case and RSS.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "size",
+       "calibrate",
+       "stack"
+      ]
+     },
+     "nominal": {
+      "type": "number"
+     },
+     "of": {
+      "type": "string",
+      "enum": [
+       "hole",
+       "shaft"
+      ]
+     },
+     "kind": {
+      "type": "string"
+     },
+     "body": {
+      "type": "string",
+      "description": "A body's name; may be left out when there is one."
+     },
+     "hole": {
+      "type": "number"
+     },
+     "shaft": {
+      "type": "number"
+     },
+     "items": {
+      "type": "array",
+      "items": {
+       "type": "object"
+      }
+     },
+     "target": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      }
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "hw_hole": {
+   "group": "fits",
+   "description": "Cut a hole for hardware into a body: kind clearance, counterbore, countersink, nut_trap (screws M2 to M8, fit close|normal|loose), insert (heat-set, typical sizes), magnet (size \"6x2\"); at [x,y,z] where it enters, on the face; dir into the material (-z by default; +x … or [x,y,z]); depth mm or \"through\". Sizes from the standards, the printer calibration added; answers the sizes used and whether the body is still sound.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "body": {
+      "type": "string",
+      "description": "A body's name; may be left out when there is one."
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "clearance",
+       "counterbore",
+       "countersink",
+       "nut_trap",
+       "insert",
+       "magnet"
+      ]
+     },
+     "size": {
+      "type": "string"
+     },
+     "at": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      }
+     },
+     "dir": {},
+     "depth": {},
+     "fit": {
+      "type": "string",
+      "enum": [
+       "close",
+       "normal",
+       "loose"
+      ]
+     }
+    },
+    "required": [
+     "kind",
+     "at"
+    ],
+    "additionalProperties": false
+   },
+   "changes": true,
+   "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "thread_lookup": {
+   "group": "thread",
+   "description": "Thread sizes from the standards, mm: size (M6, M10x1.25, 1/4-20, #10-32) gives major, pitch, pitch diameter, internal and external minor, tap drill; or a table by series (metric, metric-fine, unc, unf), near: a diameter for the six nearest. Metric M1.6–M24, Unified #4–1/2\".",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "size": {
+      "type": "string"
+     },
+     "series": {
+      "type": "string"
+     },
+     "near": {
+      "type": "number"
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "thread_identify": {
+   "group": "thread",
+   "description": "What thread a hole or shaft is: a cylindrical face by query gives its diameter, hole or shaft, length, and the nearest standard sizes — a hole read as tap drill, internal minor or major, a shaft as major — each with how far off. When sizes tie but for pitch it says needs: pitch: ask the person or measure, then give pitch. scan: { axis, band, length } reads a scanned thread instead — pitch, starts, hand, flank and the standard it matches — where ScanRulerFC is installed (its scan_thread).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "body": {
+      "type": "string"
+     },
+     "faces": {
+      "type": "object",
+      "description": "The cylindrical face by query: { near: [x,y,z] } (cylindrical faces only) or { faces: [\"Face7\"] }"
+     },
+     "pitch": {
+      "type": "number"
+     },
+     "scan": {
+      "type": "object",
+      "description": "As scan_thread takes: { axis: { element } | { origin, direction, radius }, band, length, pitchFloor }."
+     },
+     "families": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "thread_cut": {
+   "group": "thread",
+   "description": "Thread a hole with FreeCAD's PartDesign Hole: size (or the nearest when it is plain), mode cosmetic (the hole drilled to the tapping size, the thread recorded — the default) or modelled (the thread cut into the part; slow on fine threads), depth mm (the hole's length), from [x,y,z] the end to start at (the open end by default). A shaft can be recorded cosmetic only. Refused when the hole is bigger than the thread.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "body": {
+      "type": "string"
+     },
+     "faces": {
+      "type": "object",
+      "description": "The cylindrical face by query: { near: [x,y,z] } (cylindrical faces only) or { faces: [\"Face7\"] }"
+     },
+     "size": {
+      "type": "string"
+     },
+     "mode": {
+      "type": "string",
+      "enum": [
+       "cosmetic",
+       "modelled"
+      ]
+     },
+     "depth": {
+      "type": "number"
+     },
+     "from": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      }
+     }
+    },
+    "required": [
+     "faces"
+    ],
+    "additionalProperties": false
+   },
+   "changes": true,
+   "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "hw_embed": {
+   "group": "embed",
+   "description": "Encase a bought part mid-print: cut a pocket for kind nut (size M2…M8), magnet (\"6x2\"), bearing (608, 625 … or \"22x7\"), insert (M2…M8), weight (\"20x8\" or \"30x20x6\"), box (dims [w,d,h]) or cylinder (dims [d,h]), standing upright, its floor's centre at [x,y,z], turn ° about z. Sized with the printer's fit calibration (fit slide by default) and a headroom of 0.2 mm; its top is rounded up to the body's print setup layer grid and the pause comes after that layer. Refused when the pocket would open the part or the roof over it is under 2 layers (minRoof raises it). Trap: needs a print setup; the part goes in from above, so nothing may overhang the pocket.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "body": {
+      "type": "string",
+      "description": "A body's name; may be left out when there is one."
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "nut",
+       "magnet",
+       "bearing",
+       "insert",
+       "weight",
+       "box",
+       "cylinder"
+      ]
+     },
+     "size": {
+      "type": "string"
+     },
+     "dims": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      }
+     },
+     "at": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      }
+     },
+     "turn": {
+      "type": "number"
+     },
+     "fit": {
+      "type": "string",
+      "enum": [
+       "press",
+       "snug",
+       "slide",
+       "free"
+      ]
+     },
+     "headroom": {
+      "type": "number"
+     },
+     "minRoof": {
+      "type": "number"
+     },
+     "note": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "at"
+    ],
+    "additionalProperties": false
+   },
+   "changes": true,
+   "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "hw_embed_list": {
+   "group": "embed",
+   "description": "The parts encased in a body: each pocket's size, floor and top from the bed, the layer it pauses after, its roof. Pockets an undo filled are dropped.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "body": {
+      "type": "string",
+      "description": "A body's name; may be left out when there is one."
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "hw_unembed": {
+   "group": "embed",
+   "description": "Take an encased part out by id: its pocket filled again, or keepPocket: true leaves it open as a hole (pressed in after printing) and drops only the pause.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "body": {
+      "type": "string",
+      "description": "A body's name; may be left out when there is one."
+     },
+     "id": {
+      "type": "string"
+     },
+     "keepPocket": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "id"
+    ],
+    "additionalProperties": false
+   },
+   "changes": true,
+   "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "hw_pauses": {
+   "group": "embed",
+   "description": "Every pause a body's print needs: layer numbers and heights from the bed, what goes in at each, two on one layer made one; gen_make's magnets included. The layer grid is the body's print setup's.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "body": {
+      "type": "string",
+      "description": "A body's name; may be left out when there is one."
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
+   "date": "2026-11-14"
+  }
+ }
+}

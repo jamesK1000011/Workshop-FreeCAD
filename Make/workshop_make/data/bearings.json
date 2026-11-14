@@ -1,0 +1,68 @@
+{
+ "$schema": "bearings.schema.json",
+ "dataVersion": "1.0.0",
+ "licence": "CC-BY-4.0",
+ "about": "Ball bearings a pocket is sized from: outer diameter and width, mm.",
+ "entries": {
+  "623": {
+   "outer": 10.0,
+   "width": 4.0,
+   "source": "ISO 15 boundary dimensions (typical; the bearing's own sheet is the authority)",
+   "date": "2026-11-14"
+  },
+  "624": {
+   "outer": 13.0,
+   "width": 5.0,
+   "source": "ISO 15 boundary dimensions (typical; the bearing's own sheet is the authority)",
+   "date": "2026-11-14"
+  },
+  "625": {
+   "outer": 16.0,
+   "width": 5.0,
+   "source": "ISO 15 boundary dimensions (typical; the bearing's own sheet is the authority)",
+   "date": "2026-11-14"
+  },
+  "626": {
+   "outer": 19.0,
+   "width": 6.0,
+   "source": "ISO 15 boundary dimensions (typical; the bearing's own sheet is the authority)",
+   "date": "2026-11-14"
+  },
+  "608": {
+   "outer": 22.0,
+   "width": 7.0,
+   "source": "ISO 15 boundary dimensions (typical; the bearing's own sheet is the authority)",
+   "date": "2026-11-14"
+  },
+  "688": {
+   "outer": 16.0,
+   "width": 5.0,
+   "source": "ISO 15 boundary dimensions (typical; the bearing's own sheet is the authority)",
+   "date": "2026-11-14"
+  },
+  "6000": {
+   "outer": 26.0,
+   "width": 8.0,
+   "source": "ISO 15 boundary dimensions (typical; the bearing's own sheet is the authority)",
+   "date": "2026-11-14"
+  },
+  "6001": {
+   "outer": 28.0,
+   "width": 8.0,
+   "source": "ISO 15 boundary dimensions (typical; the bearing's own sheet is the authority)",
+   "date": "2026-11-14"
+  },
+  "MR105": {
+   "outer": 10.0,
+   "width": 4.0,
+   "source": "ISO 15 boundary dimensions (typical; the bearing's own sheet is the authority)",
+   "date": "2026-11-14"
+  },
+  "MR85": {
+   "outer": 8.0,
+   "width": 2.5,
+   "source": "ISO 15 boundary dimensions (typical; the bearing's own sheet is the authority)",
+   "date": "2026-11-14"
+  }
+ }
+}

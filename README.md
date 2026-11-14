@@ -12,18 +12,26 @@ installed, the same functions are also tools an AI agent can call.
 
 | Folder | Add-on | What it does |
 |---|---|---|
-| `Common` | Workshop Common | The Workshop workbench, the records kept in a document (setups, specs, materials, the printer's fit calibration), shape helpers and fits. The others need it. |
+| `Common` | Workshop Common | The Workshop workbench the others add their commands to. Records, shape helpers and fits come from [AddonKit for FreeCAD](https://github.com/jamesK1000011/AddonKit-FreeCAD), which every add-on here needs. |
 | `Parts` | Workshop Parts | Standard parts made to size: Gridfinity bins and baseplates, project boxes with lids, enclosures round a circuit board. |
+| `Make` | Workshop Make | Getting a part made: fits and hardware holes sized for your printer, screw threads from the standards, parts encased mid-print (nuts, magnets, bearings, inserts) and the pauses to drop them in. More of the make loop (setups, the printability check, slicing, printers, cut and mill checks) moves here next. |
 
-More are on the way: Make (print, cut and mill checks, slicing, printers),
-Electronics (the KiCad bridge) and Documents (assembly manuals, BOMs,
-library packs).
+More are on the way: Electronics (the KiCad bridge) and Documents (assembly
+manuals, BOMs, library packs).
+
+## Data
+
+Tables (thread sizes, bearings, the tools agents see) are data files in
+each add-on's `data/` folder: versioned, checked against a schema in CI,
+each entry with its source and date, under CC BY 4.0 (`LICENSE-DATA`). Your
+own entries go in `~/.config/addonkit/<package>/<name>.json`; updates never
+touch that folder and your entries win.
 
 ## Install
 
 Each folder is an add-on of its own. Copy or link `Common` and the ones you
 want into FreeCAD's `Mod` folder (for example `Mod/WorkshopCommon`,
-`Mod/WorkshopParts`), then restart FreeCAD. The Claude extension of FreeCAD
+`Mod/WorkshopParts`, `Mod/WorkshopMake`), plus AddonKit (`Mod/AddonKit`), then restart FreeCAD. The Claude extension of FreeCAD
 Agent Link installs them for you.
 
 ## Use
@@ -36,7 +44,12 @@ Agent Link installs them for you.
   from workshop_parts import api
   api.make(App.ActiveDocument, "gridfinity_bin", {"x": 2, "y": 1, "units": 4, "magnets": True})
   ```
-- **From an agent (with Agent Link):** `gen_make`, `gen_part`.
+  ```python
+  from workshop_make import api
+  api.thread("M6")                                  # sizes from the standards
+  api.hole(App.ActiveDocument, "Bracket", "counterbore", "M3", at=[10, 10, 5])
+  ```
+- **From an agent (with Agent Link):** `gen_make`, `gen_part`; `fit`, `hw_hole`, `thread_lookup`, `thread_identify`, `thread_cut`, `hw_embed`, `hw_embed_list`, `hw_unembed`, `hw_pauses`.
 
 ## Tests
 
