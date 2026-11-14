@@ -21,6 +21,13 @@ except ImportError:
 
 from workshop_make import printers as P  # noqa: E402
 
+try:
+    import agentlink.protocol  # noqa: F401
+
+    AGENT = True
+except ImportError:
+    AGENT = False
+
 
 class Mock(BaseHTTPRequestHandler):
     log = []
@@ -182,6 +189,7 @@ class Printers(unittest.TestCase):
         self.assertEqual(pub["auth"], "api key")
 
 
+@unittest.skipUnless(AGENT, "Agent Link is not here (the printer tools are its)")
 class PrinterTools(unittest.TestCase):
     """The tools through the server: build_server on FreeCAD; where FreeCAD
     is missing, the printer family alone (it needs no document)."""
