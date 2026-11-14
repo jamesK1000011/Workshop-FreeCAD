@@ -26,9 +26,12 @@ class Api(unittest.TestCase):
         FreeCAD.closeDocument(self.doc.Name)
 
     def test_no_agent_link_needed(self):
-        import workshop_parts.api  # noqa: F401
+        # In a fresh Python: other tests here may have loaded Agent Link.
+        import subprocess
 
-        self.assertNotIn("agentlink", sys.modules)
+        code = "import sys, FreeCAD, workshop_parts.api; print('agentlink' in sys.modules)"
+        r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env={**os.environ, "PYTHONPATH": os.pathsep.join(sys.path)})
+        self.assertEqual(r.stdout.strip().splitlines()[-1:], ["False"], r.stderr[-500:])
 
     def test_bin_made_and_measured(self):
         from workshop_parts import api
