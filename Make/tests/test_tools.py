@@ -138,7 +138,9 @@ class Tools(unittest.TestCase):
         self.assertAlmostEqual(lay[0] + lay[1], shape.Volume, delta=0.02 * shape.Volume)
 
     def test_45_slice_with_the_magnet_pause(self):
-        from workshop_make import slicer
+        from workshop_make import orcalib
+
+        slicer = orcalib.module("prusa")
 
         if not slicer.find_slicer():
             self.skipTest("no slicer on this machine")
