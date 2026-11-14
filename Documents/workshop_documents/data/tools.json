@@ -1,0 +1,290 @@
+{
+ "$schema": "tools.schema.json",
+ "dataVersion": "1.0.0",
+ "licence": "CC-BY-4.0",
+ "about": "Documents' tools for agents (through Agent Link): name, what it does, its arguments as JSON Schema, its group, whether it changes the document.",
+ "entries": {
+  "drawing_make": {
+   "group": "drawing",
+   "description": "A drawing sheet of bodies: standard views (front, top, right, iso by default; back, bottom, left too), first-angle (ISO) or third-angle (ASME) projection, at the largest standard scale that fits A4 or A3 (paper auto picks A3 only when it allows a bigger scale), overall sizes dimensioned once each (dimensions: false leaves them off), hidden: true dashes the hidden edges. Writes SVG, PDF and DXF to the output folder and adds a TechDraw page with the same views to the document (page: false leaves it out). dims adds feature dimensions with tolerances or ISO 286 fits (limits written in), holes calls out every round hole by size, titleBlock fills a title block of labelled cells. section: a straight view drawn as a full section (cut square to it through the middle, sectionAt mm towards the viewer; the cut faces hatched, the cutting line lettered sectionLabel, A, in a view that sees it edge on) — for bores, pockets and walls inside.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "bodies": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Bodies to draw; all when left out."
+     },
+     "views": {
+      "type": "array",
+      "items": {
+       "type": "string",
+       "enum": [
+        "front",
+        "back",
+        "top",
+        "bottom",
+        "right",
+        "left",
+        "iso"
+       ]
+      }
+     },
+     "section": {
+      "type": "string",
+      "enum": [
+       "front",
+       "back",
+       "top",
+       "bottom",
+       "right",
+       "left",
+       "iso"
+      ]
+     },
+     "sectionAt": {
+      "type": "number"
+     },
+     "sectionLabel": {
+      "type": "string"
+     },
+     "projection": {
+      "type": "string",
+      "enum": [
+       "first",
+       "third"
+      ]
+     },
+     "paper": {
+      "type": "string",
+      "enum": [
+       "A4",
+       "A3",
+       "auto"
+      ]
+     },
+     "scale": {
+      "type": "number",
+      "description": "0.5 for 1:2, 2 for 2:1; left out, the largest standard one that fits."
+     },
+     "dimensions": {
+      "type": "boolean"
+     },
+     "hidden": {
+      "type": "boolean"
+     },
+     "page": {
+      "type": "boolean"
+     },
+     "name": {
+      "type": "string",
+      "description": "The title on the sheet."
+     },
+     "file": {
+      "type": "string",
+      "description": "The files' name, without extension."
+     },
+     "dims": {
+      "type": "array",
+      "items": {
+       "type": "object"
+      },
+      "description": "Feature dimensions: [{ view, kind: length (a, b, along h|v, offset mm) | diameter | radius (a round edge), fit \"H7\" or plus/minus mm, label }]; a and b a point [x,y,z] or a query { body, kind, type, radius, near } (a circle's centre, an edge's middle)."
+     },
+     "holes": {
+      "description": "true: every round hole seen end on in the top view called out by size (\"4× ⌀3.4\"); or the view's name."
+     },
+     "holeFits": {
+      "type": "object",
+      "description": "A fit per hole diameter for the callouts: { \"6\": \"H7\" }."
+     },
+     "titleBlock": {
+      "type": "object",
+      "description": "{ title, partNumber, revision, material, finish, drawnBy, date, checkedBy, company, generalTolerance (ISO 2768-m to start) } — ask the person for theirs."
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": true,
+   "source": "Agent Link for FreeCAD 4ac5a4f (moved to Workshop Documents)",
+   "date": "2026-11-14"
+  },
+  "drawing_exploded": {
+   "group": "drawing",
+   "description": "An assembly manual: steps [{ title, add: [bodies], note }] in the order the parts go together; each step an isometric view (SVG) with the parts already in place and the new ones moved off by explode mm (up over their places, or out from the middle), a trail to where each goes and a balloon with its item number. Writes the steps and <name>_assembly.md with a bill of materials (bodies the same shape are one item, with the material and mass where part_spec recorded one, and how each is made from its setup). A body goes in once.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "steps": {
+      "type": "array",
+      "items": {
+       "type": "object"
+      }
+     },
+     "explode": {
+      "type": "number"
+     },
+     "direction": {
+      "type": "string",
+      "enum": [
+       "up",
+       "out"
+      ]
+     },
+     "name": {
+      "type": "string"
+     },
+     "title": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "steps"
+    ],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 4ac5a4f (moved to Workshop Documents)",
+   "date": "2026-11-14"
+  },
+  "patent_figures": {
+   "group": "drawing",
+   "description": "Patent-style figures FIG. 1 … (iso, front, top, right by default): black line art on A4 within the USPTO's margins, no hidden lines or shading, each part's reference numeral (10, 20, 30 … or numerals { body: n }) with a lead line to a face of it the viewer sees. Writes an SVG and PDF per figure and a list of the numerals. A part hidden behind others in a view gets no numeral there (notSeenIn).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "bodies": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Bodies to draw; all when left out."
+     },
+     "views": {
+      "type": "array",
+      "items": {
+       "type": "string",
+       "enum": [
+        "front",
+        "back",
+        "top",
+        "bottom",
+        "right",
+        "left",
+        "iso"
+       ]
+      }
+     },
+     "numerals": {
+      "type": "object"
+     },
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 4ac5a4f (moved to Workshop Documents)",
+   "date": "2026-11-14"
+  },
+  "patent_draft": {
+   "group": "drawing",
+   "description": "A Markdown draft of a patent description and a claims skeleton from the bodies — their sizes, which adjoin which, the numerals and figures of the last patent_figures — marked as a starting point for a patent attorney's review, with what only the inventor and counsel can say left in brackets. Written to the output folder; never filed or sent anywhere.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "title": {
+      "type": "string"
+     },
+     "field": {
+      "type": "string"
+     },
+     "background": {
+      "type": "string"
+     },
+     "bodies": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Bodies to draw; all when left out."
+     },
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "title"
+    ],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 4ac5a4f (moved to Workshop Documents)",
+   "date": "2026-11-14"
+  },
+  "library_pack": {
+   "group": "share",
+   "description": "Pack bodies to share: a zip of each as STEP and STL (formats), a README with their sizes, material and mass, and the print settings from their print setup (magnet pauses too), a LICENSE (license: CC-BY-4.0, CC-BY-SA-4.0, CC0-1.0 or MIT — ask the person; author is required for all but CC0), and credits [{ title, author, url, license, changes }] for remixed parts, refused when their licence does not allow the one chosen (no-derivatives, non-commercial, share-alike). The STEP header carries the file's name and the author given, no path, user name or organisation.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "bodies": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "name": {
+      "type": "string"
+     },
+     "description": {
+      "type": "string"
+     },
+     "license": {
+      "type": "string",
+      "enum": [
+       "CC-BY-4.0",
+       "CC-BY-SA-4.0",
+       "CC0-1.0",
+       "MIT"
+      ]
+     },
+     "author": {
+      "type": "string"
+     },
+     "credits": {
+      "type": "array",
+      "items": {
+       "type": "object"
+      }
+     },
+     "formats": {
+      "type": "array",
+      "items": {
+       "type": "string",
+       "enum": [
+        "step",
+        "stl"
+       ]
+      }
+     },
+     "tolerance": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "license"
+    ],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 4ac5a4f (moved to Workshop Documents)",
+   "date": "2026-11-14"
+  }
+ }
+}

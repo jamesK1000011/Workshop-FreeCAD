@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
+  <name>Workshop Documents</name>
+  <description>Documents for made parts: drawing sheets (standard views, sections, dimensions with ISO 286 fits, hole callouts, a title block) as SVG, PDF, DXF and a TechDraw page; assembly manuals with exploded steps and a bill of materials; patent figures and a draft for an attorney; library packs of STEP and STL with a README, a licence and credits and nothing personal in the files. A Python API (workshop_documents.api); tools for agents through Agent Link when it is installed.</description>
+  <version>0.1.0</version>
+  <date>2026-11-14</date>
+  <maintainer email="jamesK1000011@users.noreply.github.com">jamesK1000011</maintainer>
+  <license file="../LICENSE">LGPL-2.1-or-later</license>
+  <url type="repository" branch="main">https://github.com/jamesK1000011/Workshop-FreeCAD</url>
+  <freecadmin>1.0.0</freecadmin>
+  <depend>AddonKit</depend>
+  <depend>Workshop Common</depend>
+  <tag>TechDraw</tag>
+  <tag>drawing</tag>
+  <tag>assembly instructions</tag>
+  <tag>sharing</tag>
+  <content>
+    <other>
+      <name>Workshop Documents</name>
+      <subdirectory>./</subdirectory>
+    </other>
+  </content>
+</package>
