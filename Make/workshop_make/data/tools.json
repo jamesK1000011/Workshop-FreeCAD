@@ -341,6 +341,318 @@
    "changes": false,
    "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
    "date": "2026-11-14"
+  },
+  "setup": {
+   "group": "make",
+   "description": "How each part is made, recorded: action list (the setups and the kinds), of { body }, add { type: print|cut|mill, bodies, settings, name }, set { id, bodies | add | remove, settings (null drops one), name }, remove { id }. Print settings: printer (generic, bed-slinger, corexy, h2d), nozzle, layerHeight, firstLayer, walls, infill, topLayers, bottomLayers. A body in no setup has no process: ask, then add. Kept with the document.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "list",
+       "of",
+       "add",
+       "set",
+       "remove"
+      ]
+     },
+     "type": {
+      "type": "string"
+     },
+     "id": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "body": {
+      "type": "string",
+      "description": "A body's name; may be left out when there is one."
+     },
+     "bodies": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "add": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "remove": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "settings": {
+      "type": "object"
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": true,
+   "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "part_spec": {
+   "group": "make",
+   "description": "The limits every part must meet, kept with the document: spec { minWall mm, massMin g, massMax g } (null drops one; clear: true starts again), and what parts are made of: material (pla, petg, abs, asa, pa6-cf, tpu-95a) for bodies (the one body when left out).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "spec": {
+      "type": "object"
+     },
+     "clear": {
+      "type": "boolean"
+     },
+     "material": {
+      "type": "string"
+     },
+     "bodies": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": true,
+   "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "dfm_check": {
+   "group": "make",
+   "description": "Is a body printable as it stands (+z up), with its print setup's nozzle and printer: thin walls (under one line an error, under two lines a warning), overhangs past 50°, flat ceilings over 10 mm, upright holes too small to print open, bed contact, tall and thin, build volume. Findings F1 … with value, limit, where and what to do. waive { id, reason } accepts one of the last check's findings on purpose — kept, and it comes back waived.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "body": {
+      "type": "string",
+      "description": "A body's name; may be left out when there is one."
+     },
+     "waive": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string"
+       },
+       "reason": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "id"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "part_review": {
+   "group": "make",
+   "description": "One verdict on a part, pass, fix or unknown, after every change: soundness, and how it is made decides the rest — in a print setup the printability check judges it; in no setup its findings come under ifPrinted, for information; the least wall and the mass (as printed in a print setup, encased magnets counted) against the spec kept with part_spec, or spec given here for this review alone. waive: [{ rule, at, reason }] accepts a place on purpose, kept.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "body": {
+      "type": "string",
+      "description": "A body's name; may be left out when there is one."
+     },
+     "spec": {
+      "type": "object",
+      "properties": {
+       "minWall": {
+        "type": "number"
+       },
+       "massMin": {
+        "type": "number"
+       },
+       "massMax": {
+        "type": "number"
+       }
+      },
+      "additionalProperties": false
+     },
+     "material": {
+      "type": "string",
+      "description": "pla (default), petg, abs, asa, pa6-cf, tpu-95a"
+     },
+     "waive": {
+      "type": "array",
+      "items": {
+       "type": "object"
+      }
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "slice": {
+   "group": "make",
+   "description": "Slice a body in a print setup with the slicer on this computer (PrusaSlicer's command line; AGENTLINK_SLICER names another binary): the setup's layers, nozzle, walls and infill, the part's material as the filament. Answers the G-code's path, print time, filament (g, mm) and layers; parts encased at a pause (magnets) get it written into the G-code before the first layer over them. Refused for a part in no print setup.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "body": {
+      "type": "string",
+      "description": "A body's name; may be left out when there is one."
+     },
+     "settings": {
+      "type": "object"
+     },
+     "name": {
+      "type": "string"
+     },
+     "pauseCommand": {
+      "type": "string"
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "mass_calibrate": {
+   "group": "mass",
+   "description": "Calibrate mass to a weighed print: grams (what it weighed, anything encased in it included) for a body; every reading for its print setup (or, unprinted, its material) is then scaled to match — the printer, spool and settings as they really are. Kept with the document; reset: true goes back to the material's figures.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "body": {
+      "type": "string"
+     },
+     "grams": {
+      "type": "number"
+     },
+     "reset": {
+      "type": "boolean"
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": true,
+   "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "mass_properties": {
+   "group": "mass",
+   "description": "Each body's mass (g) in its material — as printed (walls and infill, an estimate) when it is in a print setup, else solid — its centre of mass (mm) and inertia about it (g·mm², principal moments too), with encased parts counted: gen_make's magnets and ballast cut by mass_ballast. A body with no material is taken as PLA and says so.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "body": {
+      "type": "string"
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "mass_target": {
+   "group": "mass",
+   "description": "How far a body is from a target mass (g) and/or centre of mass (com [x, y, z], null for an axis that does not matter): the differences, whether it is met (massTol g, comTol mm, 0.5 each), and what would meet it — the ballast's mass and where its centre must be, or the mass to take away.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "body": {
+      "type": "string"
+     },
+     "mass": {
+      "type": "number"
+     },
+     "com": {
+      "type": "array",
+      "items": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "description": "[x, y, z] mm; null for an axis that does not matter"
+     },
+     "massTol": {
+      "type": "number"
+     },
+     "comTol": {
+      "type": "number"
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
+   "date": "2026-11-14"
+  },
+  "mass_ballast": {
+   "group": "mass",
+   "description": "Lay out closed upright ballast pockets inside a body, minWall (the spec's, else 1.2 mm) clear of every surface, to reach a target mass and/or move the centre of mass (com, null for a free axis): fill steel-bb, lead, tungsten or a density g/cm³, packing (0.6 loose shot), diameter mm (8), maxPockets (12). Answers each pocket, the fill's mass, and the mass and centre before and after (as made: printed or solid). cut: true cuts them (one undo step) and counts the fill in mass_properties; the print needs a pause to fill them.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "body": {
+      "type": "string"
+     },
+     "mass": {
+      "type": "number"
+     },
+     "com": {
+      "type": "array",
+      "items": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "description": "[x, y, z] mm; null for an axis that does not matter"
+     },
+     "fill": {},
+     "packing": {
+      "type": "number"
+     },
+     "diameter": {
+      "type": "number"
+     },
+     "minWall": {
+      "type": "number"
+     },
+     "maxPockets": {
+      "type": "integer"
+     },
+     "cut": {
+      "type": "boolean"
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": true,
+   "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
+   "date": "2026-11-14"
   }
  }
 }

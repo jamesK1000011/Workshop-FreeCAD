@@ -131,3 +131,144 @@ def pauses(doc, body, extra=()):
     first, lh = embeds.grid(setup)
     recs = [{"id": r["id"], "layer": r["layer"], "note": r["note"]} for r in records.read(doc, "embeds", {}).get(body, [])]
     return embeds.pauses(recs + list(extra), first, lh)
+
+
+# ---- how each part is made (setups), what it must meet (spec) -----------------------------
+
+LINE = 0.42  # mm, one extrusion line of a 0.4 mm nozzle
+NDFEB = 7.5  # g/cm³, the magnets
+MAGNET_T_MM = 2.0  # a 6 x 2 mm magnet, as Workshop Parts' Gridfinity bins take
+
+
+def setup_types():
+    return {k: v["settings"] for k, v in records.TYPES.items()}
+
+
+def _settings(kind, given):
+    from . import printability
+
+    known = records.TYPES[kind]["settings"]
+    bad = [k for k in given if k not in known]
+    if bad:
+        raise Refused(f"settings.{bad[0]}: not a {kind} setting — they are: {', '.join(known)}.")
+    out = dict(given)
+    if "nozzle" in out:
+        out["nozzle"] = str(float(out["nozzle"]))
+    if "printer" in out and out["printer"] not in printability.PRINTERS:
+        raise Refused(f"settings.printer: one of {', '.join(printability.PRINTERS)}.")
+    if out.get("up", "+z") != "+z":
+        raise Refused("settings.up: +z only in this build — turn the part to stand it another way.")
+    return out
+
+
+def setup_add(doc, kind, bodies, settings=None, name=None):
+    """A setup of one process (print, cut, mill …) for bodies (labels)."""
+    if kind not in records.TYPES:
+        raise Refused(f"type: one of {', '.join(records.TYPES)}.")
+    all_ = records.setups(doc)
+    for b in bodies:
+        other = records.setup_of(doc, b, kind)
+        if other:
+            raise Refused(f"{b} is in {other['name']} ({other['id']}) already: setup set {{ id: \"{other['id']}\", remove: [\"{b}\"] }} first.")
+    st = _settings(kind, settings or {})
+    n = 1 + max([int(x["id"][1:]) for x in all_] or [0])
+    same = sum(1 for x in all_ if x["type"] == kind)
+    s = {"id": f"S{n}", "type": kind, "name": name or records.TYPES[kind]["label"] + (f" {same + 1}" if same else ""), "bodies": list(bodies), **st}
+    records.save_setups(doc, all_ + [s])
+    return s
+
+
+def setup_find(doc, ref):
+    s = next((x for x in records.setups(doc) if x["id"] == ref or x["name"] == ref), None)
+    if s is None:
+        raise Refused(f"setup {ref!r}: not here — setup list gives them.", "not_found")
+    return s
+
+
+def setup_set(doc, ref, bodies=None, add=(), remove=(), settings=None, name=None):
+    all_ = records.setups(doc)
+    s = next((x for x in all_ if x["id"] == ref or x["name"] == ref), None)
+    if s is None:
+        raise Refused(f"setup {ref!r}: not here — setup list gives them.", "not_found")
+    if bodies is not None:
+        s["bodies"] = list(bodies)
+    for b in add:
+        if b not in s["bodies"]:
+            s["bodies"].append(b)
+    s["bodies"] = [x for x in s["bodies"] if x not in set(remove)]
+    for k, v in (settings or {}).items():
+        if v is None:
+            s.pop(k, None)
+        else:
+            s.update(_settings(s["type"], {k: v}))
+    if name:
+        s["name"] = name
+    records.save_setups(doc, all_)
+    return s
+
+
+def setup_remove(doc, ref):
+    all_ = records.setups(doc)
+    s = setup_find(doc, ref)
+    records.save_setups(doc, [x for x in all_ if x["id"] != s["id"]])
+    return s["id"]
+
+
+SPEC_KEYS = ("minWall", "massMin", "massMax", "minSafety", "minClearance")
+
+
+def spec_set(doc, spec=None, clear=False):
+    """The document's spec: limits every part must meet (mm, g)."""
+    out = {} if clear else dict(records.spec(doc))
+    for k, v in (spec or {}).items():
+        if v is None:
+            out.pop(k, None)
+        elif k in SPEC_KEYS and isinstance(v, (int, float)):
+            out[k] = v
+        else:
+            raise Refused(f"spec.{k}: minWall, massMin or massMax (numbers, mm and g).")
+    records.write(doc, "spec", out)
+    return out
+
+
+def material_set(doc, bodies, material):
+    """A printing filament for bodies (labels)."""
+    from addonkit import materials
+
+    m = str(material).lower()
+    if m not in materials.DENSITY:
+        raise Refused(f"material: one of {', '.join(materials.DENSITY)}.")
+    mats = records.materials(doc)
+    for b in bodies:
+        mats[b] = m
+    records.write(doc, "materials", mats)
+    return mats
+
+
+def rules_of(doc, body):
+    """(rules, print setup) for a body: its print setup's nozzle and printer."""
+    from . import printability
+
+    s = records.setup_of(doc, body, "print") or {}
+    return printability.rules_for(s.get("nozzle", "0.4"), s.get("printer")), s
+
+
+def dfm(doc, body_obj, waive=None, last=None):
+    """The printability check of a body as it stands on the bed, its
+    print setup's rules. waive: {id, reason} of a finding of `last` (the
+    previous check's findings) to keep as waived."""
+    from . import printability
+
+    waivers = records.waivers(doc)
+    if waive:
+        f = next((x for x in (last or []) if x["id"] == waive.get("id")), None)
+        if f is None:
+            raise Refused(f"waive.id {waive.get('id')!r}: not a finding of the last check on {body_obj.Label} — dfm_check it first.", "not_found")
+        waivers.append({"body": body_obj.Label, "rule": f["rule"], "at": f["at"], "reason": waive.get("reason") or "waived"})
+        records.write(doc, "waivers", waivers)
+    rules, setup = rules_of(doc, body_obj.Label)
+    out = printability.check(body_obj.Shape, rules, [x for x in waivers if x.get("body") == body_obj.Label])
+    out["body"] = body_obj.Label
+    if setup:
+        out["setup"] = f"{setup['name']} ({setup['id']})"
+    return out
