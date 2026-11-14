@@ -61,6 +61,9 @@ def ok_home(name):
 
 RASTER = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tif", ".tiff", ".heic", ".ico", ".icns"}
 ZIPLIKE = {".zip", ".fcstd", ".fcstd1", ".3mf", ".mcpb", ".whl", ".docx", ".xlsx", ".odt", ".ods"}
+# "name@1.0.json" is a file name, not an address.
+FILE_EXT = {"json", "py", "txt", "md", "svg", "png", "jpg", "stl", "step", "stp", "3mf", "fcstd", "js", "mjs",
+            "ts", "html", "csv", "xml", "yml", "yaml", "toml", "zip", "gcode", "obj", "dxf", "pdf"}
 SKIP_DIRS = {".git", "__pycache__", "node_modules", ".venv"}
 
 
@@ -178,7 +181,7 @@ class Checker:
             for kind, rx in () if own else TEXT_RULES:
                 for m in rx.finditer(line):
                     s = m.group(0)
-                    if kind == "email" and OK_EMAIL.search(s):
+                    if kind == "email" and (OK_EMAIL.search(s) or s.rsplit(".", 1)[-1].lower() in FILE_EXT):
                         continue
                     if kind == "home path" and ok_home(m.group(1)):
                         continue

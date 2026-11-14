@@ -1,17 +1,12 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-"""Workshop for FreeCAD's shared pieces: the records kept in a document (setups,
-specs, materials, the printer's fit calibration — the same format Agent Link
-keeps, so either reads what the other wrote), shape helpers, fits, the
-refusal every add-on raises, and a parameter form for the commands."""
+"""Workshop for FreeCAD's shared pieces: the Workshop workbench every Workshop
+add-on adds its commands to. Records, shape helpers, fits, the parameter
+form and Refused come from AddonKit for FreeCAD (addonkit), re-exported here
+so add-ons written for workshop_common keep working."""
 
-VERSION = "0.1.0"
+import addonkit
+from addonkit import Refused  # noqa: F401
 
+addonkit.require(">=1.0,<2", "Workshop for FreeCAD")
 
-class Refused(ValueError):
-    """A request an add-on will not carry out, with what to do instead.
-    code: invalid_input, not_found, invalid_state, unavailable."""
-
-    def __init__(self, message, code="invalid_input"):
-        super().__init__(message)
-        self.code = code
-        self.message = message
+VERSION = "0.2.0"
