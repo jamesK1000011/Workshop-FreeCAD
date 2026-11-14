@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
+  <name>Workshop Common</name>
+  <description>What the FreeCAD Workshop add-ons share: the Workshop workbench, the records kept in a document (setups, specs, materials, printer fit), shape helpers and fits.</description>
+  <version>0.1.0</version>
+  <date>2026-11-14</date>
+  <maintainer email="jamesK1000011@users.noreply.github.com">jamesK1000011</maintainer>
+  <license file="../LICENSE">LGPL-2.1-or-later</license>
+  <url type="repository" branch="main">https://github.com/jamesK1000011/FreeCAD-Workshop</url>
+  <freecadmin>1.0.0</freecadmin>
+  <content>
+    <workbench>
+      <name>Workshop</name>
+      <classname>WorkshopWorkbench</classname>
+      <subdirectory>./</subdirectory>
+    </workbench>
+  </content>
+</package>

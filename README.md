@@ -1,0 +1,55 @@
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+# FreeCAD Workshop
+
+FreeCAD add-ons for making things. Each one is a plain FreeCAD add-on that
+works on its own, with commands in the **Workshop** workbench and a Python
+API. Each is designed agent-first: every function takes and gives plain
+values in millimetres, and a refusal says what to do instead. When
+[FreeCAD Agent Link](https://github.com/jamesK1000011/FreeCAD-AgentLink) is
+installed, the same functions are also tools an AI agent can call.
+
+| Folder | Add-on | What it does |
+|---|---|---|
+| `Common` | Workshop Common | The Workshop workbench, the records kept in a document (setups, specs, materials, the printer's fit calibration), shape helpers and fits. The others need it. |
+| `Parts` | Workshop Parts | Standard parts made to size: Gridfinity bins and baseplates, project boxes with lids, enclosures round a circuit board. |
+
+More are on the way: Make (print, cut and mill checks, slicing, printers),
+Electronics (the KiCad bridge) and Documents (assembly manuals, BOMs,
+library packs).
+
+## Install
+
+Each folder is an add-on of its own. Copy or link `Common` and the ones you
+want into FreeCAD's `Mod` folder (for example `Mod/WorkshopCommon`,
+`Mod/WorkshopParts`), then restart FreeCAD. The Claude extension of FreeCAD
+Agent Link installs them for you.
+
+## Use
+
+- **In FreeCAD:** switch to the Workshop workbench. Each command asks for its
+  values, with each one's range shown, and makes the part in the open
+  document.
+- **From Python or a macro:**
+  ```python
+  from workshop_parts import api
+  api.make(App.ActiveDocument, "gridfinity_bin", {"x": 2, "y": 1, "units": 4, "magnets": True})
+  ```
+- **From an agent (with Agent Link):** `gen_make`, `gen_part`.
+
+## Tests
+
+CI runs each add-on alone, then with Agent Link beside it, on the newest
+FreeCAD and on 1.1 and 1.0:
+
+```
+PYTHONPATH=Common:Parts python -m unittest discover -s Parts/tests
+```
+
+## History and licence
+
+Parts moved here from FreeCAD Agent Link on 14 Nov 2026. Its history before
+that is in that repository: `agentlink/gridfinity.py`, `agentlink/boxes.py`
+and `agentlink/families/parts.py` up to commit c954763.
+
+LGPL-2.1-or-later. The Gridfinity profile follows the open Gridfinity
+system by Zack Freedman.
