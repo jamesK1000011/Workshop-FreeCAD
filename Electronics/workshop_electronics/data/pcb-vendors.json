@@ -1,0 +1,32 @@
+{
+ "$schema": "pcb-vendors.schema.json",
+ "dataVersion": "1.0.0",
+ "licence": "CC-BY-4.0",
+ "about": "Board houses: what to upload where, the assembly files they take, the least quantity.",
+ "entries": {
+  "jlcpcb": {
+   "name": "JLCPCB",
+   "upload": "Upload the Gerber zip (Gerbers and the drill file together) on the PCB quote page.",
+   "assembly": "For assembly, upload the BOM (Comment, Designator, Footprint, LCSC part number) and the CPL (Designator, Mid X, Mid Y, Layer, Rotation) when asked; check every part's rotation in the preview.",
+   "quantity": 5,
+   "source": "The board house's ordering pages as of Nov 2026 (Agent Link's notes); check theirs before ordering",
+   "date": "2026-11-14"
+  },
+  "pcbway": {
+   "name": "PCBWay",
+   "upload": "Upload the Gerber zip on the PCB instant quote.",
+   "assembly": "For assembly, the BOM and the centroid (placement) file go with the assembly quote.",
+   "quantity": 5,
+   "source": "The board house's ordering pages as of Nov 2026 (Agent Link's notes); check theirs before ordering",
+   "date": "2026-11-14"
+  },
+  "oshpark": {
+   "name": "OSH Park",
+   "upload": "Upload the Gerber zip (or the .kicad_pcb itself). Boards come in sets of three.",
+   "assembly": "OSH Park makes bare boards only: the BOM and placement files are for your own assembly.",
+   "quantity": 3,
+   "source": "The board house's ordering pages as of Nov 2026 (Agent Link's notes); check theirs before ordering",
+   "date": "2026-11-14"
+  }
+ }
+}

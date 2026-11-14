@@ -70,17 +70,17 @@ jobs:
         # clear_console fails on the runner and turns a pass into 1.
         run: |
           code=0
-          export PYTHONPATH="$GITHUB_WORKSPACE/addonkit-lib:$GITHUB_WORKSPACE/Common:$GITHUB_WORKSPACE/Parts:$GITHUB_WORKSPACE/Make"
+          export PYTHONPATH="$GITHUB_WORKSPACE/addonkit-lib:$GITHUB_WORKSPACE/Common:$GITHUB_WORKSPACE/Parts:$GITHUB_WORKSPACE/Make:$GITHUB_WORKSPACE/Electronics"
           python -m unittest discover -s tests -v > "$RUNNER_TEMP/alone.log" 2>&1 || code=$?
-          for d in Common Parts Make; do python -X faulthandler -m unittest discover -s $d/tests -v >> "$RUNNER_TEMP/alone.log" 2>&1 || code=$?; done
+          for d in Common Parts Make Electronics; do python -X faulthandler -m unittest discover -s $d/tests -v >> "$RUNNER_TEMP/alone.log" 2>&1 || code=$?; done
           tail -n 200 "$RUNNER_TEMP/alone.log"
           echo "exit code: $code"
           test "$code" -eq 0
       - name: With Agent Link beside it
         run: |
           code=0
-          export PYTHONPATH="$GITHUB_WORKSPACE/agentlink-addon:$GITHUB_WORKSPACE/addonkit-lib:$GITHUB_WORKSPACE/Common:$GITHUB_WORKSPACE/Parts:$GITHUB_WORKSPACE/Make" AGENTLINK_DIR="$GITHUB_WORKSPACE/agentlink-addon"
-          for d in Common Parts Make; do python -X faulthandler -m unittest discover -s $d/tests -v >> "$RUNNER_TEMP/with.log" 2>&1 || code=$?; done
+          export PYTHONPATH="$GITHUB_WORKSPACE/agentlink-addon:$GITHUB_WORKSPACE/addonkit-lib:$GITHUB_WORKSPACE/Common:$GITHUB_WORKSPACE/Parts:$GITHUB_WORKSPACE/Make:$GITHUB_WORKSPACE/Electronics" AGENTLINK_DIR="$GITHUB_WORKSPACE/agentlink-addon"
+          for d in Common Parts Make Electronics; do python -X faulthandler -m unittest discover -s $d/tests -v >> "$RUNNER_TEMP/with.log" 2>&1 || code=$?; done
           tail -n 200 "$RUNNER_TEMP/with.log"
           echo "exit code: $code"
           test "$code" -eq 0

@@ -2,7 +2,7 @@
 # Each add-on folder's FILES lists its files, so the Claude extension's
 # launcher can fetch them as plain files. A file added or removed without
 # FILES following fails here. Regenerate them with
-#   for d in Common Parts Make; do (cd $d && git ls-files | grep -v -E '(^|/)__pycache__/|^FILES$|^\.' | sort > FILES); done
+#   for d in Common Parts Make Electronics; do (cd $d && git ls-files | grep -v -E '(^|/)__pycache__/|^FILES$|^\.' | sort > FILES); done
 import os
 import subprocess
 import unittest

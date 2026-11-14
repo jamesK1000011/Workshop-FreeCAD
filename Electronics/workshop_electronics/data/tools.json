@@ -1,0 +1,212 @@
+{
+ "$schema": "tools.schema.json",
+ "dataVersion": "1.0.0",
+ "licence": "CC-BY-4.0",
+ "about": "Electronics' tools for agents (through Agent Link): name, what it does, its arguments as JSON Schema, its group, whether it changes the document.",
+ "entries": {
+  "kicad_import": {
+   "group": "electronics",
+   "description": "Read a KiCad board (.kicad_pcb, KiCad 5 to 9; parsed here, KiCad not needed): the board as a solid from its Edge.Cuts outline and thickness, cut-outs and mounting holes through it, and its tall components as boxes over their courtyards — heights from heights { ref: mm }, the footprint's STEP model where this computer has it, or a Height property; none known, none made (noHeight lists them). minHeight (3 mm) drops the low ones. Centred on the origin unless centre: false (KiCad's own coordinates, y turned up). Gives the edge connectors found, which board_enclosure opens the walls for.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "string"
+     },
+     "heights": {
+      "type": "object"
+     },
+     "minHeight": {
+      "type": "number"
+     },
+     "centre": {
+      "type": "boolean"
+     },
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "path"
+    ],
+    "additionalProperties": false
+   },
+   "changes": true,
+   "source": "Agent Link for FreeCAD 1f8f209 (moved to Workshop Electronics)",
+   "date": "2026-11-14"
+  },
+  "board_enclosure": {
+   "group": "electronics",
+   "description": "An enclosure round an imported board, placed round it: standoffs under its mounting holes (the screw from the hole size), the standoff height over the underside's parts, headroom over the tallest part, openings in the walls for the edge connectors kicad_import found (skip: [refs] leaves some closed; openings adds more, as gen_part board_box takes them), and a lid laid beside. Holes take the printer's fit calibration. wall, floor, radius, lid, lip, clearance, gap and margin as board_box's.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "board": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "screw": {
+      "type": "string"
+     },
+     "standoff": {
+      "type": "number"
+     },
+     "headroom": {
+      "type": "number"
+     },
+     "wall": {
+      "type": "number"
+     },
+     "floor": {
+      "type": "number"
+     },
+     "radius": {
+      "type": "number"
+     },
+     "lid": {
+      "type": "number"
+     },
+     "lip": {
+      "type": "number"
+     },
+     "clearance": {
+      "type": "number"
+     },
+     "gap": {
+      "type": "number"
+     },
+     "margin": {
+      "type": "number"
+     },
+     "skip": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "openings": {
+      "type": "array",
+      "items": {
+       "type": "object"
+      }
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": true,
+   "source": "Agent Link for FreeCAD 1f8f209 (moved to Workshop Electronics)",
+   "date": "2026-11-14"
+  },
+  "pcb_order_package": {
+   "group": "electronics",
+   "description": "Package a board for ordering: files (full paths) sorted into Gerbers, drill, BOM and placement (CPL); an upload-ready <name>_gerbers.zip; and <name>_order.zip with it, the assembly files and ORDER.md — the board's size (from an imported board, size, or read from the outline Gerber), copper layers, thickness, quantity and what to upload where, for vendor jlcpcb, pcbway or oshpark. Runs kicad-cli's DRC on kicadPcb (or the imported board's file) when kicad-cli is on PATH, and says so when it is not. Nothing is uploaded or ordered.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "files": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "vendor": {
+      "type": "string",
+      "enum": [
+       "jlcpcb",
+       "pcbway",
+       "oshpark"
+      ]
+     },
+     "board": {
+      "type": "string"
+     },
+     "size": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      }
+     },
+     "layers": {
+      "type": "integer"
+     },
+     "thickness": {
+      "type": "number"
+     },
+     "quantity": {
+      "type": "integer"
+     },
+     "kicadPcb": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "files"
+    ],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Agent Link for FreeCAD 1f8f209 (moved to Workshop Electronics)",
+   "date": "2026-11-14"
+  },
+  "printed_channel": {
+   "group": "electronics",
+   "description": "Cut a channel inside a body along path [[x,y,z] …] for wire or a conductive trace: section { shape: round|square, size mm }, corners rounded to bend mm; an end on the part's face opens there, an end inside stops blind. fill: wire (the channel takes the printer's hole calibration; gives the AWG wire's diameter, whether it fits and its copper resistance), filament (also makes the trace as its own body, for a second material; resistance from material carbon-pla | electrifi or resistivity Ω·cm), paint. A channel must stay inside the part between its ends.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "body": {
+      "type": "string"
+     },
+     "path": {
+      "type": "array",
+      "items": {
+       "type": "array",
+       "items": {
+        "type": "number"
+       }
+      }
+     },
+     "section": {
+      "type": "object"
+     },
+     "bend": {
+      "type": "number"
+     },
+     "fill": {
+      "type": "string",
+      "enum": [
+       "wire",
+       "filament",
+       "paint"
+      ]
+     },
+     "material": {
+      "type": "string"
+     },
+     "resistivity": {
+      "type": "number"
+     },
+     "awg": {
+      "type": "integer"
+     },
+     "trace": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "path"
+    ],
+    "additionalProperties": false
+   },
+   "changes": true,
+   "source": "Agent Link for FreeCAD 1f8f209 (moved to Workshop Electronics)",
+   "date": "2026-11-14"
+  }
+ }
+}
