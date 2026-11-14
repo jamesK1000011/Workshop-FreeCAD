@@ -52,6 +52,8 @@ jobs:
             ${{ matrix.series == 'newest' && 'freecad' || format('freecad={0}', matrix.series) }}
             python=3.11
             numpy
+            calculix
+            gmsh
           cache-environment: true
       - name: FreeCAD imports
         run: |
