@@ -19,7 +19,7 @@ try:
 except ImportError:
     HAVE = False
 
-from addonkit import data  # noqa: E402
+from workshop_documents import datafiles as data  # noqa: E402
 
 DATA = os.path.join(ROOT, "workshop_documents", "data")
 

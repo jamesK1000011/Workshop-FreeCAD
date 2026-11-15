@@ -1,5 +1,4 @@
 {
- "$schema": "tools.schema.json",
  "dataVersion": "1.0.0",
  "licence": "CC-BY-4.0",
  "about": "Documents' tools for agents (through Agent Link): name, what it does, its arguments as JSON Schema, its group, whether it changes the document.",
@@ -110,7 +109,8 @@
    },
    "changes": true,
    "source": "Agent Link for FreeCAD 4ac5a4f (moved to Workshop Documents)",
-   "date": "2026-11-14"
+   "date": "2026-11-14",
+   "writes": true
   },
   "drawing_exploded": {
    "group": "drawing",

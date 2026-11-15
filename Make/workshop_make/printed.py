@@ -16,8 +16,8 @@
 import math
 import os
 
-from addonkit import ccx
-from addonkit import records as store
+from workshop_make import ccx
+from workshop_make import records as store
 
 from . import orcalib
 from .tooldefs import _agent
@@ -37,7 +37,7 @@ SOLVE_SAYS = ("For a printed part also the tension across the layers against hal
 
 def build_dir(v):
     """A build direction as a unit vector [x, y, z]."""
-    from addonkit import Refused
+    from workshop_make.refusal import Refused
 
     if isinstance(v, str):
         m = {"+x": (1, 0, 0), "-x": (-1, 0, 0), "+y": (0, 1, 0), "-y": (0, -1, 0), "+z": (0, 0, 1), "-z": (0, 0, -1)}
@@ -62,7 +62,7 @@ def setup_before(a, s):
 
 @_agent
 def setup_after(a, out, s):
-    from addonkit import Refused
+    from workshop_make.refusal import Refused
 
     st = store.read(s.doc, KEY, None)
     if not st or not isinstance(out, dict):

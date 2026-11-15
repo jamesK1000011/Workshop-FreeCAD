@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 """Make's Python API: what a macro, a command or an agent calls alike.
-Plain values in, plain values out (mm); a refusal is addonkit.Refused with
+Plain values in, plain values out (mm); a refusal is workshop_make.refusal.Refused with
 what to do instead. Nothing here imports Agent Link.
 
     from workshop_make import api
@@ -11,12 +11,13 @@ what to do instead. Nothing here imports Agent Link.
     api.hole(doc, "Bracket", "counterbore", "M3", at=[10, 10, 5])
 """
 
-import addonkit
-from addonkit import Refused, fits, geo, records
+from workshop_make.refusal import Refused
+from workshop_make import fits
+from workshop_make import geo
+from workshop_make import records
 
 from . import embeds, threads
 
-addonkit.require(">=1.3,<2", "Workshop Make")
 
 FIT_KINDS = tuple(fits.FITS)
 HOLE_KINDS = fits.KINDS
@@ -233,7 +234,7 @@ def spec_set(doc, spec=None, clear=False):
 
 def material_set(doc, bodies, material):
     """A printing filament for bodies (labels)."""
-    from addonkit import materials
+    from workshop_make import materials
 
     m = str(material).lower()
     if m not in materials.DENSITY:

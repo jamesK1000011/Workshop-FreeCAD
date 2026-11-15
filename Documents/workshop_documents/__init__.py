@@ -7,6 +7,6 @@ figures and library packs of your parts.
     api.readme(...), api.license_text(...)  # a library pack's papers
 
 Plain values in millimetres; a request it cannot carry out is refused
-(addonkit.Refused) with what to do instead."""
+(its refusal.Refused) with what to do instead."""
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"

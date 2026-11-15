@@ -8,7 +8,7 @@
 import math
 import os
 
-from addonkit import data
+from workshop_make import datafiles as data
 
 # Bought parts, the sizes a pocket is made from (mm). Typical figures; the
 # part's own sheet is the authority.

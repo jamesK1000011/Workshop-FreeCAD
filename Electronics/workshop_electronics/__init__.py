@@ -7,6 +7,6 @@ board as a FreeCAD solid with its tall parts, PCB order packages.
     api.add_board(doc, b)
 
 Plain values in millimetres; a request it cannot carry out is refused
-(addonkit.Refused) with what to do instead."""
+(its refusal.Refused) with what to do instead."""
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"

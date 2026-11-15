@@ -10,7 +10,7 @@
 # Magnets 6 x 2 mm in 6.5 x 2.4 mm holes, 13 mm each way from each cell's
 # centre, four to a cell.
 
-from workshop_common import geo as g
+from workshop_parts import geo as g
 
 GRID = 42.0
 UNIT = 7.0

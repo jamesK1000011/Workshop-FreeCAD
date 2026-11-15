@@ -8,6 +8,16 @@ workshop_parts/agentlink_families.py
 workshop_parts/api.py
 workshop_parts/boxes.py
 workshop_parts/commands.py
+workshop_parts/data/fits.json
+workshop_parts/data/fits.schema.json
+workshop_parts/data/metric-hardware.json
+workshop_parts/data/metric-hardware.schema.json
+workshop_parts/datafiles.py
 workshop_parts/fam_parts.py
+workshop_parts/fits.py
+workshop_parts/form.py
+workshop_parts/geo.py
 workshop_parts/gridfinity.py
 workshop_parts/guides/parts.md
+workshop_parts/records.py
+workshop_parts/refusal.py

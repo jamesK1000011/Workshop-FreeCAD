@@ -6,6 +6,6 @@ and baseplates, project boxes with lids, enclosures round a board.
     api.make(doc, "gridfinity_bin", {"x": 2, "y": 1, "units": 4})
 
 Every function takes and gives plain values in millimetres; a value out of
-range is refused (workshop_common.Refused) with its range."""
+range is refused (workshop_parts.refusal.Refused) with its range."""
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"

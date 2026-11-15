@@ -16,7 +16,7 @@ class ImportBoard:
     def Activated(self):
         from PySide import QtGui
 
-        from addonkit import Refused
+        from workshop_electronics.refusal import Refused
 
         path, _ = QtGui.QFileDialog.getOpenFileName(None, "KiCad board", "", "KiCad board (*.kicad_pcb)")
         if not path:

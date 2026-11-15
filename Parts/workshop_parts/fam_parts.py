@@ -3,7 +3,7 @@
 # gen_part (baseplates, project boxes, board enclosures), the names they have
 # always had. Loaded by Agent Link only.
 
-from workshop_common import Refused
+from workshop_parts.refusal import Refused
 
 from . import api
 

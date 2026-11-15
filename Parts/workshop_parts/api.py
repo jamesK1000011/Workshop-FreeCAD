@@ -3,7 +3,9 @@
 # agent all call. No agent needed; Agent Link's tools (agentlink_families)
 # are a thin layer over these.
 
-from workshop_common import Refused, geo, records
+from workshop_parts.refusal import Refused
+from workshop_parts import geo
+from workshop_parts import records
 
 from . import boxes, gridfinity
 

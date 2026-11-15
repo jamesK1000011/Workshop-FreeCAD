@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# Workshop Common is the Workshop workbench over AddonKit: its records,
-# shapes, fits and form are AddonKit's own modules, so every add-on and
-# Agent Link read and write the same records.
+# Workshop Common is the workbench only: its menu registry, and nothing any
+# add-on imports for its own work.
 import os
 import sys
 import unittest
@@ -11,20 +10,17 @@ sys.path.insert(0, os.path.join(HERE, ".."))
 
 
 class Common(unittest.TestCase):
-    def test_records_are_addonkits(self):
-        import addonkit.records
-        from workshop_common import records
+    def test_menus_collect_once(self):
+        from workshop_common import workbench
 
-        self.assertIs(records, addonkit.records)
+        workbench.add("Test", ["A", "B"])
+        workbench.add("Test", ["B", "C"])
+        self.assertEqual(workbench.MENUS["Test"], ["A", "B", "C"])
+        del workbench.MENUS["Test"]
 
-    def test_refused_carries_a_code(self):
-        from workshop_common import Refused
-
-        import addonkit
-
-        e = Refused("x: 1 to 10.")
-        self.assertIs(Refused, addonkit.Refused)
-        self.assertEqual((e.code, e.message, str(e)), ("invalid_input", "x: 1 to 10.", "x: 1 to 10."))
+    def test_holds_only_the_workbench(self):
+        names = sorted(n for n in os.listdir(os.path.join(HERE, "..", "workshop_common")) if n.endswith(".py"))
+        self.assertEqual(names, ["__init__.py", "workbench.py"])
 
 
 if __name__ == "__main__":

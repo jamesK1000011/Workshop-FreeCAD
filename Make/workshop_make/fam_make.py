@@ -8,9 +8,10 @@
 import math
 import os
 
-from addonkit import Refused, geo
-from addonkit import materials as fil
-from addonkit import records as store
+from workshop_make.refusal import Refused
+from workshop_make import geo
+from workshop_make import materials as fil
+from workshop_make import records as store
 
 from . import api, orcalib, printability, printmass, tooldefs
 

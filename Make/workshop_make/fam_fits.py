@@ -3,7 +3,7 @@
 # they have always had: a thin layer over workshop_make.api. Loaded by Agent
 # Link only.
 
-from addonkit import Refused
+from workshop_make.refusal import Refused
 
 from . import api, tooldefs
 

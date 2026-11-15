@@ -13,8 +13,8 @@ import os
 import FreeCAD
 import Part
 
-from addonkit import geo
-from addonkit import records as store
+from workshop_make import geo
+from workshop_make import records as store
 from agentlink.protocol import ToolError
 
 from . import tooldefs
@@ -25,7 +25,7 @@ INFO = "Milled parts: reach from the setup's tool directions (undercuts), inside
 V = FreeCAD.Vector
 DIRS = {"+x": V(1, 0, 0), "-x": V(-1, 0, 0), "+y": V(0, 1, 0), "-y": V(0, -1, 0), "+z": V(0, 0, 1), "-z": V(0, 0, -1)}
 # The thinnest wall a mill leaves standing, by material (data/shop-materials.json).
-from addonkit import data as _data
+from workshop_make import datafiles as _data
 
 _D = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 _SHOP = _data.load(_D, "shop-materials", package="workshop_make")["entries"]

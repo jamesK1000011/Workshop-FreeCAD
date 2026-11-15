@@ -3,12 +3,10 @@
 # Agent Link.
 import os
 
-import addonkit
-from addonkit import Refused
+from workshop_electronics.refusal import Refused
 
 from . import kicad, pcb
 
-addonkit.require(">=1.4,<2", "Workshop Electronics")
 
 classify = pcb.classify
 gerber_box = pcb.gerber_box

@@ -1,0 +1,80 @@
+{
+ "$schema": "filaments.schema.json",
+ "dataVersion": "1.0.0",
+ "licence": "CC-BY-4.0",
+ "about": "Printing filaments: density g/cm³; E MPa; nu; yield and uts MPa; k W/(m·K); softens: heat deflection at 0.45 MPa, °C. Typical figures, along the layers; the supplier's sheet is the authority.",
+ "entries": {
+  "pla": {
+   "name": "PLA (printed)",
+   "density": 1.24,
+   "E": 3500,
+   "nu": 0.36,
+   "yield": 50,
+   "uts": 55,
+   "k": 0.13,
+   "softens": 55,
+   "source": "Typical FDM filament figures along the layers (Agent Link's table; densities from makers' sheets)",
+   "date": "2026-11-14"
+  },
+  "petg": {
+   "name": "PETG (printed)",
+   "density": 1.27,
+   "E": 2100,
+   "nu": 0.38,
+   "yield": 45,
+   "uts": 50,
+   "k": 0.2,
+   "softens": 70,
+   "source": "Typical FDM filament figures along the layers (Agent Link's table; densities from makers' sheets)",
+   "date": "2026-11-14"
+  },
+  "abs": {
+   "name": "ABS (printed)",
+   "density": 1.04,
+   "E": 2200,
+   "nu": 0.35,
+   "yield": 40,
+   "uts": 42,
+   "k": 0.17,
+   "softens": 95,
+   "source": "Typical FDM filament figures along the layers (Agent Link's table; densities from makers' sheets)",
+   "date": "2026-11-14"
+  },
+  "asa": {
+   "name": "ASA (printed)",
+   "density": 1.07,
+   "E": 2000,
+   "nu": 0.35,
+   "yield": 42,
+   "uts": 45,
+   "k": 0.17,
+   "softens": 95,
+   "source": "Typical FDM filament figures along the layers (Agent Link's table; densities from makers' sheets)",
+   "date": "2026-11-14"
+  },
+  "pa6-cf": {
+   "name": "PA6-CF (printed, dry)",
+   "density": 1.12,
+   "E": 6000,
+   "nu": 0.35,
+   "yield": 80,
+   "uts": 90,
+   "k": 0.3,
+   "softens": 150,
+   "source": "Typical FDM filament figures along the layers (Agent Link's table; densities from makers' sheets)",
+   "date": "2026-11-14"
+  },
+  "tpu-95a": {
+   "name": "TPU 95A (printed)",
+   "density": 1.21,
+   "E": 26,
+   "nu": 0.48,
+   "yield": null,
+   "uts": 35,
+   "k": 0.2,
+   "softens": null,
+   "source": "Typical FDM filament figures along the layers (Agent Link's table; densities from makers' sheets)",
+   "date": "2026-11-14"
+  }
+ }
+}

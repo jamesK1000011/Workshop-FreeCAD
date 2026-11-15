@@ -33,10 +33,6 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/checkout@v5
         with:
-          repository: jamesK1000011/AddonKit-FreeCAD
-          path: addonkit-lib
-      - uses: actions/checkout@v5
-        with:
           repository: jamesK1000011/AgentLink-FreeCAD
           path: agentlink-addon
       - uses: actions/checkout@v5
@@ -70,16 +66,16 @@ jobs:
         # clear_console fails on the runner and turns a pass into 1.
         run: |
           code=0
-          export PYTHONPATH="$GITHUB_WORKSPACE/addonkit-lib:$GITHUB_WORKSPACE/Common:$GITHUB_WORKSPACE/Parts:$GITHUB_WORKSPACE/Make:$GITHUB_WORKSPACE/Electronics:$GITHUB_WORKSPACE/Documents"
           python -m unittest discover -s tests -v > "$RUNNER_TEMP/alone.log" 2>&1 || code=$?
-          for d in Common Parts Make Electronics Documents; do python -X faulthandler -m unittest discover -s $d/tests -v >> "$RUNNER_TEMP/alone.log" 2>&1 || code=$?; done
+          # Each one with only itself on the path: none needs another.
+          for d in Common Parts Make Electronics Documents; do PYTHONPATH="$GITHUB_WORKSPACE/$d" python -X faulthandler -m unittest discover -s $d/tests -v >> "$RUNNER_TEMP/alone.log" 2>&1 || code=$?; done
           tail -n 200 "$RUNNER_TEMP/alone.log"
           echo "exit code: $code"
           test "$code" -eq 0
       - name: With Agent Link beside it
         run: |
           code=0
-          export PYTHONPATH="$GITHUB_WORKSPACE/agentlink-addon:$GITHUB_WORKSPACE/addonkit-lib:$GITHUB_WORKSPACE/Common:$GITHUB_WORKSPACE/Parts:$GITHUB_WORKSPACE/Make:$GITHUB_WORKSPACE/Electronics:$GITHUB_WORKSPACE/Documents" AGENTLINK_DIR="$GITHUB_WORKSPACE/agentlink-addon"
+          export PYTHONPATH="$GITHUB_WORKSPACE/agentlink-addon:$GITHUB_WORKSPACE/Common:$GITHUB_WORKSPACE/Parts:$GITHUB_WORKSPACE/Make:$GITHUB_WORKSPACE/Electronics:$GITHUB_WORKSPACE/Documents" AGENTLINK_DIR="$GITHUB_WORKSPACE/agentlink-addon"
           for d in Common Parts Make Electronics Documents; do python -X faulthandler -m unittest discover -s $d/tests -v >> "$RUNNER_TEMP/with.log" 2>&1 || code=$?; done
           tail -n 200 "$RUNNER_TEMP/with.log"
           echo "exit code: $code"

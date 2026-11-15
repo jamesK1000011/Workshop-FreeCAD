@@ -1,5 +1,4 @@
 {
- "$schema": "tools.schema.json",
  "dataVersion": "1.0.0",
  "licence": "CC-BY-4.0",
  "about": "Electronics' tools for agents (through Agent Link): name, what it does, its arguments as JSON Schema, its group, whether it changes the document.",
@@ -206,7 +205,8 @@
    },
    "changes": true,
    "source": "Agent Link for FreeCAD 1f8f209 (moved to Workshop Electronics)",
-   "date": "2026-11-14"
+   "date": "2026-11-14",
+   "pathIsCurve": true
   }
  }
 }

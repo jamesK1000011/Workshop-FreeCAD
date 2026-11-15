@@ -10,10 +10,10 @@ import os
 import re
 import tempfile
 
-from addonkit import geo
-from addonkit import records as store
+from workshop_documents import geo
+from workshop_documents import records as store
 from agentlink.protocol import ToolError
-from workshop_common import tooldefs
+from workshop_documents import tooldata as tooldefs
 
 from . import libpack as packing
 
@@ -29,7 +29,7 @@ def tools(session):
     s = session
 
     def library_pack(a):
-        from addonkit.materials import DENSITY
+        from workshop_documents.materials import DENSITY
 
         lic = a.get("license")
         if lic not in packing.LICENSES:

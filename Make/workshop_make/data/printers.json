@@ -2,7 +2,7 @@
  "$schema": "printers.schema.json",
  "dataVersion": "1.0.0",
  "licence": "CC-BY-4.0",
- "about": "Printers' build volumes, mm (x, y, z). Typical figures; the maker's page is the authority. Your own printers go in ~/.config/addonkit/workshop_make/printers.json.",
+ "about": "Printers' build volumes, mm (x, y, z). Typical figures; the maker's page is the authority. Your own printers go in ~/.config/workshop_make/printers.json.",
  "entries": {
   "generic": {
    "volume": [

@@ -9,8 +9,8 @@ import math
 import FreeCAD
 import Part
 
-from addonkit import geo
-from addonkit import records as store
+from workshop_make import geo
+from workshop_make import records as store
 from agentlink import facepick
 from agentlink import hooks as _hooks
 from agentlink.protocol import ToolError

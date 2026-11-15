@@ -161,7 +161,7 @@ def solid_of(shape, setup, walls):
     cut = sliced(shape, setup, walls)
     if cut is not None:
         return cut[0] / (cut[0] + cut[1]), "sections"
-    from addonkit import geo
+    from workshop_make import geo
 
     reads, nz = readings(geo.least_wall(shape, reach=shape.BoundBox.DiagonalLength + 1.0))
     if reads:

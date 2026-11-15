@@ -2,14 +2,12 @@
 <package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
   <name>Workshop Parts</name>
   <description>Standard parts made to size: Gridfinity bins and baseplates, project boxes with lids, enclosures round a circuit board. Commands in the Workshop workbench; a Python API (workshop_parts.api); tools for agents through Agent Link when it is installed.</description>
-  <version>0.1.0</version>
+  <version>0.2.0</version>
   <date>2026-11-14</date>
   <maintainer email="jamesK1000011@users.noreply.github.com">jamesK1000011</maintainer>
   <license file="../LICENSE">LGPL-2.1-or-later</license>
   <url type="repository" branch="main">https://github.com/jamesK1000011/Workshop-FreeCAD</url>
   <freecadmin>1.0.0</freecadmin>
-  <depend>AddonKit</depend>
-  <depend>Workshop Common</depend>
   <tag>Gridfinity</tag>
   <tag>3D printing</tag>
   <tag>enclosure</tag>

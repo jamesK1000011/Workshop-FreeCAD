@@ -1,11 +1,10 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # Documents with no agent: a macro or a command calls these. Never imports
 # Agent Link.
-import addonkit
 
 from . import libpack
+from .refusal import Refused
 
-addonkit.require(">=1.5,<2", "Workshop Documents")
 
 LICENSES = libpack.LICENSES
 check_credits = libpack.check_credits
@@ -30,5 +29,5 @@ def project(shapes, view, hidden=False):
     from . import views as V
 
     if view not in V.VIEWS:
-        raise addonkit.Refused(f"view: one of {', '.join(V.VIEWS)}.")
+        raise Refused(f"view: one of {', '.join(V.VIEWS)}.")
     return V.project(shapes, view, hidden=hidden)

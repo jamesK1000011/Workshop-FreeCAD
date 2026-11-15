@@ -26,7 +26,8 @@ class Make:
         return True
 
     def Activated(self):
-        from workshop_common import Refused, form
+        from workshop_parts.refusal import Refused
+        from workshop_parts import form
 
         values = form.ask(api.NAMES[self.generator], api.params(self.generator), TIPS[self.generator])
         if values is None:

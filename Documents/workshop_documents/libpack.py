@@ -2,13 +2,13 @@
 # A library pack to hand on: STEP and STL with nothing personal left in
 # their headers, a README, a licence, the credits checked against it. No
 # FreeCAD needed here. Moved from Agent Link for FreeCAD's packing.py on
-# 14 Nov 2026; the zip writer is AddonKit's.
+# 14 Nov 2026; the zip writer is its own (archive.py).
 
 import datetime
 import getpass
 import os
 import re
-from addonkit.archive import write_zip  # noqa: F401 — library packs zip through it
+from workshop_documents.archive import write_zip  # noqa: F401 — library packs zip through it
 
 # ---- library packs ------------------------------------------------------------------------
 

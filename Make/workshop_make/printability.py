@@ -9,8 +9,8 @@
 import math
 import os
 
-from addonkit import data
-from addonkit import geo
+from workshop_make import datafiles as data
+from workshop_make import geo
 
 # Build volumes, mm (data/printers.json; the person's own printers win).
 PRINTERS = {k: tuple(v["volume"]) for k, v in data.load(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data"), "printers", package="workshop_make")["entries"].items()}
@@ -84,7 +84,7 @@ def _regions(shape, keep, tol=0.05):
 
 
 # Readers that read wall thickness better: f(shape) -> a dict shaped as
-# addonkit.geo.least_wall's, with "by" naming it, or None to leave it to the
+# geo.least_wall's, with "by" naming it, or None to leave it to the
 # next. The built-in rays are last. With Agent Link this is its list of
 # "wall" readers (agentlink_families joins them), so any add-on's reader is
 # asked.

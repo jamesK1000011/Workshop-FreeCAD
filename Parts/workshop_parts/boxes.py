@@ -15,8 +15,8 @@
 import FreeCAD
 import Part
 
-from workshop_common import fits as fits_hw
-from workshop_common import geo as g
+from workshop_parts import fits as fits_hw
+from workshop_parts import geo as g
 from .gridfinity import EPS, GRID, MAGNET_AT
 
 V = FreeCAD.Vector

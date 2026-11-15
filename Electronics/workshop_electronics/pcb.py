@@ -8,8 +8,8 @@ import datetime
 import os
 import re
 
-from addonkit import data
-from addonkit.archive import write_zip  # noqa: F401 — the order zips
+from workshop_electronics import datafiles as data
+from workshop_electronics.archive import write_zip  # noqa: F401 — the order zips
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ACCEPTS = ">=1.0,<2"
@@ -17,7 +17,7 @@ ACCEPTS = ">=1.0,<2"
 
 def vendors():
     """The board houses: {id: {name, upload, assembly, quantity}} (the
-    person's own in ~/.config/addonkit/workshop_electronics/pcb-vendors.json)."""
+    person's own in ~/.config/workshop_electronics/pcb-vendors.json)."""
     return data.load(os.path.join(HERE, "data"), "pcb-vendors", accepts=ACCEPTS, package="workshop_electronics")["entries"]
 
 

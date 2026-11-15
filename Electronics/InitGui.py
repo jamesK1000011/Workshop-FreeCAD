@@ -8,4 +8,4 @@ try:
 except Exception as e:  # noqa: BLE001 — never stop FreeCAD starting
     import FreeCAD
 
-    FreeCAD.Console.PrintWarning(f"Workshop Electronics: commands not loaded ({e}); are AddonKit, Workshop Common and Workshop Parts installed?\n")
+    FreeCAD.Console.PrintWarning(f"Workshop Electronics: commands not loaded ({e}); is Workshop Common installed for the Workshop workbench?\n")

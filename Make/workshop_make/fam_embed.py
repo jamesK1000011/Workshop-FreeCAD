@@ -12,9 +12,9 @@ import math
 import FreeCAD
 import Part
 
-from addonkit import fits as fits_hw
-from addonkit import geo
-from addonkit import records as store
+from workshop_make import fits as fits_hw
+from workshop_make import geo
+from workshop_make import records as store
 from agentlink.protocol import ToolError
 
 from . import api, printability, tooldefs

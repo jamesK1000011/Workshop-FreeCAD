@@ -12,10 +12,10 @@ installed, the same functions are also tools an AI agent can call.
 
 | Folder | Add-on | What it does |
 |---|---|---|
-| `Common` | Workshop Common | The Workshop workbench the others add their commands to. Records, shape helpers and fits come from [AddonKit for FreeCAD](https://github.com/jamesK1000011/AddonKit-FreeCAD), which every add-on here needs. |
+| `Common` | Workshop Common | The Workshop workbench the others add their commands to. No add-on needs it to work. |
 | `Parts` | Workshop Parts | Standard parts made to size: Gridfinity bins and baseplates, project boxes with lids, enclosures round a circuit board. |
 | `Make` | Workshop Make | Getting a part made: how each part is made (setups) and the limits it must meet, the printability check and a pass/fix verdict, mass as printed and ballast, slicing with PrusaSlicer, fits and hardware holes sized for your printer, screw threads from the standards, parts encased mid-print and the pauses to drop them in, and a wall-thickness map; slicing with PrusaSlicer, OrcaSlicer and Bambu Studio (their command lines and presets from [Agent Link for OrcaSlicer](https://github.com/jamesK1000011/AgentLink-OrcaSlicer), installed beside it), printers on the network (OctoPrint, Moonraker, PrusaLink); sheet parts checked and laid out as DXF/SVG for laser, waterjet, plasma or router; milled parts checked with STEP and a setup sheet; frames by beam elements (CalculiX); and strength as printed: the tension across the layers and the print's walls and infill read back on Agent Link's FEM study. |
-| `Electronics` | Workshop Electronics | KiCad boards read without KiCad (outline, cut-outs, mounting holes, tall parts with their heights), enclosures made round them with standoffs and openings for the edge connectors, PCB order packages for JLCPCB, PCBWay or OSH Park (nothing uploaded or ordered), and channels inside printed parts for wire or conductive traces with their resistance. Needs Parts for the enclosures. |
+| `Electronics` | Workshop Electronics | KiCad boards read without KiCad (outline, cut-outs, mounting holes, tall parts with their heights), enclosures made round them with standoffs and openings for the edge connectors, PCB order packages for JLCPCB, PCBWay or OSH Park (nothing uploaded or ordered), and channels inside printed parts for wire or conductive traces with their resistance.  |
 | `Documents` | Workshop Documents | Documents for made parts: drawing sheets (standard views, sections, dimensions with ISO 286 fits, hole callouts, a title block) as SVG, PDF, DXF and a TechDraw page; assembly manuals with exploded steps and a bill of materials; patent figures and a draft for an attorney's review; library packs of STEP and STL with a README, a licence and credits, nothing personal in the files. |
 
 
@@ -24,14 +24,15 @@ installed, the same functions are also tools an AI agent can call.
 Tables (thread sizes, bearings, the tools agents see) are data files in
 each add-on's `data/` folder: versioned, checked against a schema in CI,
 each entry with its source and date, under CC BY 4.0 (`LICENSE-DATA`). Your
-own entries go in `~/.config/addonkit/<package>/<name>.json`; updates never
+own entries go in `~/.config/<package>/<name>.json`; updates never
 touch that folder and your entries win.
 
 ## Install
 
-Each folder is an add-on of its own. Copy or link `Common` and the ones you
-want into FreeCAD's `Mod` folder (for example `Mod/WorkshopCommon`,
-`Mod/WorkshopParts`, `Mod/WorkshopMake`, `Mod/WorkshopElectronics`, `Mod/WorkshopDocuments`), plus AddonKit (`Mod/AddonKit`), then restart FreeCAD. The Claude extension of FreeCAD
+Each folder is an add-on of its own and installs alone: it carries its own
+copy of what it needs (records, shape helpers, a data loader) and needs no
+other add-on. Copy or link the ones you want into FreeCAD's `Mod` folder (for example `Mod/WorkshopCommon`,
+`Mod/WorkshopParts`, `Mod/WorkshopMake`, `Mod/WorkshopElectronics`, `Mod/WorkshopDocuments`), and `Common` for the Workshop workbench's menus, then restart FreeCAD. The Claude extension of FreeCAD
 Agent Link installs them for you.
 
 ## Use
