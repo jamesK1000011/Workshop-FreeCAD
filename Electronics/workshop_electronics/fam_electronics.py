@@ -13,6 +13,12 @@ GROUP = "electronics"
 INFO = "Boards and wiring (Workshop for FreeCAD · Electronics): KiCad boards read in, enclosures round them, PCB order packages, channels for wire or conductive traces with their resistance."
 DATA = tooldefs.here(__file__)
 
+# What the window shows while these run (Agent Link's echo): the Workshop
+# Electronics bench, and the KiCad board button for kicad_import.
+WORKBENCHES = {"kicad_": "WorkshopElectronicsWorkbench", "board_": "WorkshopElectronicsWorkbench", "pcb_": "WorkshopElectronicsWorkbench",
+               "printed_channel": "WorkshopElectronicsWorkbench"}
+COMMANDS = {"kicad_import": "Workshop_Electronics_ImportBoard"}
+
 
 def tools(session):
     made = tooldefs.build(DATA, GROUP, handlers.bound(session), "Electronics")

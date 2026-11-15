@@ -3,6 +3,7 @@ InitGui.py
 package.xml
 tests/test_api.py
 tests/test_handlers.py
+tests/test_loads_alone.py
 tests/test_parts_agent.py
 workshop_parts/__init__.py
 workshop_parts/agentlink_families.py

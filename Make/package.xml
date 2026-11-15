@@ -12,9 +12,10 @@
   <tag>threads</tag>
   <tag>fits</tag>
   <content>
-    <other>
+    <workbench>
       <name>Workshop Make</name>
+      <classname>WorkshopMakeWorkbench</classname>
       <subdirectory>./</subdirectory>
-    </other>
+    </workbench>
   </content>
 </package>

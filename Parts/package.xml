@@ -12,9 +12,10 @@
   <tag>3D printing</tag>
   <tag>enclosure</tag>
   <content>
-    <other>
+    <workbench>
       <name>Workshop Parts</name>
+      <classname>WorkshopPartsWorkbench</classname>
       <subdirectory>./</subdirectory>
-    </other>
+    </workbench>
   </content>
 </package>

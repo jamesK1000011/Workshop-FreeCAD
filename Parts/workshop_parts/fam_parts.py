@@ -11,6 +11,21 @@ GROUP = "parts"
 LEAN = True  # listed by default
 INFO = "Standard parts made to size (Workshop for FreeCAD · Parts): Gridfinity bins (gen_make), baseplates, project boxes and board enclosures with lids (gen_part)."
 
+# What the window shows while these run (Agent Link's echo): the Workshop
+# Parts bench, the button of the generator made, "Parts › …" in Activity.
+WORKBENCHES = {"gen_": "WorkshopPartsWorkbench"}
+AREAS = {"gen_": "Parts"}
+COMMANDS = {"gen_make": "Workshop_Parts_GridfinityBin"}
+
+
+def command_for(name, args):
+    """The button that does the same job as this call: one per generator
+    (commands.py names them so)."""
+    gen = (args or {}).get("generator") or ("gridfinity_bin" if name == "gen_make" else None)
+    if name not in ("gen_make", "gen_part") or gen not in api.GENERATORS:
+        return None
+    return "Workshop_Parts_" + "".join(w.title() for w in gen.split("_"))
+
 
 def tools(session):
     from agentlink.protocol import Tool, ToolError

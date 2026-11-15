@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path[:0] = [os.path.join(HERE, ".."), os.path.join(HERE, "..", "..", "Common"), os.path.join(HERE, "..", "..", "Parts")]
+sys.path[:0] = [os.path.join(HERE, ".."), os.path.join(HERE, "..", "..", "Parts")]
 if os.environ.get("FREECAD_LIB"):
     sys.path.append(os.environ["FREECAD_LIB"])
 try:

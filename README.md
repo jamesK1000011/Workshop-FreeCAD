@@ -12,7 +12,7 @@ installed, the same functions are also tools an AI agent can call.
 
 | Folder | Add-on | What it does |
 |---|---|---|
-| `Common` | Workshop Common | The Workshop workbench the others add their commands to. No add-on needs it to work. |
+| `Common` | Workshop Common | No longer needed: each add-on has its own workbench. Its last release is a stub that registers nothing; remove it. |
 | `Parts` | Workshop Parts | Standard parts made to size: Gridfinity bins and baseplates, project boxes with lids, enclosures round a circuit board. |
 | `Make` | Workshop Make | Getting a part made: how each part is made (setups) and the limits it must meet, the printability check and a pass/fix verdict, mass as printed and ballast, slicing with PrusaSlicer, fits and hardware holes sized for your printer, screw threads from the standards, parts encased mid-print and the pauses to drop them in, and a wall-thickness map; slicing with PrusaSlicer, OrcaSlicer and Bambu Studio (their command lines and presets from [Agent Link for OrcaSlicer](https://github.com/jamesK1000011/AgentLink-OrcaSlicer), installed beside it), printers on the network (OctoPrint, Moonraker, PrusaLink); sheet parts checked and laid out as DXF/SVG for laser, waterjet, plasma or router; milled parts checked with STEP and a setup sheet; frames by beam elements (CalculiX); and strength as printed: the tension across the layers and the print's walls and infill read back on Agent Link's FEM study. |
 | `Electronics` | Workshop Electronics | KiCad boards read without KiCad (outline, cut-outs, mounting holes, tall parts with their heights), enclosures made round them with standoffs and openings for the edge connectors, PCB order packages for JLCPCB, PCBWay or OSH Park (nothing uploaded or ordered), and channels inside printed parts for wire or conductive traces with their resistance.  |
@@ -31,13 +31,15 @@ touch that folder and your entries win.
 
 Each folder is an add-on of its own and installs alone: it carries its own
 copy of what it needs (records, shape helpers, a data loader) and needs no
-other add-on. Copy or link the ones you want into FreeCAD's `Mod` folder (for example `Mod/WorkshopCommon`,
-`Mod/WorkshopParts`, `Mod/WorkshopMake`, `Mod/WorkshopElectronics`, `Mod/WorkshopDocuments`), and `Common` for the Workshop workbench's menus, then restart FreeCAD. The Claude extension of FreeCAD
+other add-on. Copy or link the ones you want into FreeCAD's `Mod` folder (for example
+`Mod/WorkshopParts`, `Mod/WorkshopMake`, `Mod/WorkshopElectronics`, `Mod/WorkshopDocuments`), then restart FreeCAD. The Claude extension of FreeCAD
 Agent Link installs them for you.
 
 ## Use
 
-- **In FreeCAD:** switch to the Workshop workbench. Each command asks for its
+- **In FreeCAD:** switch to the add-on's own workbench (Workshop Parts,
+  Workshop Electronics; Make's and Documents' benches get their buttons
+  later). Each command asks for its
   values, with each one's range shown, and makes the part in the open
   document.
 - **From Python or a macro:**
@@ -58,7 +60,7 @@ CI runs each add-on alone, then with Agent Link beside it, on the newest
 FreeCAD and on 1.1 and 1.0:
 
 ```
-PYTHONPATH=Common:Parts python -m unittest discover -s Parts/tests
+PYTHONPATH=Parts python -m unittest discover -s Parts/tests
 ```
 
 ## History and licence

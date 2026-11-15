@@ -13,9 +13,10 @@
   <tag>assembly instructions</tag>
   <tag>sharing</tag>
   <content>
-    <other>
+    <workbench>
       <name>Workshop Documents</name>
+      <classname>WorkshopDocumentsWorkbench</classname>
       <subdirectory>./</subdirectory>
-    </other>
+    </workbench>
   </content>
 </package>

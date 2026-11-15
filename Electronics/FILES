@@ -4,6 +4,7 @@ package.xml
 tests/test_api.py
 tests/test_electronics.py
 tests/test_handlers.py
+tests/test_loads_alone.py
 workshop_electronics/__init__.py
 workshop_electronics/agentlink_families.py
 workshop_electronics/api.py

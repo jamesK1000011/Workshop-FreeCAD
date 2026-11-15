@@ -17,6 +17,7 @@ from .handlers import embed as H
 
 GROUP = "embed"
 INFO = "Parts encased mid-print: nut, magnet, bearing, insert and weight pockets with a roof, and the pauses to drop them in."
+WORKBENCHES = {"hw_": "WorkshopMakeWorkbench"}  # the Workshop Make bench while these run
 
 handlers.lend(H, ToolError=ToolError)
 

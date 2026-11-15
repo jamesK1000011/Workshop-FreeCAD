@@ -1,11 +1,28 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# Workshop for FreeCAD · Parts: its commands in the Workshop workbench.
+# Workshop for FreeCAD · Parts: its own workbench, "Workshop Parts", with one
+# command per generator in its toolbar and menu. Needs no other add-on.
+import FreeCAD
+import FreeCADGui
+
 try:
-    from workshop_common import workbench
-    from workshop_parts import commands
-
-    workbench.add("Parts", commands.NAMES)
+    from workshop_parts import commands as _parts_commands  # registers the commands
 except Exception as e:  # noqa: BLE001 — never stop FreeCAD starting
-    import FreeCAD
+    _parts_commands = None
+    FreeCAD.Console.PrintWarning(f"Workshop Parts: commands not loaded ({e}).\n")
 
-    FreeCAD.Console.PrintWarning(f"Workshop Parts: commands not loaded ({e}); is the Workshop Common add-on installed?\n")
+
+class WorkshopPartsWorkbench(FreeCADGui.Workbench):
+    MenuText = "Workshop Parts"
+    ToolTip = "Standard parts made to size: Gridfinity bins and baseplates, project boxes, enclosures round a board (Workshop for FreeCAD)"
+
+    def Initialize(self):
+        from workshop_parts import commands
+
+        self.appendToolbar("Parts", commands.NAMES)
+        self.appendMenu("&Parts", commands.NAMES)
+
+    def GetClassName(self):
+        return "Gui::PythonWorkbench"
+
+
+FreeCADGui.addWorkbench(WorkshopPartsWorkbench())
