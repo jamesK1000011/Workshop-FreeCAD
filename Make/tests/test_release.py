@@ -192,8 +192,11 @@ class PackageXml(unittest.TestCase):
         for wb in wbs:
             cls = self.one("classname", wb).text.strip()
             self.assertEqual(cls, WORKBENCH)
-            self.assertRegex(initgui, r"(?m)^class %s\(FreeCADGui\.Workbench\)" % re.escape(cls))
-            self.assertRegex(initgui, r"addWorkbench\(%s\(\)\)" % re.escape(cls))
+            # InitGui.py only calls workbench.add(); the class lives in the
+            # module (FreeCAD's exec() hides InitGui's own names from it).
+            built = open(os.path.join(ROOT, "workshop_make", "workbench.py"), encoding="utf-8").read()
+            self.assertRegex(built, r"(?m)^    class %s\(Gui\.Workbench\)" % re.escape(cls))
+            self.assertRegex(initgui, r"(?m)^_workshop_make_workbench\.add\(FreeCADGui\)")
             sub = self.one("subdirectory", wb).text.strip()
             self.assertTrue(os.path.isfile(os.path.join(ROOT, sub, "InitGui.py")))
             self.one("name", wb)

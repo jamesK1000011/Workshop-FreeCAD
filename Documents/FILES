@@ -57,3 +57,4 @@ workshop_documents/td_wait.py
 workshop_documents/theme.py
 workshop_documents/tooldata.py
 workshop_documents/views.py
+workshop_documents/workbench.py

@@ -41,3 +41,4 @@ workshop_electronics/records.py
 workshop_electronics/refusal.py
 workshop_electronics/taskpanels.py
 workshop_electronics/tooldata.py
+workshop_electronics/workbench.py

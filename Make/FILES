@@ -117,3 +117,4 @@ workshop_make/threads.py
 workshop_make/threemf.py
 workshop_make/tooldata.py
 workshop_make/tooldefs.py
+workshop_make/workbench.py
