@@ -175,6 +175,21 @@ OUT["built"] = [type(t["factory"](Panel())).__name__ for t in hooks.TABS]
         self.assertEqual(out["built"], ["SetupsTab", "MaterialsTab", "FitsTab"])
 
 
+class EmptyLists(unittest.TestCase):
+    def test_setups_say_how_to_fill_them(self):
+        out = run(r'''
+from workshop_make import panel as P
+for n, setups in (("none", []), ("some", [{"id": "S1", "type": "print", "name": "Print", "bodies": ["Box"]}])):
+    t = P.SetupsTab(runner=lambda tool, a, setups=setups: (True, {"setups": setups}))
+    shown = []
+    t.none.setVisible = shown.append
+    t.fill()
+    OUT[n] = [t.none.text(), shown]
+''')
+        self.assertEqual(out["none"], ["No setups yet: Make ▸ New Setup…", [True]])
+        self.assertEqual(out["some"][1], [False])
+
+
 class TaskPanels(unittest.TestCase):
     def test_values_become_arguments(self):
         out = run(r'''

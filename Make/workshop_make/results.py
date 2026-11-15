@@ -37,6 +37,34 @@ def _g(v, unit="", n=2):
 SEVERITY = {"error": "Problem", "warning": "Warning", "info": "Note"}
 
 
+def material_name(text):
+    """A material as a person reads it: its display name (pla -> PLA), and
+    "(assumed)" in words where the tool says none was set, never the tool's
+    own name for setting one."""
+    t = str(text or "").strip()
+    if not t:
+        return "not set"
+    mid, _, rest = t.partition(" (")
+    assumed = "assumed" in rest
+    name = None
+    try:
+        from . import materials
+
+        c = materials.card(mid)
+        name = c["name"].split(" (")[0] if c else None
+    except Exception:  # noqa: BLE001 — a name is never worth a failure
+        name = None
+    if name is None:
+        name = mid.upper() if len(mid) <= 5 and mid.replace("-", "").isalnum() else mid
+    return f"{name} (assumed: no material set yet; the Materials tab sets one)" if assumed else name
+
+
+# Mass is shown to one decimal everywhere (Part Review and Mass Properties
+# agree): a tenth of a gram is past what a printer or scale holds to.
+def _mass(v):
+    return _g(v, "g", 1)
+
+
 def dfm(out):
     """(verdict, text, Report-view line) for dfm_check's answer."""
     body = out.get("body", "The part")
@@ -77,7 +105,7 @@ def review(out):
     fig = out.get("figures") or {}
     lines = [verdict, "", f"Made by: {out.get('process', 'unknown')}"]
     if "mass" in fig:
-        lines.append(f"Mass: {_g(fig['mass'], 'g', 1)} ({fig.get('material', 'material not set')})")
+        lines.append(f"Mass: {_mass(fig['mass'])} ({material_name(fig.get('material'))})")
     if "volume" in fig:
         lines.append(f"Volume: {_g(fig['volume'], 'mm³', 1)}")
     if "wall" in fig:
@@ -99,13 +127,13 @@ def mass(out):
     """(verdict, text, Report-view line) for mass_properties' answer."""
     bodies = out.get("bodies") or []
     total = sum(b.get("mass") or 0 for b in bodies)
-    verdict = (f"{bodies[0].get('body')} weighs {_g(bodies[0].get('mass'), 'g')}." if len(bodies) == 1
-               else f"{len(bodies)} parts weigh {_g(total, 'g')} in all.")
+    verdict = (f"{bodies[0].get('body')} weighs {_mass(bodies[0].get('mass'))}." if len(bodies) == 1
+               else f"{len(bodies)} parts weigh {_mass(total)} in all.")
     lines = [verdict]
     for b in bodies:
         com = b.get("com") or []
-        lines += ["", f"{b.get('body')}: {_g(b.get('mass'), 'g')}",
-                  f"Material: {b.get('material')} ({_g(b.get('density'), 'g/cm³')})",
+        lines += ["", f"{b.get('body')}: {_mass(b.get('mass'))}",
+                  f"Material: {material_name(b.get('material'))}, {_g(b.get('density'), 'g/cm³')}",
                   f"Volume: {_g(b.get('volume'), 'mm³', 1)}",
                   "Centre of mass: " + (", ".join(_g(c, n=2) for c in com) + " mm" if com else "–"),
                   f"Made as: {str(b.get('as', '')).split(' (')[0]}"]
@@ -113,10 +141,10 @@ def mass(out):
         if pr:
             lines.append("Principal inertia: " + ", ".join(_g(x, n=1) for x in pr) + " g·mm²")
         for e in b.get("encased") or []:
-            lines.append(f"Encased: {e.get('count')} × {e.get('what')}, {_g(e.get('mass'), 'g')}")
+            lines.append(f"Encased: {e.get('count')} × {e.get('what')}, {_mass(e.get('mass'))}")
     if out.get("printedNote"):
         lines += ["", out["printedNote"]]
-    line = "Mass Properties · " + "; ".join(f"{b.get('body')} {_g(b.get('mass'), 'g')}" for b in bodies) + "."
+    line = "Mass Properties · " + "; ".join(f"{b.get('body')} {_mass(b.get('mass'))}" for b in bodies) + "."
     return verdict, "\n".join(lines), line
 
 

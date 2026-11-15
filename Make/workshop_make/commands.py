@@ -30,7 +30,11 @@ PREFIX = "Workshop_Make_"
 
 
 def tell(text, title="Workshop Make", warn=False):
-    """A message box over FreeCAD's window (nothing when there is no GUI)."""
+    """A message box over FreeCAD's window, titled (nothing when there is
+    no GUI). macOS shows no window title on a message box, so there the
+    title is the bold first line and the text goes under it."""
+    import sys
+
     try:
         from PySide import QtGui
 
@@ -38,10 +42,23 @@ def tell(text, title="Workshop Make", warn=False):
             from PySide import QtWidgets
         except ImportError:
             QtWidgets = QtGui
-        box = QtWidgets.QMessageBox.warning if warn else QtWidgets.QMessageBox.information
-        box(FreeCADGui.getMainWindow(), title, text)
+        B = QtWidgets.QMessageBox
+        box = B(FreeCADGui.getMainWindow())
+        box.setIcon(B.Warning if warn else B.Information)
+        box.setWindowTitle(title)
+        if sys.platform == "darwin":
+            box.setText(title)
+            box.setInformativeText(text)
+        else:
+            box.setText(text)
+        (getattr(box, "exec", None) or box.exec_)()
     except Exception:
         pass
+
+
+# Refusals that only say what to do first (no setup yet, nothing picked):
+# guidance, said as a normal message; anything else as a warning.
+GUIDANCE = ("invalid_state", "not_found", "invalid_input")
 
 
 def report(text, ok, out, tool=None, show=False):
@@ -54,9 +71,10 @@ def report(text, ok, out, tool=None, show=False):
     name = title(text)
     if not ok:
         said = results.person_error(out)
-        c.PrintWarning(f"Workshop Make · {name}: {said}\n")
+        guide = (out.get("error") or {}).get("code") in GUIDANCE
+        (c.PrintMessage if guide else c.PrintWarning)(f"Workshop Make · {name}: {said}\n")
         if show:
-            tell(said, f"Workshop Make · {name}", warn=True)
+            tell(said, f"Workshop Make · {name}", warn=not guide)
         return
     fmt = results.SHOWN.get(tool)
     if fmt:
@@ -118,7 +136,32 @@ class Form:
         return FreeCAD.ActiveDocument is not None or self.panel == "calibrate"
 
     def Activated(self):
+        if self.panel == "slice":
+            why = no_print_setup(_body() or _only_part())
+            if why:
+                report(self.text, False, why, show=True)
+                return
         T.show(self.panel, done=lambda ok, out: report(self.text, ok, out))
+
+
+def _only_part():
+    from . import panel
+
+    ps = panel.parts(FreeCAD.ActiveDocument)
+    return ps[0] if len(ps) == 1 else None
+
+
+def no_print_setup(body):
+    """The refusal Pauses gives a part in no print setup ({"error"}), or
+    None: Slice says the same before its panel opens."""
+    if not body:
+        return None
+    ok, out = R.run("setup", {"action": "list"})
+    if not ok:
+        return None
+    if any(s.get("type") == "print" and body in (s.get("bodies") or []) for s in out.get("setups") or []):
+        return None
+    return {"error": {"code": "invalid_state", "message": f"{body} is in no print setup"}}
 
 
 class ThreadLookup(Run):
@@ -160,15 +203,15 @@ class Panel:
 # name (after Workshop_Make_) -> command; the tool it runs is the echo's.
 COMMANDS = {
     "NewSetup": Form("setup_new", "New setup", "A setup: how parts are made (print, cut, mill) and its settings.", "Workshop_Make_NewSetup"),
-    "AddBody": Form("setup_add", "Add body", "Put the selected part in a setup.", "list-add"),
+    "AddBody": Form("setup_add", "Add part to setup", "Put the selected part in a setup.", "list-add"),
     "RemoveSetup": Form("setup_remove", "Remove setup", "Remove a setup (its parts then have no process).", "list-remove"),
     "DfmCheck": Run("dfm_check", "DFM check", "Is the part printable as it stands: walls, overhangs, bridges, holes, bed contact, build volume.", "Workshop_Make_DfmCheck"),
     "PartReview": Run("part_review", "Part review", "One verdict on the part: soundness, then its process's checks, wall and mass.", "Workshop_Make_PartReview"),
     "MassProperties": Run("mass_properties", "Mass properties", "Mass as made (as printed in a print setup), centre of mass, inertia.", "Workshop_Make_MassProperties"),
     "FitSize": Form("fit_size", "Fit size", "The size to model a hole or peg at for a bought part, the printer's calibration added.", "Workshop_Make_FitSize"),
-    "Calibrate": Form("calibrate", "Calibrate", "How much this printer prints a hole small and a peg big.", "Workshop_Make_Calibrate"),
-    "Hole": Form("hole", "Hole", "A hole for hardware: clearance, counterbore, countersink, nut trap, insert, magnet.", "PartDesign_Hole"),
-    "Embed": Form("embed", "Embed", "A pocket for a bought part encased mid-print, with its pause.", "PartDesign_Pocket"),
+    "Calibrate": Form("calibrate", "Calibrate printer", "How much this printer prints a hole small and a peg big.", "Workshop_Make_Calibrate"),
+    "Hole": Form("hole", "Hole for hardware", "A hole for hardware: clearance, counterbore, countersink, nut trap, insert, magnet.", "PartDesign_Hole"),
+    "Embed": Form("embed", "Embed hardware", "A pocket for a bought part encased mid-print, with its pause.", "PartDesign_Pocket"),
     "Pauses": Run("hw_pauses", "Pauses", "Every pause the part's print needs: layers, heights, what goes in.", "Workshop_Make_Pauses"),
     "ThreadLookup": ThreadLookup("thread_lookup", "Thread lookup", "A thread's sizes from the standards: major, pitch, minor, tap drill.", "Workshop_Make_ThreadLookup", body=False),
     "Slice": Form("slice", "Slice", "Slice the part in its print setup with the slicer on this computer.", "Workshop_Make_Slice"),

@@ -45,6 +45,15 @@ PANELS = {
     )),
 }
 
+# The one line under each panel's title saying what it does, as the Parts
+# panels have.
+INTRO = {
+    "drawing": "A TechDraw page of the parts in the views you pick, on a sheet.",
+    "exploded": "An assembly manual: each step's parts moved apart, balloons and a bill of materials.",
+    "library": "A pack of the parts to share: STEP and STL files, a readme and a licence.",
+    "patent": "Patent figures of the parts: black line art with reference numerals.",
+}
+
 # What a choice's value shows as where capitalising it is not enough.
 TEXT = {"first": "First angle (ISO)", "third": "Third angle (ASME)", "auto": "Smallest that fits",
         "up": "Up, over its place", "out": "Out, from the middle"}
@@ -199,6 +208,9 @@ class FormPanel:
         self.form = QtWidgets.QWidget()
         self.form.setWindowTitle(title)
         lay = QtWidgets.QFormLayout(self.form)
+        intro = QtWidgets.QLabel(INTRO.get(panel, ""))
+        intro.setWordWrap(True)
+        lay.addRow(intro)
         body, at = picked()
         self.get = {}
         for key, label, kind, default, extra in fields:

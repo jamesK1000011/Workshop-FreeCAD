@@ -35,9 +35,10 @@ def _solid(o):
 PASSIVE = ("App::DocumentObjectGroup", "Spreadsheet::Sheet", "App::Part", "Assembly::AssemblyObject", "Assembly::JointGroup")
 
 
-def bodies_in(doc):
+def bodies_in(doc, hidden=False):
     """The parts a person would name: shown solids nothing else is built
-    from (a PartDesign Body, not its features)."""
+    from (a PartDesign Body, not its features). hidden: hidden ones too
+    (an assembly manual has every part, shown or not)."""
     out = []
     for o in getattr(doc, "Objects", None) or []:
         if not _solid(o):
@@ -50,7 +51,7 @@ def bodies_in(doc):
             parent = None
         if parent is not None and getattr(parent, "TypeId", "") == "PartDesign::Body":
             continue
-        if getattr(o, "Visibility", True) is False:
+        if not hidden and getattr(o, "Visibility", True) is False:
             continue
         out.append(o)
     return out

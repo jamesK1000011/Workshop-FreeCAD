@@ -66,7 +66,11 @@ def line(name, out):
 
 
 def tell(text, title="Workshop Documents", warn=False):
-    """A message box over FreeCAD's window (nothing when there is no GUI)."""
+    """A message box over FreeCAD's window, titled (nothing when there is
+    no GUI). macOS shows no window title on a message box, so there the
+    title is the bold first line and the text goes under it."""
+    import sys
+
     try:
         from PySide import QtGui
 
@@ -74,8 +78,16 @@ def tell(text, title="Workshop Documents", warn=False):
             from PySide import QtWidgets
         except ImportError:
             QtWidgets = QtGui
-        box = QtWidgets.QMessageBox.warning if warn else QtWidgets.QMessageBox.information
-        box(FreeCADGui.getMainWindow(), title, text)
+        B = QtWidgets.QMessageBox
+        box = B(FreeCADGui.getMainWindow())
+        box.setIcon(B.Warning if warn else B.Information)
+        box.setWindowTitle(title)
+        if sys.platform == "darwin":
+            box.setText(title)
+            box.setInformativeText(text)
+        else:
+            box.setText(text)
+        (getattr(box, "exec", None) or box.exec_)()
     except Exception:
         pass
 

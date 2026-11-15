@@ -36,9 +36,11 @@ TIPS = {
 # parameter names the agent uses (millimetre fields show "mm" in the box).
 _BOX = {"length": "Length", "width": "Width", "height": "Height", "wall": "Wall", "floor": "Floor",
         "radius": "Corner radius", "lid": "Lid thickness", "lip": "Lid lip depth", "clearance": "Lip clearance",
-        "bosses": "Screw bosses", "screw": "Screw size", "gap": "Gap to lid", "gapLid": "Gap to lid",
-        "thickness": "Board thickness", "standoff": "Standoff height", "headroom": "Headroom over board",
-        "margin": "Opening margin"}
+        "bosses": "Screw bosses", "screw": "Screw size", "gap": "Lid spacing on the bed"}
+# A board box's gap is round the board; its lid's spacing is gapLid.
+_BOARD = dict(_BOX, board="Board size", thickness="Board thickness", holes="Mounting holes", screw="Screw size",
+              standoff="Standoff height", headroom="Headroom over board", gap="Board to wall gap",
+              openings="Connector openings", margin="Opening margin", gapLid="Lid spacing on the bed")
 LABELS = {
     "gridfinity_bin": {"x": "Width (cells)", "y": "Depth (cells)", "units": "Height (units of 7 mm)", "lip": "Stacking lip",
                        "magnets": "Magnet holes", "screws": "Screw holes", "wall": "Wall", "floor": "Floor",
@@ -46,8 +48,22 @@ LABELS = {
                        "holes": "Hole allowance"},
     "gridfinity_baseplate": {"x": "Width (pockets)", "y": "Depth (pockets)", "style": "Style", "floor": "Magnet floor"},
     "project_box": _BOX,
-    "board_box": _BOX,
+    "board_box": _BOARD,
 }
+
+# The list fields as tables: [(key, column header, "num" or the choices)];
+# "pair" for a size X × Y.
+COLUMNS = {
+    "board_box": {
+        "board": "pair",
+        "holes": [("x", "X from board corner", "num"), ("y", "Y from board corner", "num")],
+        "openings": [("side", "Side", ("front", "back", "left", "right")), ("at", "Middle from corner", "num"),
+                     ("width", "Width", "num"), ("height", "Height", "num"), ("z", "Bottom over board", "num")],
+    },
+}
+
+# A field used only with another's choice: off otherwise.
+NEEDS = {"gridfinity_baseplate": {"floor": ("style", ("magnets",))}}
 
 
 class Make:
@@ -69,7 +85,7 @@ class Make:
         form.show(title(api.NAMES[self.generator]), api.params(self.generator), TIPS[self.generator],
                   run=lambda values: run(doc, self.generator, values),
                   summary=lambda values: summary(doc, self.generator, values), doc=doc,
-                  labels=LABELS.get(self.generator))
+                  labels=LABELS.get(self.generator), columns=COLUMNS.get(self.generator), needs=NEEDS.get(self.generator))
 
 
 def run(doc, generator, values):

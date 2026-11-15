@@ -13,8 +13,10 @@ from . import records as store
 # setup" for 0 meaning the setup's own])), choice (extra: the options, each
 # a value or (value, what it shows as); a value shows capitalised, TEXT
 # below, while the tool still gets the value), text, body (a part: the
-# selected or only one), bodies (comma list), point ([x, y, z]), setup (a
-# setup's id). Titles in Title Case, as FreeCAD's task panels have them.
+# selected or only one), bodies (comma list), point ([x, y, z], three
+# boxes labelled X, Y, Z in mm), depth (a number box and a "Through all"
+# check; extra as num's), setup (a setup's id). Titles in Title Case, as
+# FreeCAD's task panels have them; command and panel say the same words.
 SETUP_SETTINGS = (
     ("printer", "Printer", "choice", "generic", ("generic", "bed-slinger", "corexy", "h2d")),
     ("nozzle", "Nozzle", "choice", "0.4", ("0.2", "0.4", "0.6", "0.8")),
@@ -52,7 +54,7 @@ PANELS = {
         ("size", "Size", "text", "M3", None),
         ("at", "Enters at", "point", None, None),
         ("dir", "Into the material", "choice", "-z", ("-z", "+z", "-x", "+x", "-y", "+y")),
-        ("depth", "Depth (mm or through)", "text", "through", None),
+        ("depth", "Depth", "depth", "through", (0.1, 10000.0, 2, " mm")),
         ("fit", "Fit", "choice", "normal", ("close", "normal", "loose")),
     )),
     "embed": ("Embed Hardware", "hw_embed", {}, (
@@ -64,7 +66,7 @@ PANELS = {
         ("fit", "Fit", "choice", "slide", ("press", "snug", "slide", "free")),
         ("note", "Note", "text", "", None),
     )),
-    "slice": ("Slice Options", "slice", {}, (
+    "slice": ("Slice", "slice", {}, (
         ("body", "Part", "body", "", None),
         ("name", "File name", "text", "", None),
         ("layerHeight", "Layer height", "num", 0.0, (0.0, 1.0, 2, " mm", "From the setup")),
@@ -75,7 +77,23 @@ PANELS = {
 
 # What a choice's value shows as where capitalising it is not enough.
 TEXT = {"corexy": "CoreXY", "h2d": "H2D", "bed-slinger": "Bed slinger", "generic": "Generic",
-        "0.2": "0.2 mm", "0.4": "0.4 mm", "0.6": "0.6 mm", "0.8": "0.8 mm", "nut_trap": "Nut trap"}
+        "0.2": "0.2 mm", "0.4": "0.4 mm", "0.6": "0.6 mm", "0.8": "0.8 mm", "nut_trap": "Nut trap",
+        "-z": "Down (−Z)", "+z": "Up (+Z)", "-x": "Toward −X", "+x": "Toward +X", "-y": "Toward −Y", "+y": "Toward +Y"}
+
+# The one line under each panel's title saying what it does, as the Parts
+# panels have.
+INTRO = {
+    "setup_new": "A setup says how parts are made (printed, cut or milled) and with what settings.",
+    "setup_add": "Put a part in a setup, so it is made that way.",
+    "setup_remove": "Remove a setup; its parts then have no process.",
+    "fit_size": "The size to model a hole or peg at for a bought part, the printer's calibration added.",
+    "calibrate": "How much this printer prints holes small and pegs big; every fit sized after takes it.",
+    "hole": "A hole for hardware, cut into the part where it enters.",
+    "embed": "A pocket for a bought part encased mid-print, and the pause to put it in.",
+    "slice": "Slice the part in its print setup with the slicer on this computer.",
+}
+
+NO_SETUPS = "No setups yet: Make ▸ New Setup… first."
 
 
 def options(extra):
@@ -214,8 +232,12 @@ class FormPanel:
         self.form = QtWidgets.QWidget()
         self.form.setWindowTitle(title)
         lay = QtWidgets.QFormLayout(self.form)
+        intro = QtWidgets.QLabel(INTRO.get(panel, ""))
+        intro.setWordWrap(True)
+        lay.addRow(intro)
         body, at = picked()
         self.get = {}
+        self.blocked = ""
         for key, label, kind, default, extra in fields:
             if kind == "num":
                 w = QtWidgets.QDoubleSpinBox()
@@ -238,7 +260,10 @@ class FormPanel:
                 else:
                     ok, out = self.runner("setup", {"action": "list"})
                     items = [(s.get("id"), f"{s.get('name')} ({s.get('id')})") for s in (out.get("setups") or [])] if ok else []
-                    items = items or [("", "No setups yet")]
+                    if not items:
+                        items = [("", "No setups yet")]
+                        self.blocked = NO_SETUPS
+                        w.setEnabled(False)
                 w.addItems([t for _v, t in items])
                 w.setCurrentIndex(start)
                 self.get[key] = lambda w=w, items=items: chosen(w, items)
@@ -251,19 +276,52 @@ class FormPanel:
                     sb = QtWidgets.QDoubleSpinBox()
                     sb.setRange(-100000, 100000)
                     sb.setDecimals(3)
+                    sb.setPrefix("XYZ"[k] + " ")
+                    sb.setSuffix(" mm")
+                    sb.setToolTip(f"{'XYZ'[k]} in the document's coordinates, mm.")
                     sb.setValue((at or [0, 0, 0])[k])
                     h.addWidget(sb)
                     boxes.append(sb)
                 w = row
                 self.get[key] = lambda boxes=boxes: [b.value() for b in boxes]
+            elif kind == "depth":
+                row = QtWidgets.QWidget()
+                h = QtWidgets.QHBoxLayout(row)
+                h.setContentsMargins(0, 0, 0, 0)
+                sb = QtWidgets.QDoubleSpinBox()
+                lo, hi, dec, suf = extra[:4]
+                sb.setRange(lo, hi)
+                sb.setDecimals(dec)
+                sb.setSuffix(suf)
+                sb.setValue(lo if default == "through" else float(default))
+                through = QtWidgets.QCheckBox("Through all")
+                through.setChecked(default == "through")
+                sb.setEnabled(default != "through")
+                through.toggled.connect(lambda on, sb=sb: sb.setEnabled(not on))
+                h.addWidget(sb, 1)
+                h.addWidget(through)
+                w = row
+                self.get[key] = lambda sb=sb, through=through: "through" if through.isChecked() else sb.value()
             else:
                 w = QtWidgets.QLineEdit()
                 w.setText(", ".join(selected_labels()) if kind == "bodies" else str(default or ""))
                 self.get[key] = w.text
             lay.addRow(label, w)
-        self.msg = QtWidgets.QLabel("")
+        self.msg = QtWidgets.QLabel(self.blocked)
         self.msg.setWordWrap(True)
         lay.addRow(self.msg)
+
+    def getStandardButtons(self):
+        """OK and Cancel; with nothing to act on (no setups yet) OK is
+        left out and the reason shown in its place."""
+        from PySide import QtGui
+
+        try:
+            from PySide import QtWidgets
+        except ImportError:
+            QtWidgets = QtGui
+        B = QtWidgets.QDialogButtonBox
+        return B.Cancel if self.blocked else B.Ok | B.Cancel
 
     def values(self):
         return {k: g() for k, g in self.get.items()}
@@ -271,6 +329,9 @@ class FormPanel:
     def accept(self):
         import FreeCADGui
 
+        if self.blocked:
+            self.msg.setText(self.blocked)
+            return False
         tool, args = args_of(self.panel, self.values())
         ok, out = self.runner(tool, args)
         if not ok:

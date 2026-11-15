@@ -56,6 +56,21 @@ OUT["alone_service"] = alone.service
 
 
 class Manual(unittest.TestCase):
+    def test_hidden_parts_listed_and_empty_lines(self):
+        out = run(r'''
+from workshop_documents import panel as P
+doc = Doc()
+doc.Objects[0].Visibility = False
+OUT["parts"] = P.parts(doc)
+t = P.ManualTab(runner=lambda tool, a: (True, {}), doc_fn=lambda: Doc(()))
+shown = []
+t.no_parts.setVisible = shown.append
+t.fill()
+OUT["empty"] = [t.no_parts.text(), shown, t.no_steps.text()]
+''')
+        self.assertEqual(out["parts"], ["Box", "Lid"])
+        self.assertEqual(out["empty"], ["No parts in the document yet.", [True], "No steps yet: tick the parts that go on first, then Add Step."])
+
     def test_tab_falls_back_then_uses_the_service(self):
         out = run(TAB)
         self.assertEqual(out["orders"], [["Manual", 40]])
