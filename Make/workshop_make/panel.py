@@ -164,6 +164,15 @@ def _sync(combo, items):
     combo.blockSignals(False)
 
 
+def _narrow_form(form):
+    """A form for a narrow dock: a long row puts its label above its box."""
+    try:
+        form.setRowWrapPolicy(QtWidgets.QFormLayout.WrapLongRows)
+        form.setFieldGrowthPolicy(QtWidgets.QFormLayout.AllNonFixedFieldsGrow)
+    except Exception:  # noqa: BLE001 — stand-in Qt
+        pass
+
+
 class Tab(_Base):
     """A tab over a runner. fill() refreshes it from the document."""
 
@@ -224,7 +233,9 @@ class SetupsTab(Tab):
         self.lay.addWidget(self.setups, 1)
         self.none = self.empty_line(EMPTY_SETUPS)
         self.lay.addWidget(self.none)
-        row = QtWidgets.QHBoxLayout()
+        # The two picks on one line, the keys on the next: one row of all
+        # five was cut off in a 330 px dock (live on the Mac).
+        row = self.pick_row = QtWidgets.QHBoxLayout()
         self.kind = QtWidgets.QComboBox()
         self.kind.addItems([store.TYPES[k]["label"] for k in store.TYPES])
         self.kind.setToolTip("How the part is made.")
@@ -232,6 +243,8 @@ class SetupsTab(Tab):
         self.body.setToolTip("The part.")
         row.addWidget(self.kind, 1)
         row.addWidget(self.body, 1)
+        self.lay.addLayout(row)
+        row = self.key_row = QtWidgets.QHBoxLayout()
         for b in (self.button("New", "A new setup of this kind with the part in it.", self.new),
                   self.button("Add to Setup", "Put the part in the setup picked above.", self.add),
                   self.button("Remove", "Remove the setup picked above (its parts then have no process).", self.remove)):
@@ -344,6 +357,7 @@ class FitsTab(Tab):
 
     def build(self):
         form = QtWidgets.QFormLayout()
+        _narrow_form(form)
         self.nominal = QtWidgets.QDoubleSpinBox()
         self.nominal.setRange(0.1, 2000)
         self.nominal.setDecimals(2)
@@ -360,7 +374,10 @@ class FitsTab(Tab):
         self.lay.addWidget(self.button("Size It", "The size to model at, each fit.", self.size))
         self.table = self.tree(["Fit", "Model at mm"])
         self.lay.addWidget(self.table, 1)
-        cal = QtWidgets.QHBoxLayout()
+        # The printer's calibration as a form (label above its box when
+        # narrow), Keep under it: one row of five was cut off.
+        cal = self.cal_form = QtWidgets.QFormLayout()
+        _narrow_form(cal)
         self.cal_hole = QtWidgets.QDoubleSpinBox()
         self.cal_shaft = QtWidgets.QDoubleSpinBox()
         for sb, tip in ((self.cal_hole, "How much smaller a printed hole comes out, diametral mm."), (self.cal_shaft, "How much bigger a printed peg comes out, diametral mm.")):
@@ -369,12 +386,10 @@ class FitsTab(Tab):
             sb.setSingleStep(0.05)
             sb.setToolTip(tip)
         self.cal_hole.setValue(0.2)
-        cal.addWidget(QtWidgets.QLabel("Printer: holes small by"))
-        cal.addWidget(self.cal_hole)
-        cal.addWidget(QtWidgets.QLabel("pegs big by"))
-        cal.addWidget(self.cal_shaft)
-        cal.addWidget(self.button("Keep", "Every hole and fit sized from now on takes it.", self.calibrate))
+        cal.addRow("Printer: holes small by", self.cal_hole)
+        cal.addRow("Pegs big by", self.cal_shaft)
         self.lay.addLayout(cal)
+        self.lay.addWidget(self.button("Keep", "Every hole and fit sized from now on takes it.", self.calibrate))
 
     def fill(self):
         _sync(self.body, [""] + parts(self.doc_fn()))
