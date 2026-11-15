@@ -16,6 +16,8 @@ class ImportBoard:
     def Activated(self):
         from workshop_electronics import taskpanels
 
+        if taskpanels.busy():
+            return
         taskpanels.show_import_board(FreeCAD.ActiveDocument or FreeCAD.newDocument())
 
 

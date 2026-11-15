@@ -154,7 +154,7 @@ OUT["tx2"] = d2.tx
 src = open(T.__file__).read() + open(T.__file__.replace("taskpanels", "commands")).read()
 OUT["noexec"] = "exec_" not in src and "QDialog(" not in src
 """)
-        self.assertEqual(out["title"], "KiCad board")
+        self.assertEqual(out["title"], "KiCad Board")
         self.assertIn("Pick a KiCad board", out["empty"])
         self.assertEqual(out["refused"][0], False)
         self.assertEqual(out["missing"], "Not a file yet.")
@@ -175,7 +175,23 @@ commands.ImportBoard().Activated()
 [p] = shown
 OUT["title"] = p.form.windowTitle()
 """)
-        self.assertEqual(out["title"], "KiCad board")
+        self.assertEqual(out["title"], "KiCad Board")
+
+    def test_a_second_task_is_refused(self):
+        out = run("""
+told, shown = [], []
+class Box:
+    @staticmethod
+    def information(parent, title, text): told.append([title, text])
+sys.modules["PySide.QtGui"].QMessageBox = Box
+Gui.Control = types.SimpleNamespace(activeDialog=lambda: object(), showDialog=shown.append, closeDialog=lambda: None)
+FreeCAD.ActiveDocument = Doc()
+from workshop_electronics import commands
+commands.ImportBoard().Activated()
+OUT["told"], OUT["shown"] = told, len(shown)
+""")
+        self.assertEqual(out["told"], [["Workshop Electronics", "Finish or cancel the open task first."]])
+        self.assertEqual(out["shown"], 0)
 
 
 if __name__ == "__main__":

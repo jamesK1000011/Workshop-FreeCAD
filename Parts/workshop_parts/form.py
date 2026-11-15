@@ -24,9 +24,25 @@ def _connect(w, signal, fn):
         pass
 
 
-def build(table, intro="", qt=None):
+def label_of(name, labels=None):
+    """A field's label: the one given, else the parameter's name in words
+    (dividersX -> Dividers x), never the raw name."""
+    if labels and name in labels:
+        return labels[name]
+    words = "".join(" " + c.lower() if c.isupper() else c for c in name).replace("_", " ").strip()
+    return words[:1].upper() + words[1:]
+
+
+def shown(value):
+    """An option as it shows: capitalised (the table keeps its value)."""
+    v = str(value).replace("_", " ")
+    return v[:1].upper() + v[1:]
+
+
+def build(table, intro="", qt=None, labels=None):
     """(form widget, its layout, fields {name: (kind, widget, spec)}) for a
-    parameter table: one row per parameter it knows how to ask for."""
+    parameter table: one row per parameter it knows how to ask for, labelled
+    in words with its unit (labels: {name: label})."""
     Q = qt or _qt()
     form = Q.QWidget()
     lay = Q.QFormLayout(form)
@@ -42,9 +58,8 @@ def build(table, intro="", qt=None):
             w.setChecked(bool(d))
         elif kind == "enum":
             w = Q.QComboBox()
-            w.addItems([str(v) for v in spec["values"]])
-            if d in spec["values"]:
-                w.setCurrentIndex(list(spec["values"]).index(d))
+            w.addItems([shown(v) for v in spec["values"]])
+            w.setCurrentIndex(list(spec["values"]).index(d) if d in spec["values"] else 0)
         elif kind == "int":
             w = Q.QSpinBox()
             w.setRange(int(spec["min"]), int(spec["max"]))
@@ -59,7 +74,7 @@ def build(table, intro="", qt=None):
             continue
         if spec.get("tip"):
             w.setToolTip(spec["tip"])
-        lay.addRow(k, w)
+        lay.addRow(label_of(k, labels), w)
         fields[k] = (kind, w, spec)
     return form, lay, fields
 
@@ -85,10 +100,10 @@ class TaskPanel:
     -> str fills the live line under the fields. doc: the transaction
     opened when the panel opens, committed on OK, aborted on Cancel."""
 
-    def __init__(self, title, table, intro="", run=None, summary=None, doc=None, qt=None):
+    def __init__(self, title, table, intro="", run=None, summary=None, doc=None, qt=None, labels=None):
         Q = qt or _qt()
         self.run, self.summary, self.doc = run, summary, doc
-        self.form, lay, self.fields = build(table, intro, Q)
+        self.form, lay, self.fields = build(table, intro, Q, labels)
         self.form.setWindowTitle(title)
         self.line = Q.QLabel("")
         self.line.setWordWrap(True)
@@ -140,12 +155,30 @@ class TaskPanel:
         return True
 
 
-def show(title, table, intro="", run=None, summary=None, doc=None):
-    """Open the panel in the Tasks tab (closing any other task first)."""
+BUSY = "Finish or cancel the open task first."
+
+
+def busy():
+    """True (and the person told) when a task panel is open already: as
+    FreeCAD's own commands do, a new one is refused rather than replacing
+    it."""
     import FreeCADGui
 
-    if FreeCADGui.Control.activeDialog():
-        FreeCADGui.Control.closeDialog()
-    panel = TaskPanel(title, table, intro, run, summary, doc)
+    if not FreeCADGui.Control.activeDialog():
+        return False
+    try:
+        _qt().QMessageBox.information(FreeCADGui.getMainWindow(), "Workshop Parts", BUSY)
+    except Exception:
+        pass
+    return True
+
+
+def show(title, table, intro="", run=None, summary=None, doc=None, labels=None):
+    """Open the panel in the Tasks tab; refused while another task is open."""
+    import FreeCADGui
+
+    if busy():
+        return None
+    panel = TaskPanel(title, table, intro, run, summary, doc, labels=labels)
     FreeCADGui.Control.showDialog(panel)
     return panel

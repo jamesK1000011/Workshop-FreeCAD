@@ -7,40 +7,86 @@ agent's tool calls. Its own copy of Make's form panel (no shared library).
 No Agent Link import here."""
 
 # A field: (argument, label, kind, default, extra). Kinds: num (extra:
-# (min, max, decimals, suffix)), choice (extra: the options; "" first means
-# "left out"), text, body, bodies and list (comma lists), steps
-# ("Title: part, part; Title: part" — one step a part selected by default).
+# (min, max, decimals, suffix[, what the minimum shows as, e.g. "Fit to
+# sheet" for a scale of 0])), choice (extra: the options, each a value or
+# (value, what it shows as); a value shows capitalised, TEXT below, while
+# the tool still gets the value), text, body, bodies and list (comma lists),
+# steps ("Title: part, part; Title: part" — one step a part selected by
+# default). Titles in Title Case, as FreeCAD's task panels have them.
 VIEWS = ("front", "back", "top", "bottom", "right", "left", "iso")
 
 PANELS = {
     "drawing": ("Drawing", "drawing_make", {}, (
         ("bodies", "Parts (all when blank)", "bodies", "", None),
         ("views", "Views (front, top, right, iso …)", "list", "front, top, right, iso", None),
-        ("projection", "Projection", "choice", "", ("", "first", "third")),
-        ("paper", "Sheet", "choice", "", ("", "A4", "A3", "auto")),
-        ("scale", "Scale (0 fits the sheet)", "num", 0.0, (0.0, 100.0, 3, "")),
+        ("projection", "Projection", "choice", "first", ("first", "third")),
+        ("paper", "Sheet", "choice", "auto", ("auto", "A4", "A3")),
+        ("scale", "Scale", "num", 0.0, (0.0, 100.0, 3, "", "Fit to sheet")),
         ("name", "Name", "text", "", None),
     )),
-    "exploded": ("Exploded drawing", "drawing_exploded", {}, (
+    "exploded": ("Exploded Drawing", "drawing_exploded", {}, (
         ("steps", "Steps", "steps", "", None),
-        ("explode", "Spacing (0: chosen for you)", "num", 0.0, (0.0, 5000.0, 1, " mm")),
-        ("direction", "Moved", "choice", "", ("", "up", "out")),
+        ("explode", "Spacing", "num", 0.0, (0.0, 5000.0, 1, " mm", "Chosen for you")),
+        ("direction", "Moved", "choice", "up", ("up", "out")),
         ("name", "Manual name", "text", "", None),
     )),
-    "library": ("Library pack", "library_pack", {}, (
+    "library": ("Library Pack", "library_pack", {}, (
         ("bodies", "Parts (all when blank)", "bodies", "", None),
         ("license", "Licence", "choice", "CC-BY-4.0", ("CC-BY-4.0", "CC-BY-SA-4.0", "CC0-1.0", "MIT")),
         ("name", "Pack name", "text", "", None),
         ("description", "What it is", "text", "", None),
         ("author", "Author (as credited)", "text", "", None),
     )),
-    "patent": ("Patent draft", "patent_draft", {}, (
+    "patent": ("Patent Draft", "patent_draft", {}, (
         ("title", "Title of the invention", "text", "", None),
         ("field", "Field", "text", "", None),
         ("bodies", "Parts (all when blank)", "bodies", "", None),
         ("name", "Name", "text", "", None),
     )),
 }
+
+# What a choice's value shows as where capitalising it is not enough.
+TEXT = {"first": "First angle (ISO)", "third": "Third angle (ASME)", "auto": "Smallest that fits",
+        "up": "Up, over its place", "out": "Out, from the middle"}
+
+
+def options(extra):
+    """[(value, text)] for a choice's options."""
+    out = []
+    for o in extra or ():
+        v, t = o if isinstance(o, tuple) else (o, None)
+        out.append((v, t or shown(v)))
+    return out
+
+
+def shown(value):
+    """A choice's value as it shows: TEXT's, else capitalised."""
+    v = str(value)
+    if v in TEXT:
+        return TEXT[v]
+    v = v.replace("_", " ")
+    return v[:1].upper() + v[1:]
+
+
+def chosen(combo, items):
+    """The value behind a combo's current entry ("" for none)."""
+    i = combo.currentIndex()
+    return items[i][0] if isinstance(i, int) and 0 <= i < len(items) else ""
+
+
+def body_items(parts, selected=None):
+    """[(value, text)] for a part combo and the index to start on: the
+    part selected, else the only one; a prompt first when there are several
+    and none is selected (blank: the tool's own "the one there is")."""
+    parts = list(parts)
+    if selected in parts:
+        return [(p, p) for p in parts], parts.index(selected)
+    if len(parts) == 1:
+        return [(parts[0], parts[0])], 0
+    if not parts:
+        return [("", "No parts in the document")], 0
+    return [("", "Choose a part")] + [(p, p) for p in parts], 0
+
 
 SETTINGS = {}
 OPTIONAL_ZERO = ("scale", "explode")
@@ -158,25 +204,25 @@ class FormPanel:
         for key, label, kind, default, extra in fields:
             if kind == "num":
                 w = QtWidgets.QDoubleSpinBox()
-                lo, hi, dec, suf = extra
+                lo, hi, dec, suf = extra[:4]
                 w.setRange(lo, hi)
                 w.setDecimals(dec)
                 w.setSuffix(suf)
+                if len(extra) > 4:
+                    w.setSpecialValueText(extra[4])
                 w.setValue(default)
                 self.get[key] = w.value
-            elif kind in ("choice", "body", "setup"):
+            elif kind in ("choice", "body"):
                 w = QtWidgets.QComboBox()
+                start = 0
                 if kind == "choice":
-                    items = list(extra)
-                elif kind == "body":
-                    items = [""] + P.parts(P._doc())
+                    items = options(extra)
+                    start = next((i for i, (v, _t) in enumerate(items) if v == default), 0)
                 else:
-                    items = []
-                w.addItems(items)
-                want = body if kind == "body" and body in items else default
-                if want in items:
-                    w.setCurrentIndex(items.index(want))
-                self.get[key] = (lambda w=w: w.currentText().split(" — ")[0]) if kind == "setup" else w.currentText
+                    items, start = body_items(P.parts(P._doc()), body)
+                w.addItems([t for _v, t in items])
+                w.setCurrentIndex(start)
+                self.get[key] = lambda w=w, items=items: chosen(w, items)
             elif kind == "point":
                 row = QtWidgets.QWidget()
                 h = QtWidgets.QHBoxLayout(row)
@@ -227,9 +273,35 @@ class FormPanel:
         return True
 
 
+BUSY = "Finish or cancel the open task first."
+
+
+def busy():
+    """True (and the person told) when a task panel is open already: as
+    FreeCAD's own commands do, a new one is refused rather than replacing
+    it."""
+    import FreeCADGui
+
+    if not FreeCADGui.Control.activeDialog():
+        return False
+    try:
+        from PySide import QtGui
+
+        try:
+            from PySide import QtWidgets
+        except ImportError:
+            QtWidgets = QtGui
+        QtWidgets.QMessageBox.information(FreeCADGui.getMainWindow(), "Workshop Documents", BUSY)
+    except Exception:
+        pass
+    return True
+
+
 def show(panel, runner=None, done=None):
     import FreeCADGui
 
-    if FreeCADGui.Control.activeDialog():
-        FreeCADGui.Control.closeDialog()
-    FreeCADGui.Control.showDialog(FormPanel(panel, runner, done))
+    if busy():
+        return None
+    p = FormPanel(panel, runner, done)
+    FreeCADGui.Control.showDialog(p)
+    return p

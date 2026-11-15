@@ -192,9 +192,49 @@ OUT["title"] = p.form.windowTitle()
 OUT["fields"] = len(p.fields)
 OUT["tx"] = FreeCAD.ActiveDocument.tx
 """)
-        self.assertEqual(out["title"], "Gridfinity bin")
+        self.assertEqual(out["title"], "Gridfinity Bin")
         self.assertGreater(out["fields"], 3)
         self.assertEqual(out["tx"], ["open"])
+
+
+    def test_labels_in_words_and_options_capitalised(self):
+        out = run("""
+from workshop_parts import api, form, commands
+OUT["rows"] = {}
+for g in api.GENERATORS:
+    w, lay, fields = form.build(api.params(g), "", labels=commands.LABELS.get(g))
+    OUT["rows"][g] = [r[0] for r in lay.rows if len(r) == 2]
+w, lay, fields = form.build(api.params("gridfinity_baseplate"), labels=commands.LABELS["gridfinity_baseplate"])
+OUT["style"] = fields["style"][1].items
+OUT["value"] = form.read(fields)["style"]
+OUT["fallback"] = form.label_of("dividersX")
+""")
+        bin_rows = out["rows"]["gridfinity_bin"]
+        for want in ("Width (cells)", "Height (units of 7 mm)", "Dividers across"):
+            self.assertIn(want, bin_rows)
+        for g, rows in out["rows"].items():
+            for label in rows:
+                self.assertTrue(label[:1].isupper(), (g, label))
+                self.assertNotIn(label, ("x", "y", "units", "dividersX", "gapLid"), g)
+        self.assertEqual(out["style"], ["Open", "Magnets"])
+        self.assertEqual(out["value"], "open")
+        self.assertEqual(out["fallback"], "Dividers x")
+
+    def test_a_second_task_is_refused(self):
+        out = run("""
+told, shown = [], []
+class Box:
+    @staticmethod
+    def information(parent, title, text): told.append([title, text])
+sys.modules["PySide.QtGui"].QMessageBox = Box
+Gui.Control = types.SimpleNamespace(activeDialog=lambda: object(), showDialog=shown.append, closeDialog=lambda: None)
+FreeCAD.ActiveDocument = Doc()
+from workshop_parts import commands
+commands.Make("project_box").Activated()
+OUT["told"], OUT["shown"], OUT["tx"] = told, len(shown), FreeCAD.ActiveDocument.tx
+""")
+        self.assertEqual(out["told"], [["Workshop Parts", "Finish or cancel the open task first."]])
+        self.assertEqual((out["shown"], out["tx"]), (0, []))
 
 
 if __name__ == "__main__":
