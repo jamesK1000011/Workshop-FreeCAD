@@ -779,7 +779,7 @@ class Placer:
             content = self._content(e)
             e["frame"] = frame(content)
             # A workbench's own panel right after Tasks, Agent Link's
-            # (EVERYWHERE) after it: Model | Tasks | Texturizer | Agent Link.
+            # (EVERYWHERE) after it: Model | Tasks | <workbench's panel> | Agent Link.
             hub = [] if e["workbench"] == EVERYWHERE else [
                 x for x in self.entries.values()
                 if x is not e and x["where"] == LEFT_TAB and x["workbench"] == EVERYWHERE
