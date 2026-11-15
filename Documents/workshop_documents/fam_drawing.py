@@ -22,7 +22,11 @@ from .handlers import drawing as H
 
 DATA = tooldefs.here(__file__)
 GROUP = "drawing"
+# TechDraw while these run (the page opens there); a button lit only where
+# TechDraw has one that does the same (drawing_exploded and the patent tools
+# have none there; their buttons are on the Workshop Documents bench).
 WORKBENCHES = {"drawing_": "TechDrawWorkbench"}
+COMMANDS = {"drawing_make": "TechDraw_ProjectionGroup"}
 PAGES = ("drawing_",)
 INFO = "Drawings and documents: dimensioned views as a TechDraw page with SVG, PDF and DXF; assembly manuals with exploded steps and a bill of materials; patent figures and a draft."
 
