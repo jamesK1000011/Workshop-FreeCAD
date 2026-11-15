@@ -33,6 +33,27 @@ You need FreeCAD 1.0 or newer.
 Use one way, not two. Each add-on's README says what you see in FreeCAD and
 what an agent can do with it.
 
+## Uninstall
+
+- **Addon Manager**: Tools ▸ Addon manager ▸ Workshop for FreeCAD ▸
+  Uninstall, then restart FreeCAD. This removes all four.
+- **Installed by Agent Link or by hand**: delete the add-on folders from
+  FreeCAD's `Mod` folder (`WorkshopParts`, `WorkshopMake`,
+  `WorkshopElectronics`, `WorkshopDocuments`) and restart FreeCAD.
+- **Your files** are yours to keep or delete: what the add-ons write goes
+  beside the open document, or to `~/Workshop` when it has not been saved.
+
+## Privacy
+
+No add-on here has telemetry, and none sends anything anywhere on its own.
+The one network use is Workshop Make's printer connection: when you ask it
+to, it talks to printers on your own network (OctoPrint, Moonraker,
+PrusaLink) at the addresses you give it. Their keys and passwords are kept
+in a file only your user can read, and are never shown back. Library packs
+from Workshop Documents are scrubbed of personal details before they are
+written. With Agent Link, what the agent reads goes to the AI provider your
+MCP client uses, under that provider's terms.
+
 ## Tests
 
 CI runs each add-on alone, then with Agent Link beside it:
@@ -46,6 +67,7 @@ cd Parts && AGENTLINK_HOME=$(mktemp -d) PYTHONPATH=. python3 -m unittest discove
 
 LGPL-2.1-or-later (`LICENSE`); the data files are CC BY 4.0 (`LICENSE-DATA`).
 Each add-on carries its own `LICENSE`, `LICENSES/`, `REUSE.toml` and
-`CHANGELOG.md`. Parts moved here from Agent Link for FreeCAD on 14 Nov 2026;
+`CHANGELOG.md`; `CHANGELOG.md` here covers the suite as the Addon Manager
+installs it. Parts moved here from Agent Link for FreeCAD on 14 Nov 2026;
 its history before that is in that repository (`agentlink/gridfinity.py`,
 `agentlink/boxes.py` and `agentlink/families/parts.py` up to commit c954763).

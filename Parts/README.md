@@ -104,6 +104,17 @@ file with a schema, each entry with its source and date, under CC BY 4.0
 `~/.config/workshop_parts/metric-hardware.json`; updates never touch that
 folder, and your entries win.
 
+## Uninstall and privacy
+
+Installed with Workshop for FreeCAD through the Addon Manager, it is removed
+with it (Tools ▸ Addon manager ▸ Workshop for FreeCAD ▸ Uninstall). Installed
+by Agent Link or by hand, delete the `WorkshopParts` folder from FreeCAD's `Mod`
+folder and restart FreeCAD. The parts it made stay in your documents.
+
+Workshop Parts has no telemetry. It makes no network connection on its own. With Agent Link, what the agent
+reads goes to the AI provider your MCP client uses, under that provider's
+terms.
+
 ## For developers
 
 ```

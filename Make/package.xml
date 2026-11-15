@@ -20,6 +20,8 @@
   <tag>laser cutting</tag>
   <tag>CNC</tag>
   <tag>agent</tag>
+  <depend type="python">numpy</depend>
+  <depend type="python" optional="true">scipy</depend>
   <content>
     <workbench>
       <name>Workshop Make</name>

@@ -18,6 +18,7 @@
   <tag>bill of materials</tag>
   <tag>sharing</tag>
   <tag>agent</tag>
+  <depend type="python">numpy</depend>
   <content>
     <workbench>
       <name>Workshop Documents</name>

@@ -170,6 +170,21 @@ and each entry with its source and date, under CC BY 4.0 (`LICENSE-DATA`).
 Your own entries go in `~/.config/workshop_make/<name>.json`; updates never
 touch that folder, and your entries win.
 
+## Uninstall and privacy
+
+Installed with Workshop for FreeCAD through the Addon Manager, it is removed
+with it (Tools ▸ Addon manager ▸ Workshop for FreeCAD ▸ Uninstall). Installed
+by Agent Link or by hand, delete the `WorkshopMake` folder from FreeCAD's `Mod`
+folder and restart FreeCAD. What it wrote beside your documents, or in
+`~/Workshop`, is yours to keep or delete.
+
+Workshop Make has no telemetry. It sends nothing anywhere on its own. The one exception is the printer connection: when you ask, it talks to
+printers on your own network (OctoPrint, Moonraker, PrusaLink) at the
+addresses you give; their keys and passwords are kept in a file only your
+user can read and are never shown back. With Agent Link, what the agent
+reads goes to the AI provider your MCP client uses, under that provider's
+terms.
+
 ## For developers
 
 ```
