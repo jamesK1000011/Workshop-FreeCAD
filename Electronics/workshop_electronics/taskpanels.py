@@ -45,7 +45,7 @@ class ImportBoardPanel:
     """The KiCad board panel. doc: where the board goes; its transaction is
     opened with the panel."""
 
-    TITLE = "KiCad board"
+    TITLE = "KiCad Board"
 
     def __init__(self, doc=None, path="", qt=None):
         Q = qt or _qt()
@@ -136,11 +136,29 @@ class ImportBoardPanel:
         return True
 
 
+BUSY = "Finish or cancel the open task first."
+
+
+def busy():
+    """True (and the person told) when a task panel is open already: as
+    FreeCAD's own commands do, a new one is refused rather than replacing
+    it."""
+    import FreeCADGui
+
+    if not FreeCADGui.Control.activeDialog():
+        return False
+    try:
+        _qt().QMessageBox.information(FreeCADGui.getMainWindow(), "Workshop Electronics", BUSY)
+    except Exception:
+        pass
+    return True
+
+
 def show_import_board(doc):
     import FreeCADGui
 
-    if FreeCADGui.Control.activeDialog():
-        FreeCADGui.Control.closeDialog()
+    if busy():
+        return None
     panel = ImportBoardPanel(doc)
     FreeCADGui.Control.showDialog(panel)
     return panel

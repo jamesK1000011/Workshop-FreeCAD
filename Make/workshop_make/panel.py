@@ -204,15 +204,15 @@ class SetupsTab(Tab):
         self.lay.addWidget(self.setups, 1)
         row = QtWidgets.QHBoxLayout()
         self.kind = QtWidgets.QComboBox()
-        self.kind.addItems(list(store.TYPES))
-        self.kind.setToolTip("How the part is made")
+        self.kind.addItems([store.TYPES[k]["label"] for k in store.TYPES])
+        self.kind.setToolTip("How the part is made.")
         self.body = QtWidgets.QComboBox()
-        self.body.setToolTip("The part")
+        self.body.setToolTip("The part.")
         row.addWidget(self.kind, 1)
         row.addWidget(self.body, 1)
-        for b in (self.button("New", "A new setup of this kind with the part in it", self.new),
-                  self.button("Add to", "Put the part in the setup picked above", self.add),
-                  self.button("Remove", "Remove the setup picked above (its parts then have no process)", self.remove)):
+        for b in (self.button("New", "A new setup of this kind with the part in it.", self.new),
+                  self.button("Add to Setup", "Put the part in the setup picked above.", self.add),
+                  self.button("Remove", "Remove the setup picked above (its parts then have no process).", self.remove)):
             row.addWidget(b)
         self.lay.addLayout(row)
 
@@ -238,7 +238,7 @@ class SetupsTab(Tab):
 
     def new(self):
         b = self.body.currentText()
-        ok, out = self.runner("setup", {"action": "add", "type": self.kind.currentText(), "bodies": [b] if b else []})
+        ok, out = self.runner("setup", {"action": "add", "type": list(store.TYPES)[max(self.kind.currentIndex(), 0)], "bodies": [b] if b else []})
         self.fill()
         self.say(ok, out)
 
@@ -272,14 +272,14 @@ class MaterialsTab(Tab):
         self.find.setPlaceholderText("Find a material (pla, petg, steel …)")
         self.find.returnPressed.connect(self.search)
         row.addWidget(self.find, 1)
-        row.addWidget(self.button("Find", "Make's filaments and shop materials", self.search))
+        row.addWidget(self.button("Find", "Make's filaments and shop materials.", self.search))
         self.lay.addLayout(row)
         self.hits = self.tree(["Material", "Category", "Density", "E MPa", "Yield MPa"])
         self.lay.addWidget(self.hits, 1)
         row = QtWidgets.QHBoxLayout()
         row.addStretch(1)
-        row.addWidget(self.button("Give to part", "The material picked below, for the part picked above", self.give))
-        row.addWidget(self.button("Forget", "The part picked above goes back to no material (PLA assumed, and said)", self.forget))
+        row.addWidget(self.button("Give to Part", "The material picked below, for the part picked above.", self.give))
+        row.addWidget(self.button("Forget", "The part picked above goes back to no material (PLA assumed, and said).", self.forget))
         self.lay.addLayout(row)
 
     def fill(self):
@@ -327,20 +327,20 @@ class FitsTab(Tab):
         self.nominal.setValue(5.0)
         self.nominal.setSuffix(" mm")
         self.of = QtWidgets.QComboBox()
-        self.of.addItems(["hole", "shaft"])
+        self.of.addItems(["Hole", "Shaft"])
         self.body = QtWidgets.QComboBox()
-        self.body.setToolTip("The part, so its print setup's calibration is used (blank: the document's)")
+        self.body.setToolTip("The part, so its print setup's calibration is used (blank: the document's).")
         form.addRow("Bought part / mate", self.nominal)
         form.addRow("Modelling a", self.of)
         form.addRow("In part", self.body)
         self.lay.addLayout(form)
-        self.lay.addWidget(self.button("Size it", "The size to model at, each fit", self.size))
+        self.lay.addWidget(self.button("Size It", "The size to model at, each fit.", self.size))
         self.table = self.tree(["Fit", "Model at mm"])
         self.lay.addWidget(self.table, 1)
         cal = QtWidgets.QHBoxLayout()
         self.cal_hole = QtWidgets.QDoubleSpinBox()
         self.cal_shaft = QtWidgets.QDoubleSpinBox()
-        for sb, tip in ((self.cal_hole, "How much smaller a printed hole comes out, diametral mm"), (self.cal_shaft, "How much bigger a printed peg comes out, diametral mm")):
+        for sb, tip in ((self.cal_hole, "How much smaller a printed hole comes out, diametral mm."), (self.cal_shaft, "How much bigger a printed peg comes out, diametral mm.")):
             sb.setRange(-1, 1)
             sb.setDecimals(2)
             sb.setSingleStep(0.05)
@@ -350,14 +350,14 @@ class FitsTab(Tab):
         cal.addWidget(self.cal_hole)
         cal.addWidget(QtWidgets.QLabel("pegs big by"))
         cal.addWidget(self.cal_shaft)
-        cal.addWidget(self.button("Keep", "Every hole and fit sized from now on takes it", self.calibrate))
+        cal.addWidget(self.button("Keep", "Every hole and fit sized from now on takes it.", self.calibrate))
         self.lay.addLayout(cal)
 
     def fill(self):
         _sync(self.body, [""] + parts(self.doc_fn()))
 
     def size(self):
-        args = {"action": "size", "nominal": round(self.nominal.value(), 3), "of": self.of.currentText()}
+        args = {"action": "size", "nominal": round(self.nominal.value(), 3), "of": self.of.currentText().lower()}
         if self.body.currentText():
             args["body"] = self.body.currentText()
         ok, out = self.runner("fit", args)
@@ -383,7 +383,7 @@ class ReviewTab(Tab):
         row = QtWidgets.QHBoxLayout()
         self.body = QtWidgets.QComboBox()
         row.addWidget(self.body, 1)
-        row.addWidget(self.button("Review", "One verdict on the part: soundness, printability or its process's checks, wall and mass", self.review))
+        row.addWidget(self.button("Review", "One verdict on the part: soundness, printability or its process's checks, wall and mass.", self.review))
         self.lay.addLayout(row)
         self.verdict = QtWidgets.QLabel("")
         self.verdict.setWordWrap(True)

@@ -9,40 +9,44 @@ calls. No Agent Link import here."""
 from . import records as store
 
 # A field: (argument, label, kind, default, extra). Kinds: num (extra:
-# (min, max, decimals, suffix)), choice (extra: the options; "" allowed
-# first means "left out"), text, body (a part, "" for the one there is),
-# bodies (comma list), point ([x, y, z]), setup (a setup's id).
+# (min, max, decimals, suffix[, what the minimum shows as, e.g. "From the
+# setup" for 0 meaning the setup's own])), choice (extra: the options, each
+# a value or (value, what it shows as); a value shows capitalised, TEXT
+# below, while the tool still gets the value), text, body (a part: the
+# selected or only one), bodies (comma list), point ([x, y, z]), setup (a
+# setup's id). Titles in Title Case, as FreeCAD's task panels have them.
 SETUP_SETTINGS = (
-    ("printer", "Printer", "choice", "", ("", "generic", "bed-slinger", "corexy", "h2d")),
-    ("nozzle", "Nozzle", "choice", "", ("", "0.2", "0.4", "0.6", "0.8")),
-    ("layerHeight", "Layer height", "num", 0.0, (0.0, 1.0, 2, " mm")),
-    ("infill", "Infill", "num", 0.0, (0.0, 100.0, 0, " %")),
+    ("printer", "Printer", "choice", "generic", ("generic", "bed-slinger", "corexy", "h2d")),
+    ("nozzle", "Nozzle", "choice", "0.4", ("0.2", "0.4", "0.6", "0.8")),
+    ("layerHeight", "Layer height", "num", 0.2, (0.04, 1.0, 2, " mm")),
+    ("infill", "Infill", "num", 15.0, (0.0, 100.0, 0, " %")),
 )
+PRINT_ONLY = ("printer", "nozzle", "layerHeight", "infill")
 
 PANELS = {
-    "setup_new": ("New setup", "setup", {"action": "add"}, (
+    "setup_new": ("New Setup", "setup", {"action": "add"}, (
         ("type", "Made by", "choice", "print", tuple(store.TYPES)),
         ("bodies", "Parts", "bodies", "", None),
         ("name", "Name", "text", "", None),
     ) + SETUP_SETTINGS),
-    "setup_add": ("Add a part to a setup", "setup", {"action": "set"}, (
+    "setup_add": ("Add Part to Setup", "setup", {"action": "set"}, (
         ("id", "Setup", "setup", "", None),
         ("add", "Parts", "bodies", "", None),
     )),
-    "setup_remove": ("Remove a setup", "setup", {"action": "remove"}, (
+    "setup_remove": ("Remove Setup", "setup", {"action": "remove"}, (
         ("id", "Setup", "setup", "", None),
     )),
-    "fit_size": ("Fit size", "fit", {"action": "size"}, (
-        ("nominal", "Bought part / mate", "num", 5.0, (0.1, 2000.0, 2, " mm")),
+    "fit_size": ("Fit Size", "fit", {"action": "size"}, (
+        ("nominal", "Bought part or mate", "num", 5.0, (0.1, 2000.0, 2, " mm")),
         ("of", "Modelling a", "choice", "hole", ("hole", "shaft")),
-        ("kind", "Fit", "choice", "", ("", "press", "snug", "slide", "free")),
+        ("kind", "Fit", "choice", "", (("", "All fits"), "press", "snug", "slide", "free")),
         ("body", "In part", "body", "", None),
     )),
-    "calibrate": ("Calibrate the printer", "fit", {"action": "calibrate"}, (
+    "calibrate": ("Calibrate Printer", "fit", {"action": "calibrate"}, (
         ("hole", "Holes print small by", "num", 0.2, (-1.0, 1.0, 2, " mm")),
         ("shaft", "Pegs print big by", "num", 0.0, (-1.0, 1.0, 2, " mm")),
     )),
-    "hole": ("Hole for hardware", "hw_hole", {}, (
+    "hole": ("Hole for Hardware", "hw_hole", {}, (
         ("body", "Part", "body", "", None),
         ("kind", "Kind", "choice", "clearance", ("clearance", "counterbore", "countersink", "nut_trap", "insert", "magnet")),
         ("size", "Size", "text", "M3", None),
@@ -51,26 +55,69 @@ PANELS = {
         ("depth", "Depth (mm or through)", "text", "through", None),
         ("fit", "Fit", "choice", "normal", ("close", "normal", "loose")),
     )),
-    "embed": ("Embed hardware", "hw_embed", {}, (
+    "embed": ("Embed Hardware", "hw_embed", {}, (
         ("body", "Part", "body", "", None),
         ("kind", "Kind", "choice", "magnet", ("nut", "magnet", "bearing", "insert", "weight", "box", "cylinder")),
         ("size", "Size (M3, 6x2, 608 …)", "text", "6x2", None),
         ("at", "Floor centre at", "point", None, None),
-        ("turn", "Turn about z", "num", 0.0, (-360.0, 360.0, 1, " °")),
-        ("fit", "Fit", "choice", "", ("", "press", "snug", "slide", "free")),
+        ("turn", "Turn about Z", "num", 0.0, (-360.0, 360.0, 1, " °")),
+        ("fit", "Fit", "choice", "slide", ("press", "snug", "slide", "free")),
         ("note", "Note", "text", "", None),
     )),
-    "slice": ("Slice options", "slice", {}, (
+    "slice": ("Slice Options", "slice", {}, (
         ("body", "Part", "body", "", None),
         ("name", "File name", "text", "", None),
-        ("layerHeight", "Layer height", "num", 0.0, (0.0, 1.0, 2, " mm")),
-        ("infill", "Infill", "num", 0.0, (0.0, 100.0, 0, " %")),
+        ("layerHeight", "Layer height", "num", 0.0, (0.0, 1.0, 2, " mm", "From the setup")),
+        ("infill", "Infill", "num", 0.0, (0.0, 100.0, 0, " %", "From the setup")),
         ("pauseCommand", "Pause G-code", "text", "", None),
     )),
 }
 
+# What a choice's value shows as where capitalising it is not enough.
+TEXT = {"corexy": "CoreXY", "h2d": "H2D", "bed-slinger": "Bed slinger", "generic": "Generic",
+        "0.2": "0.2 mm", "0.4": "0.4 mm", "0.6": "0.6 mm", "0.8": "0.8 mm", "nut_trap": "Nut trap"}
+
+
+def options(extra):
+    """[(value, text)] for a choice's options."""
+    out = []
+    for o in extra or ():
+        v, t = o if isinstance(o, tuple) else (o, None)
+        out.append((v, t or shown(v)))
+    return out
+
+
+def shown(value):
+    """A choice's value as it shows: TEXT's, else capitalised."""
+    v = str(value)
+    if v in TEXT:
+        return TEXT[v]
+    v = v.replace("_", " ")
+    return v[:1].upper() + v[1:]
+
+
+def chosen(combo, items):
+    """The value behind a combo's current entry ("" for none)."""
+    i = combo.currentIndex()
+    return items[i][0] if isinstance(i, int) and 0 <= i < len(items) else ""
+
+
+def body_items(parts, selected=None):
+    """[(value, text)] for a part combo and the index to start on: the
+    part selected, else the only one; a prompt first when there are several
+    and none is selected (blank: the tool's own "the one there is")."""
+    parts = list(parts)
+    if selected in parts:
+        return [(p, p) for p in parts], parts.index(selected)
+    if len(parts) == 1:
+        return [(parts[0], parts[0])], 0
+    if not parts:
+        return [("", "No parts in the document")], 0
+    return [("", "Choose a part")] + [(p, p) for p in parts], 0
+
+
 # Fields that go under the tool's settings {} rather than at the top.
-SETTINGS = {"setup_new": ("printer", "nozzle", "layerHeight", "infill"), "slice": ("layerHeight", "infill")}
+SETTINGS = {"setup_new": PRINT_ONLY, "slice": ("layerHeight", "infill")}
 
 
 def _num(v):
@@ -91,6 +138,8 @@ def args_of(panel, values):
     for key, _label, kind, _d, _x in fields:
         v = values.get(key)
         if v in (None, "", []):
+            continue
+        if panel == "setup_new" and key in PRINT_ONLY and values.get("type", "print") != "print":
             continue
         if kind == "bodies":
             v = [x.strip() for x in (v if isinstance(v, list) else str(v).split(",")) if x.strip()]
@@ -170,26 +219,29 @@ class FormPanel:
         for key, label, kind, default, extra in fields:
             if kind == "num":
                 w = QtWidgets.QDoubleSpinBox()
-                lo, hi, dec, suf = extra
+                lo, hi, dec, suf = extra[:4]
                 w.setRange(lo, hi)
                 w.setDecimals(dec)
                 w.setSuffix(suf)
+                if len(extra) > 4:
+                    w.setSpecialValueText(extra[4])
                 w.setValue(default)
                 self.get[key] = w.value
             elif kind in ("choice", "body", "setup"):
                 w = QtWidgets.QComboBox()
+                start = 0
                 if kind == "choice":
-                    items = list(extra)
+                    items = options(extra)
+                    start = next((i for i, (v, _t) in enumerate(items) if v == default), 0)
                 elif kind == "body":
-                    items = [""] + P.parts(P._doc())
+                    items, start = body_items(P.parts(P._doc()), body)
                 else:
                     ok, out = self.runner("setup", {"action": "list"})
-                    items = [f"{s.get('id')} — {s.get('name')}" for s in (out.get("setups") or [])] if ok else []
-                w.addItems(items)
-                want = body if kind == "body" and body in items else default
-                if want in items:
-                    w.setCurrentIndex(items.index(want))
-                self.get[key] = (lambda w=w: w.currentText().split(" — ")[0]) if kind == "setup" else w.currentText
+                    items = [(s.get("id"), f"{s.get('name')} ({s.get('id')})") for s in (out.get("setups") or [])] if ok else []
+                    items = items or [("", "No setups yet")]
+                w.addItems([t for _v, t in items])
+                w.setCurrentIndex(start)
+                self.get[key] = lambda w=w, items=items: chosen(w, items)
             elif kind == "point":
                 row = QtWidgets.QWidget()
                 h = QtWidgets.QHBoxLayout(row)
@@ -239,9 +291,35 @@ class FormPanel:
         return True
 
 
+BUSY = "Finish or cancel the open task first."
+
+
+def busy():
+    """True (and the person told) when a task panel is open already: as
+    FreeCAD's own commands do, a new one is refused rather than replacing
+    it."""
+    import FreeCADGui
+
+    if not FreeCADGui.Control.activeDialog():
+        return False
+    try:
+        from PySide import QtGui
+
+        try:
+            from PySide import QtWidgets
+        except ImportError:
+            QtWidgets = QtGui
+        QtWidgets.QMessageBox.information(FreeCADGui.getMainWindow(), "Workshop Make", BUSY)
+    except Exception:
+        pass
+    return True
+
+
 def show(panel, runner=None, done=None):
     import FreeCADGui
 
-    if FreeCADGui.Control.activeDialog():
-        FreeCADGui.Control.closeDialog()
-    FreeCADGui.Control.showDialog(FormPanel(panel, runner, done))
+    if busy():
+        return None
+    p = FormPanel(panel, runner, done)
+    FreeCADGui.Control.showDialog(p)
+    return p

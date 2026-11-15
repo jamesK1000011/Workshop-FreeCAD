@@ -62,6 +62,7 @@ class QComboBox(W):
     def itemText(self, i): return self.items[i]
     def currentText(self): return self.items[self.idx] if 0 <= self.idx < len(self.items) else ""
     def setCurrentIndex(self, i): self.idx = i
+    def currentIndex(self): return self.idx
     def setCurrentText(self, t): self.idx = self.items.index(t)
 
 class QDoubleSpinBox(W):

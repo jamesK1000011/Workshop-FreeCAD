@@ -15,6 +15,7 @@ tests/test_api.py
 tests/test_cut.py
 tests/test_embed.py
 tests/test_frame.py
+tests/test_gui_text.py
 tests/test_handlers.py
 tests/test_icons.py
 tests/test_loads_alone.py
@@ -110,6 +111,7 @@ workshop_make/printers.py
 workshop_make/printmass.py
 workshop_make/records.py
 workshop_make/refusal.py
+workshop_make/results.py
 workshop_make/runner.py
 workshop_make/sheetfile.py
 workshop_make/taskpanels.py
