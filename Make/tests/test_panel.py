@@ -202,6 +202,31 @@ OUT["seen"] = seen
         self.assertTrue(all(q for _t, a, q in out["seen"] if a == "list"))
 
 
+class Untouched(unittest.TestCase):
+    def test_refresh_and_same_record_leave_the_document_alone(self):
+        """The panel's refresh reads; a record written with the value it has
+        writes nothing (no records object made, the document not touched)."""
+        out = run(r'''
+from workshop_make import records, panel as P
+class D:
+    def __init__(self):
+        object.__setattr__(self, "log", [])
+        object.__setattr__(self, "Meta", {})
+    def __setattr__(self, k, v):
+        self.log.append(k)
+        object.__setattr__(self, k, v)
+d = D()
+P.material_rows(d)
+records.setups(d)
+OUT["read"] = list(d.log)
+records.save_setups(d, [{"id": "S1"}])
+records.save_setups(d, [{"id": "S1"}])
+OUT["writes"] = list(d.log)
+''')
+        self.assertEqual(out["read"], [])
+        self.assertEqual(out["writes"], ["Meta"])
+
+
 class NarrowDock(unittest.TestCase):
     def test_no_row_too_wide_for_the_dock(self):
         """In the 330 px dock: Setups' two picks on one line and its keys on
