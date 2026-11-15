@@ -178,6 +178,20 @@ OUT["built"] = [type(t["factory"](Panel())).__name__ for t in hooks.TABS]
             self.assertEqual(out["where"], {t: ["WorkshopMakeWorkbench"] for t in ("Setups", "Materials", "Fits", "Review")})
 
 
+class NarrowDock(unittest.TestCase):
+    def test_no_row_too_wide_for_the_dock(self):
+        """In the 330 px dock: Setups' two picks on one line and its keys on
+        the next; Fits' printer calibration a form, Keep under it."""
+        out = run(r'''
+from workshop_make import panel as P
+fake = lambda tool, args: (True, {"setups": []})
+s = P.SetupsTab(runner=fake)
+f = P.FitsTab(runner=fake)
+OUT["rows"] = [s.pick_row is not s.key_row, hasattr(f, "cal_form")]
+''')
+        self.assertEqual(out["rows"], [True, True])
+
+
 class OwnDock(unittest.TestCase):
     @unittest.skipUnless(_agentlink(), "Agent Link is not on the path")
     def test_own_dock_when_agent_link_places_panels(self):
