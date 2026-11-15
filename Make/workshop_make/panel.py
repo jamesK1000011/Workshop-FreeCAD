@@ -489,6 +489,7 @@ def dock():
         tabs.addTab(cls(), title)
     tabs.currentChanged.connect(lambda k: _fill(tabs.widget(k)))
     d.setWidget(tabs)
+    d._tabs = tabs  # kept: in the Combo View or the slide-out it is not the dock's widget
     # Placed by show() through layout.py (the panel layout setting).
     return d
 
@@ -525,7 +526,7 @@ def show(title="Setups"):
     if getattr(workshop_make, "_hosted", False) and title != "Review" and (_agentlink_tab(title) or _raise_hosted(title)):
         return
     d = dock()
-    tabs = d.widget()
+    tabs = d._tabs
     for k in range(tabs.count()):
         if tabs.tabText(k) == title:
             tabs.setCurrentIndex(k)
