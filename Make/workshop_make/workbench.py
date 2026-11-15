@@ -24,6 +24,8 @@ def make_class(Gui):
             for name, cmds in commands.TOOLBARS:
                 self.appendToolbar(name, [p + c for c in cmds])
             self.appendMenu("&Make", [p + c for _n, cmds in commands.TOOLBARS for c in cmds] + [p + "Panel"])
+            # The panel shown, or slid in and out (PanelLayout left-slide).
+            self.appendToolbar("Make Panel", [p + "Panel"])
 
         def GetClassName(self):
             return "Gui::PythonWorkbench"

@@ -16,6 +16,7 @@ tests/test_gui_text.py
 tests/test_handlers.py
 tests/test_icons.py
 tests/test_iso286.py
+tests/test_layout.py
 tests/test_loads_alone.py
 tests/test_panel.py
 tests/test_release.py
@@ -48,6 +49,7 @@ workshop_documents/icons/Workshop_Documents_Manual.svg
 workshop_documents/icons/Workshop_Documents_PatentFigures.svg
 workshop_documents/icons/Workshop_Documents_Workbench.svg
 workshop_documents/iso286.py
+workshop_documents/layout.py
 workshop_documents/libpack.py
 workshop_documents/materials.py
 workshop_documents/panel.py

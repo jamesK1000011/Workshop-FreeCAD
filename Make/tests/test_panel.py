@@ -165,6 +165,7 @@ import workshop_make.agentlink_families, workshop_make
 OUT["tabs"] = [[t["title"], t["order"]] for t in hooks.TABS]
 OUT["reviewers"] = [f.__module__ + "." + f.__name__ for f in hooks.REVIEWERS]
 OUT["hosted"] = workshop_make._hosted
+OUT["where"] = {k: sorted(v) for k, v in getattr(hooks, "TAB_WORKBENCHES", {}).items()}
 class Panel:
     _call = staticmethod(lambda t, a: (True, {"setups": []}))
 OUT["built"] = [type(t["factory"](Panel())).__name__ for t in hooks.TABS]
@@ -173,6 +174,8 @@ OUT["built"] = [type(t["factory"](Panel())).__name__ for t in hooks.TABS]
         self.assertEqual(out["reviewers"], ["workshop_make.handlers.review"])
         self.assertTrue(out["hosted"])
         self.assertEqual(out["built"], ["SetupsTab", "MaterialsTab", "FitsTab"])
+        if out["where"]:  # an Agent Link with tabs per workbench: only in Make's, Review too
+            self.assertEqual(out["where"], {t: ["WorkshopMakeWorkbench"] for t in ("Setups", "Materials", "Fits", "Review")})
 
 
 class EmptyLists(unittest.TestCase):

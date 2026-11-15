@@ -45,7 +45,12 @@ def _host():
 
         for title, cls, order in panel.HOSTED:
             if not any(t.get("title") == title for t in getattr(hooks, "TABS", [])):
-                hooks.register_tab(title, panel.factory(cls), order)
+                try:  # the tab only while Make is the workbench in front
+                    hooks.register_tab(title, panel.factory(cls), order, workbench=panel.WORKBENCH)
+                except TypeError:  # an Agent Link before tabs per workbench
+                    hooks.register_tab(title, panel.factory(cls), order)
+        if hasattr(hooks, "tab_in"):  # Agent Link's Review tab, Make's verdict: shown here too
+            hooks.tab_in("Review", panel.WORKBENCH)
     if hasattr(hooks, "register_reviewer"):
         hooks.register_reviewer(handlers.review)
 
