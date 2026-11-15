@@ -43,7 +43,7 @@ Gui.Workbench = Workbench
 Gui.addCommand = lambda name, c: commands.__setitem__(name, c)
 Gui.addWorkbench = benches.append
 sys.modules.update({"FreeCAD": FreeCAD, "FreeCADGui": Gui})
-for n in ("Part", "Mesh", "MeshPart", "Sketcher", "TechDraw", "PySide", "PySide.QtGui", "PySide.QtCore"):
+for n in ("Part", "Mesh", "MeshPart", "Sketcher", "TechDraw", "TechDrawGui", "PySide", "PySide.QtGui", "PySide.QtCore"):
     sys.modules[n] = Stub(n)
 
 path = sys.argv[1]
@@ -54,6 +54,7 @@ for b in benches:
     b.Initialize()
     out["benches"].append({"class": type(b).__name__, "MenuText": b.MenuText, "classname": b.GetClassName(), "toolbars": b.toolbars, "menus": b.menus})
 out["commands"] = {k: c.GetResources().get("MenuText") for k, c in commands.items()}
+out["pixmaps"] = {k: c.GetResources().get("Pixmap") for k, c in commands.items()}
 out["modules"] = sorted(m for m in sys.modules if m.split(".")[0].startswith(("workshop_", "agentlink", "addonkit")))
 fam = sys.argv[2] if len(sys.argv) > 2 else ""
 if fam:
@@ -75,16 +76,48 @@ def load(fam="", calls=()):
     return json.loads(r.stdout.strip().splitlines()[-1])
 
 
+# FreeCAD's own icon names the buttons use (Gui/Icons, and TechDraw's, which
+# the bench loads with TechDrawGui), until Workshop's are drawn.
+FREECAD_ICONS = {"TechDraw_PageDefault", "TechDraw_Balloon", "TechDraw_ProjectionGroup", "Std_Export", "Std_DlgParameter", "document-new"}
+
+
 class LoadsAlone(unittest.TestCase):
     def test_its_own_workbench(self):
         out = load()
         [b] = out["benches"]
         self.assertEqual((b["class"], b["MenuText"], b["classname"]), ("WorkshopDocumentsWorkbench", "Workshop Documents", "Gui::PythonWorkbench"))
-        self.assertEqual((b["toolbars"], b["menus"], out["commands"]), ({}, {}, {}))
+        self.assertEqual(list(b["toolbars"]), ["Drawings", "Share", "Patent"])
+        self.assertEqual(b["toolbars"]["Drawings"], ["Workshop_Documents_Drawing", "Workshop_Documents_Exploded"])
+        self.assertIn("Workshop_Documents_Panel", b["menus"]["&Documents"])
+        self.assertEqual(set(out["commands"]), set(b["menus"]["&Documents"]))
+    def test_every_pixmap_resolves(self):
+        out = load()
+        for name, px in out["pixmaps"].items():
+            self.assertTrue(px, name)
+            here = os.path.isfile(px) or os.path.isfile(os.path.join(ROOT, "workshop_documents", "icons", px))
+            self.assertTrue(here or px in FREECAD_ICONS, f"{name}: {px} is neither a file of ours nor a FreeCAD icon")
     def test_nothing_else_loaded(self):
         out = load()
         self.assertEqual(out["said"], [])
         self.assertEqual([m for m in out["modules"] if m.split(".")[0] != "workshop_documents"], [])
+
+class Echo(unittest.TestCase):
+    def test_buttons_declared_are_techdraw_buttons(self):
+        import ast
+
+        decl = {}
+        for f in ("fam_drawing.py", "fam_share.py"):
+            for n in ast.parse(open(os.path.join(ROOT, "workshop_documents", f), encoding="utf-8").read()).body:
+                if isinstance(n, ast.Assign) and isinstance(n.targets[0], ast.Name) and n.targets[0].id in ("WORKBENCHES", "COMMANDS", "PAGES"):
+                    decl.setdefault(n.targets[0].id, {}).update(dict.fromkeys(ast.literal_eval(n.value)) if n.targets[0].id == "PAGES" else ast.literal_eval(n.value))
+        self.assertEqual(decl["WORKBENCHES"], {"drawing_": "TechDrawWorkbench"})
+        self.assertEqual(list(decl["PAGES"]), ["drawing_"])
+        with open(os.path.join(ROOT, "workshop_documents", "data", "tools.json"), encoding="utf-8") as f:
+            tools = json.load(f)["entries"]
+        for tool, cmd in decl["COMMANDS"].items():
+            self.assertIn(tool, tools)
+            self.assertTrue(tool.startswith("drawing_") and cmd.startswith("TechDraw_"), (tool, cmd))
+
 
 if __name__ == "__main__":
     unittest.main()
