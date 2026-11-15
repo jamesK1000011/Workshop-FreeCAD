@@ -30,6 +30,7 @@ except ImportError:  # pragma: no cover
 
 _Base = QtWidgets.QWidget if QtWidgets else object
 DOCK = "WorkshopMakeDock"
+WORKBENCH = "WorkshopMakeWorkbench"
 CSS = "#SELF QLabel#msg {color: @muted;} #SELF QLabel#bad {color: @bad;} #SELF QPushButton:default {border: 1px solid @accent;}"
 
 
@@ -488,10 +489,7 @@ def dock():
         tabs.addTab(cls(), title)
     tabs.currentChanged.connect(lambda k: _fill(tabs.widget(k)))
     d.setWidget(tabs)
-    mw.addDockWidget(QtCore.Qt.LeftDockWidgetArea, d)
-    combo = mw.findChild(QtWidgets.QDockWidget, "Combo View") or mw.findChild(QtWidgets.QDockWidget, "Model")
-    if combo is not None:
-        mw.tabifyDockWidget(combo, d)
+    # Placed by show() through layout.py (the panel layout setting).
     return d
 
 
@@ -504,12 +502,27 @@ def _fill(w):
         FreeCAD.Console.PrintLog(f"Workshop Make panel: {e}\n")
 
 
+def _agentlink_tab(title):
+    """Under Agent Link: its panel opened with title's tab in front (put in
+    its bar for now outside Make's workbench). False with an older one."""
+    try:
+        import importlib
+
+        importlib.import_module("agentlink.panel").show(tab=title)
+        return True
+    except Exception:  # noqa: BLE001 — an Agent Link before tabs per workbench
+        return False
+
+
 def show(title="Setups"):
     """The panel with title's tab in front: Agent Link's, when it hosts
-    Make and its panel is open, else Make's own dock."""
+    Make, else Make's own dock, placed by the panel layout setting
+    (layout.py)."""
     import workshop_make
 
-    if getattr(workshop_make, "_hosted", False) and title != "Review" and _raise_hosted(title):
+    from . import layout
+
+    if getattr(workshop_make, "_hosted", False) and title != "Review" and (_agentlink_tab(title) or _raise_hosted(title)):
         return
     d = dock()
     tabs = d.widget()
@@ -517,5 +530,6 @@ def show(title="Setups"):
         if tabs.tabText(k) == title:
             tabs.setCurrentIndex(k)
             _fill(tabs.widget(k))
-    d.show()
-    d.raise_()
+    p = layout.placer()
+    p.show(DOCK, d, WORKBENCH, "Make")
+    p.reveal(DOCK)

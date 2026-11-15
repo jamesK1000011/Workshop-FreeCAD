@@ -26,7 +26,11 @@ def _host():
 
         for title, cls, order in panel.HOSTED:
             if not any(t.get("title") == title for t in getattr(hooks, "TABS", [])):
-                hooks.register_tab(title, panel.factory(cls, lambda: hooks.service("manual_maker")), order)
+                make = panel.factory(cls, lambda: hooks.service("manual_maker"))
+                try:  # the tab only while Documents is the workbench in front
+                    hooks.register_tab(title, make, order, workbench=panel.WORKBENCH)
+                except TypeError:  # an Agent Link before tabs per workbench
+                    hooks.register_tab(title, make, order)
 
 
 try:

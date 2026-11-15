@@ -98,7 +98,7 @@ class LoadsAlone(unittest.TestCase):
         out = load()
         [b] = out["benches"]
         self.assertEqual((b["class"], b["MenuText"], b["classname"]), ("WorkshopMakeWorkbench", "Workshop Make", "Gui::PythonWorkbench"))
-        self.assertEqual(list(b["toolbars"]), ["Setup", "Check", "Fits", "Hardware", "Output", "Printer"])
+        self.assertEqual(list(b["toolbars"]), ["Setup", "Check", "Fits", "Hardware", "Output", "Printer", "Make Panel"])
         self.assertEqual(b["toolbars"]["Check"], ["Workshop_Make_DfmCheck", "Workshop_Make_PartReview", "Workshop_Make_MassProperties"])
         self.assertEqual(b["toolbars"]["Printer"], ["Workshop_Make_PrinterStatus", "Workshop_Make_PrinterSend"])
         self.assertIn("Workshop_Make_Panel", b["menus"]["&Make"])

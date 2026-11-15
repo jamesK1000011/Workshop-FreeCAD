@@ -197,7 +197,11 @@ class Panel:
     def Activated(self):
         from . import panel
 
-        panel.show()
+        from . import layout
+
+        # Slid out over the 3D view (PanelLayout left-slide): opens and
+        # closes it; else shows the panel.
+        layout.toggle_or(panel.show)
 
 
 # name (after Workshop_Make_) -> command; the tool it runs is the echo's.

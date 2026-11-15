@@ -18,6 +18,7 @@ tests/test_frame.py
 tests/test_gui_text.py
 tests/test_handlers.py
 tests/test_icons.py
+tests/test_layout.py
 tests/test_loads_alone.py
 tests/test_mass.py
 tests/test_mill.py
@@ -101,6 +102,7 @@ workshop_make/icons/Workshop_Make_PrinterStatus.svg
 workshop_make/icons/Workshop_Make_Slice.svg
 workshop_make/icons/Workshop_Make_ThreadLookup.svg
 workshop_make/icons/Workshop_Make_Workbench.svg
+workshop_make/layout.py
 workshop_make/maps.py
 workshop_make/materials.py
 workshop_make/orcalib.py

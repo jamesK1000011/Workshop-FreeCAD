@@ -235,6 +235,9 @@ def factory(cls, service=None):
 
 # ---- Documents' own dock, alone ----
 
+WORKBENCH = "WorkshopDocumentsWorkbench"
+
+
 def _main():
     import FreeCADGui
 
@@ -270,24 +273,31 @@ def dock():
     tabs = QtWidgets.QTabWidget()
     tabs.addTab(ManualTab(), "Manual")
     d.setWidget(tabs)
-    mw.addDockWidget(QtCore.Qt.LeftDockWidgetArea, d)
-    combo = mw.findChild(QtWidgets.QDockWidget, "Combo View") or mw.findChild(QtWidgets.QDockWidget, "Model")
-    if combo is not None:
-        mw.tabifyDockWidget(combo, d)
+    # Placed by show() through layout.py (the panel layout setting).
     return d
 
 
 def show(title="Manual"):
-    """The Manual tab in front: Agent Link's when it hosts Documents and its
-    panel is open, else Documents' own dock."""
+    """The Manual tab in front: Agent Link's when it hosts Documents, else
+    Documents' own dock, placed by the panel layout setting (layout.py)."""
+    import importlib
+
     import workshop_documents
 
-    if getattr(workshop_documents, "_hosted", False) and _raise_hosted(title):
-        return
+    from . import layout
+
+    if getattr(workshop_documents, "_hosted", False):
+        try:
+            importlib.import_module("agentlink.panel").show(tab=title)
+            return
+        except Exception:  # noqa: BLE001 — an Agent Link before tabs per workbench
+            if _raise_hosted(title):
+                return
     d = dock()
     try:
         d.widget().widget(0).fill()
     except Exception:
         pass
-    d.show()
-    d.raise_()
+    p = layout.placer()
+    p.show(DOCK, d, WORKBENCH, "Documents")
+    p.reveal(DOCK)
