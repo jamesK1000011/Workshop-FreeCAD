@@ -13,6 +13,7 @@ from .handlers import fits as H
 
 GROUP = "fits"
 INFO = "Fits, printer calibration, tolerance stacks and holes for hardware (Workshop for FreeCAD · Make)."
+WORKBENCHES = {"fit": "WorkshopMakeWorkbench", "hw_": "WorkshopMakeWorkbench"}  # the Workshop Make bench while these run
 LEAN = True
 
 handlers.lend(H, ToolError=ToolError)

@@ -15,6 +15,9 @@ from .handlers import make as H
 
 GROUP = "make"
 SHOWN = ("dfm_check", "part_review")
+# The Workshop Make bench while these run (Agent Link's echo; exact names, so
+# part_review and part_spec are not taken for core's part_ → Part).
+WORKBENCHES = {"setup": "WorkshopMakeWorkbench", "dfm_check": "WorkshopMakeWorkbench", "part_review": "WorkshopMakeWorkbench", "part_spec": "WorkshopMakeWorkbench"}
 INFO = "How each part is made (setups), its limits and material, the printability check, the verdict, slicing (Workshop for FreeCAD · Make)."
 LEAN = True
 

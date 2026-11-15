@@ -15,6 +15,7 @@ from .handlers import mass as H
 
 GROUP = "mass"
 INFO = "Mass, centre of mass and inertia (as printed or solid, encased parts counted), distance from a target, ballast pockets to reach it."
+WORKBENCHES = {"mass_": "WorkshopMakeWorkbench"}  # the Workshop Make bench while these run
 
 handlers.lend(H, matfam=matfam, ToolError=ToolError)
 

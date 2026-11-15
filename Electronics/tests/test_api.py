@@ -11,7 +11,7 @@ import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-sys.path[:0] = [ROOT, os.path.join(ROOT, "..", "Common"), os.path.join(ROOT, "..", "Parts")]
+sys.path[:0] = [ROOT, os.path.join(ROOT, "..", "Parts")]
 if os.environ.get("FREECAD_LIB"):
     sys.path.append(os.environ["FREECAD_LIB"])
 try:

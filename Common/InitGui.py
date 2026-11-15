@@ -1,21 +1,7 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# The Workshop workbench: the commands of every Workshop add-on installed.
-import FreeCADGui
+# Workshop Common, last release: a stub. Each Workshop add-on now has its own
+# workbench, so this one registers nothing; it says so once and can be
+# removed.
+import FreeCAD
 
-
-class WorkshopWorkbench(FreeCADGui.Workbench):
-    MenuText = "Workshop"
-    ToolTip = "Making things: printable parts, standard parts, boards and documents (Workshop for FreeCAD add-ons)"
-
-    def Initialize(self):
-        from workshop_common import workbench
-
-        for menu, names in workbench.MENUS.items():
-            self.appendToolbar(f"Workshop {menu}", names)
-            self.appendMenu(["&Workshop", menu], names)
-
-    def GetClassName(self):
-        return "Gui::PythonWorkbench"
-
-
-FreeCADGui.addWorkbench(WorkshopWorkbench())
+FreeCAD.Console.PrintMessage("Workshop Common is no longer needed; each Workshop add-on has its own workbench.\n")

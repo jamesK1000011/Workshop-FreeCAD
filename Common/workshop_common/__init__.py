@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-"""Workshop for FreeCAD · Common: the Workshop workbench. Each Workshop
-add-on installed adds its commands to it from its InitGui.py
-(workshop_common.workbench.add); no add-on needs it to work, and it holds no
-code any add-on depends on."""
+"""Workshop for FreeCAD · Common, last release: a stub. Each Workshop add-on
+has its own workbench (Workshop Parts, Make, Electronics, Documents); this
+package registers nothing and can be removed."""
 
-VERSION = "0.3.0"
+VERSION = "0.4.0"

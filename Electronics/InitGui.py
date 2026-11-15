@@ -1,11 +1,29 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# Workshop for FreeCAD · Electronics: its commands in the Workshop workbench.
+# Workshop for FreeCAD · Electronics: its own workbench, "Workshop
+# Electronics", with its commands in a toolbar and menu. Needs no other
+# add-on.
+import FreeCAD
+import FreeCADGui
+
 try:
-    from workshop_common import workbench
-    from workshop_electronics import commands
-
-    workbench.add("Electronics", commands.NAMES)
+    from workshop_electronics import commands as _electronics_commands  # registers the commands
 except Exception as e:  # noqa: BLE001 — never stop FreeCAD starting
-    import FreeCAD
+    _electronics_commands = None
+    FreeCAD.Console.PrintWarning(f"Workshop Electronics: commands not loaded ({e}).\n")
 
-    FreeCAD.Console.PrintWarning(f"Workshop Electronics: commands not loaded ({e}); is Workshop Common installed for the Workshop workbench?\n")
+
+class WorkshopElectronicsWorkbench(FreeCADGui.Workbench):
+    MenuText = "Workshop Electronics"
+    ToolTip = "Boards and wiring: KiCad boards read in, enclosures round them (Workshop for FreeCAD)"
+
+    def Initialize(self):
+        from workshop_electronics import commands
+
+        self.appendToolbar("Electronics", commands.NAMES)
+        self.appendMenu("&Electronics", commands.NAMES)
+
+    def GetClassName(self):
+        return "Gui::PythonWorkbench"
+
+
+FreeCADGui.addWorkbench(WorkshopElectronicsWorkbench())

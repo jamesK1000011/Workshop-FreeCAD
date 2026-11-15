@@ -1,6 +1,5 @@
 Init.py
 InitGui.py
 package.xml
-tests/test_common.py
+tests/test_loads_alone.py
 workshop_common/__init__.py
-workshop_common/workbench.py

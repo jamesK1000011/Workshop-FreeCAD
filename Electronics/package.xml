@@ -13,9 +13,10 @@
   <tag>enclosure</tag>
   <tag>electronics</tag>
   <content>
-    <other>
+    <workbench>
       <name>Workshop Electronics</name>
+      <classname>WorkshopElectronicsWorkbench</classname>
       <subdirectory>./</subdirectory>
-    </other>
+    </workbench>
   </content>
 </package>
