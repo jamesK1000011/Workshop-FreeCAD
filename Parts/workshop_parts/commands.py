@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# The Parts add-on's FreeCAD commands: one per generator, each a dialog of
-# its parameters (the same table the agent's values are checked against),
-# then api.make in the active document.
+# The Parts add-on's FreeCAD commands: one per generator, each a task panel
+# of its parameters (the same table the agent's values are checked against)
+# in the Tasks tab, then api.make in the active document on OK (one undo
+# step: the panel's transaction).
 import FreeCAD
 import FreeCADGui
 
@@ -26,26 +27,40 @@ class Make:
         return True
 
     def Activated(self):
-        from workshop_parts.refusal import Refused
         from workshop_parts import form
 
-        values = form.ask(api.NAMES[self.generator], api.params(self.generator), TIPS[self.generator])
-        if values is None:
-            return
         doc = FreeCAD.ActiveDocument or FreeCAD.newDocument()
-        doc.openTransaction(api.NAMES[self.generator])
-        try:
-            out = api.make(doc, self.generator, values)
-        except Refused as e:
-            doc.abortTransaction()
-            FreeCAD.Console.PrintError(f"Workshop: {e.message}\n")
-            return
-        doc.commitTransaction()
-        FreeCAD.Console.PrintMessage(f"Workshop: made {', '.join(out['bodies'])} ({out['printerFit']}).\n")
-        try:
-            FreeCADGui.SendMsgToActiveView("ViewFit")
-        except Exception:
-            pass
+        form.show(api.NAMES[self.generator], api.params(self.generator), TIPS[self.generator],
+                  run=lambda values: run(doc, self.generator, values),
+                  summary=lambda values: summary(doc, self.generator, values), doc=doc)
+
+
+def run(doc, generator, values):
+    """The task panel's OK: the part made in doc. (ok, what to say)."""
+    from workshop_parts.refusal import Refused
+
+    try:
+        out = api.make(doc, generator, values)
+    except Refused as e:
+        return False, e.message
+    FreeCAD.Console.PrintMessage(f"Workshop: made {', '.join(out['bodies'])} ({out['printerFit']}).\n")
+    try:
+        FreeCADGui.SendMsgToActiveView("ViewFit")
+    except Exception:
+        pass
+    return True, ""
+
+
+def summary(doc, generator, values):
+    """The live line under the fields: whether the values will do, and the
+    printer fit its holes take."""
+    from workshop_parts.refusal import Refused
+
+    try:
+        api.check(generator, values)
+    except Refused as e:
+        return "Not yet: " + e.message
+    return "Printer fit: " + api.calibration(doc)[1]
 
 
 def command_name(generator):

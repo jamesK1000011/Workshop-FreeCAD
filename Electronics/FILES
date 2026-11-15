@@ -9,6 +9,7 @@ tests/test_electronics.py
 tests/test_handlers.py
 tests/test_icons.py
 tests/test_loads_alone.py
+tests/test_taskpanels.py
 workshop_electronics/__init__.py
 workshop_electronics/agentlink_families.py
 workshop_electronics/api.py
@@ -31,4 +32,5 @@ workshop_electronics/kicad.py
 workshop_electronics/pcb.py
 workshop_electronics/records.py
 workshop_electronics/refusal.py
+workshop_electronics/taskpanels.py
 workshop_electronics/tooldata.py
