@@ -27,6 +27,18 @@ def make_class(Gui):
             # The panel shown, or slid in and out (PanelLayout left-slide).
             self.appendToolbar("Make Panel", [p + "Panel"])
 
+        def Activated(self):
+            # Its panel with it: beside Model and Tasks (the panel layout
+            # setting), in front the first time.
+            try:
+                from . import panel
+
+                panel.show()
+            except Exception as e:  # noqa: BLE001 — never stop the bench (no window in tests)
+                import FreeCAD
+
+                FreeCAD.Console.PrintLog(f"Workshop Make: panel not shown ({e})\n")
+
         def GetClassName(self):
             return "Gui::PythonWorkbench"
 

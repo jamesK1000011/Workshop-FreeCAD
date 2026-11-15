@@ -40,7 +40,12 @@ def _host():
     from agentlink import hooks
 
     workshop_make._hosted = True
-    if hasattr(hooks, "register_tab"):
+    from . import layout
+
+    # Make's tabs are its own "Make" dock beside Model and Tasks (its clicks
+    # run through Agent Link); only an Agent Link that cannot place it
+    # hosts them in its panel.
+    if hasattr(hooks, "register_tab") and layout.hosted_tabs(hooks):
         from . import panel
 
         for title, cls, order in panel.HOSTED:

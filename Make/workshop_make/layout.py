@@ -778,7 +778,21 @@ class Placer:
         if e["where"] != LEFT_TAB:
             content = self._content(e)
             e["frame"] = frame(content)
+            # A workbench's own panel right after Tasks, Agent Link's
+            # (EVERYWHERE) after it: Model | Tasks | Texturizer | Agent Link.
+            hub = [] if e["workbench"] == EVERYWHERE else [
+                x for x in self.entries.values()
+                if x is not e and x["where"] == LEFT_TAB and x["workbench"] == EVERYWHERE
+                and getattr(x.get("bar"), "kind", None) == bar.kind]
+            was = bar.current() if hub else None
+            for x in hub:
+                x["bar"].remove(x, mw)
             bar.add(e, mw)
+            for x in hub:
+                bar.add(x, mw)
+                x["bar"] = bar
+            if was:
+                bar.turn_to(was)
             e["where"], e["bar"] = LEFT_TAB, bar
             bar.watch(lambda title: self.memory.chose(active_workbench() or self.active, title, bar.tasks))
             self._poll()
@@ -883,3 +897,39 @@ def toggle_or(open_panel, workbench=None):
     if read() == LEFT_SLIDE and slide is not None and slide.tabs.count():
         return p.toggle(workbench)
     return open_panel()
+
+
+# ---- an add-on's panel beside Agent Link's ----------------------------------
+
+def _hooks():
+    import importlib
+
+    return importlib.import_module("agentlink.hooks")
+
+
+def hosted_tabs(hooks):
+    """Whether an add-on's page goes in Agent Link's panel as a tab: only
+    for an Agent Link that cannot place the add-on's own dock (no
+    "panel_layout" service: headless, or before panel layouts). Otherwise
+    the page is the add-on's own dock, beside Model and Tasks."""
+    service = getattr(hooks, "service", None)
+    return service is None or service(SERVICE) is None
+
+
+def in_agentlink_panel(title):
+    """Whether Agent Link's panel has a tab title (an older Agent Link
+    hosting the add-on's page)."""
+    try:
+        return any(t.get("title") == title for t in _hooks().TABS)
+    except Exception:  # noqa: BLE001 — Agent Link not installed
+        return False
+
+
+def caller():
+    """Agent Link's "panel_caller": an add-on's own dock runs its tools
+    through it (shown and logged as the agent's are) with _call(tool,
+    args), and reads its session (_own). None without Agent Link."""
+    try:
+        return _hooks().service("panel_caller")
+    except Exception:  # noqa: BLE001
+        return None

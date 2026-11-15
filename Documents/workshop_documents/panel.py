@@ -271,7 +271,16 @@ def dock():
     d = QtWidgets.QDockWidget("Documents", mw)
     d.setObjectName(DOCK)
     tabs = QtWidgets.QTabWidget()
-    tabs.addTab(ManualTab(), "Manual")
+    from . import layout
+
+    # Under Agent Link its clicks run through it and the manual maker is
+    # the one an add-on provides (ScanRuler's); alone, Documents' own.
+    c = layout.caller() if getattr(__import__("workshop_documents"), "_hosted", False) else None
+    if c is not None:
+        hooks = __import__("importlib").import_module("agentlink.hooks")
+        tabs.addTab(ManualTab(runner=c._call, service=lambda: hooks.service("manual_maker")), "Manual")
+    else:
+        tabs.addTab(ManualTab(), "Manual")
     d.setWidget(tabs)
     d._tabs = tabs  # kept: in the Combo View or the slide-out it is not the dock's widget
     # Placed by show() through layout.py (the panel layout setting).
@@ -287,7 +296,7 @@ def show(title="Manual"):
 
     from . import layout
 
-    if getattr(workshop_documents, "_hosted", False):
+    if getattr(workshop_documents, "_hosted", False) and layout.in_agentlink_panel(title):
         try:
             importlib.import_module("agentlink.panel").show(tab=title)
             return

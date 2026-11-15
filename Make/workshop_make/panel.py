@@ -476,7 +476,7 @@ def _raise_hosted(title):
 
 
 def dock():
-    """Make's own dock (made once), tabbed with the Combo View."""
+    """Make's own dock (made once), placed by show() (layout.py)."""
     mw = _main()
     d = mw.findChild(QtWidgets.QDockWidget, DOCK)
     if d is not None:
@@ -485,8 +485,13 @@ def dock():
     d.setObjectName(DOCK)
     tabs = QtWidgets.QTabWidget()
     tabs.setUsesScrollButtons(True)
+    from . import layout
+
+    # Under Agent Link its clicks run through it (shown and logged as the
+    # agent's are); alone, Make's own runner.
+    c = layout.caller() if getattr(__import__("workshop_make"), "_hosted", False) else None
     for title, cls in ALONE:
-        tabs.addTab(cls(), title)
+        tabs.addTab(cls(runner=c._call) if c is not None else cls(), title)
     tabs.currentChanged.connect(lambda k: _fill(tabs.widget(k)))
     d.setWidget(tabs)
     d._tabs = tabs  # kept: in the Combo View or the slide-out it is not the dock's widget
@@ -523,7 +528,8 @@ def show(title="Setups"):
 
     from . import layout
 
-    if getattr(workshop_make, "_hosted", False) and title != "Review" and (_agentlink_tab(title) or _raise_hosted(title)):
+    if (getattr(workshop_make, "_hosted", False) and title != "Review" and layout.in_agentlink_panel(title)
+            and (_agentlink_tab(title) or _raise_hosted(title))):
         return
     d = dock()
     tabs = d._tabs

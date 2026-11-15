@@ -178,6 +178,27 @@ OUT["built"] = [type(t["factory"](Panel())).__name__ for t in hooks.TABS]
             self.assertEqual(out["where"], {t: ["WorkshopMakeWorkbench"] for t in ("Setups", "Materials", "Fits", "Review")})
 
 
+class OwnDock(unittest.TestCase):
+    @unittest.skipUnless(_agentlink(), "Agent Link is not on the path")
+    def test_own_dock_when_agent_link_places_panels(self):
+        """With Agent Link's placer (service panel_layout) Make's tabs are
+        its own "Make" dock beside Model and Tasks, not tabs of Agent
+        Link's panel; the reviewer still answers Agent Link's Review."""
+        out = run(r'''
+from agentlink import hooks
+hooks.provide("panel_layout", object())
+import workshop_make.agentlink_families, workshop_make
+OUT["tabs"] = [t["title"] for t in hooks.TABS]
+OUT["review_in"] = sorted(getattr(hooks, "TAB_WORKBENCHES", {}).get("Review", ()))
+OUT["reviewers"] = len(hooks.REVIEWERS)
+OUT["hosted"] = workshop_make._hosted
+''', extra_path=_agentlink())
+        self.assertEqual(out["tabs"], [])
+        self.assertEqual(out["review_in"], [])
+        self.assertEqual(out["reviewers"], 1)
+        self.assertTrue(out["hosted"])
+
+
 class EmptyLists(unittest.TestCase):
     def test_setups_say_how_to_fill_them(self):
         out = run(r'''
