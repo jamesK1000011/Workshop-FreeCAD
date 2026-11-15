@@ -41,7 +41,7 @@ TREE_MAX, TASK_MAX = 300, 360
 SLIDE_MAX, COMBO_SQUEEZE = 300, 220
 CONTENT_MIN = 240
 # The Combo View dock: its object name in FreeCAD 1.x is Std_ComboView.
-COMBO_NAMES = ("Std_ComboView", "Combo View", "ComboView")
+COMBO_NAMES = ("Std_ComboView", "Combo View", "ComboView", "Std_TreeView", "Model", "Tree view")
 TASKS = "Tasks"
 SERVICE = "panel_layout"
 EVERYWHERE = "*"
@@ -94,15 +94,15 @@ def is_combo(name, class_name=""):
     return name in COMBO_NAMES or "ComboView" in (class_name or "")
 
 
-def unstick(titles, current, running):
+def unstick(titles, current, running, tasks=TASKS, model="Model"):
     """The tab to turn the Combo View to when it sits on an empty Tasks with
     no task running: Model (or the first tab that is not Tasks); None to
     leave it."""
-    if running or current != TASKS:
+    if running or current != tasks:
         return None
-    if "Model" in titles:
-        return "Model"
-    return next((t for t in titles if t != TASKS), None)
+    if model in titles:
+        return model
+    return next((t for t in titles if t != tasks), None)
 
 
 def belongs(workbench, active):
@@ -154,17 +154,20 @@ class Memory:
             return ours
         return self.last[wb]
 
-    def chose(self, wb, title):
+    def chose(self, wb, title, tasks=TASKS):
         """The person turned to title in wb (ignored while a task runs:
         FreeCAD turns the tabs itself to Tasks and back to Model)."""
-        if self.running or not title or title == TASKS:
+        if self.running or not title or title == tasks:
             return
         self.last[wb] = title
 
-    def task(self, running, wb):
-        """Called as the task state is polled: the tab to hand back to when
-        a task has just ended, else None."""
+    def task(self, running, wb, tasks=TASKS):
+        """Called as the task state is polled: tasks when a task has just
+        started (it comes forward), the tab chosen before it when the task
+        has just ended, else None."""
         was, self.running = self.running, bool(running)
+        if running and not was:
+            return tasks
         if was and not running:
             return self.last.get(wb)
         return None
@@ -210,31 +213,187 @@ def task_running():
         return False
 
 
+TASK_NAMES = ("Std_TaskView", "Tasks", "Task view", "TaskView")
+
+
+def is_tasks(name, class_name=""):
+    """Whether a dock (its object name, its widget's class) is the task
+    view's own dock (FreeCAD 1.x: Std_TaskView, "Tasks")."""
+    return name in TASK_NAMES or "TaskView" in (class_name or "")
+
+
+def _classes_in(w, QtWidgets):
+    """The class names of w and everything under it."""
+    out = []
+    try:
+        out.append(w.metaObject().className())
+        out += [c.metaObject().className() for c in w.findChildren(QtWidgets.QWidget)]
+    except Exception:  # noqa: BLE001
+        pass
+    return out
+
+
+def is_task_tabs(tabs, QtWidgets=None):
+    """Whether a QTabWidget is a real Model | Tasks tab widget (FreeCAD
+    1.0's Combo View): one of its pages holds the task view. The property
+    editor's View | Data tabs do not."""
+    if QtWidgets is None:
+        _c, QtWidgets = _qt()
+    for i in range(tabs.count()):
+        page = tabs.widget(i)
+        if page is not None and any("TaskView" in n for n in _classes_in(page, QtWidgets)):
+            return True
+    return False
+
+
 def combo_tabs(mw):
-    """The Combo View's tab widget (Model, Tasks), or None when this
-    FreeCAD shows the tree and the tasks apart."""
+    """The Combo View's Model | Tasks tab widget when this FreeCAD has one
+    (1.0); None when Model and Tasks are docks of their own, tabbed
+    together by the main window (1.1)."""
     d = combo_dock(mw)
     if d is None:
         return None
     _c, QtWidgets = _qt()
-    t = d.findChild(QtWidgets.QTabWidget, "combiTab")
-    if t is None:
-        # The outermost tab widget in the dock (Model, Tasks), not the
-        # property editor's View/Data tabs inside the Model tab, which
-        # findChildren can list first (seen in FreeCAD 1.1 on the Mac).
-        kids = [k for k in d.findChildren(QtWidgets.QTabWidget) if not _inside_tabs(k, d, QtWidgets)]
-        t = kids[0] if kids else None
-    return t
+    for t in [d.findChild(QtWidgets.QTabWidget, "combiTab")] + list(d.findChildren(QtWidgets.QTabWidget)):
+        if t is not None and is_task_tabs(t, QtWidgets):
+            return t
+    return None
 
 
-def _inside_tabs(w, stop, QtWidgets):
-    """Whether w sits inside another QTabWidget below stop."""
-    p = w.parentWidget()
-    while p is not None and p is not stop:
-        if isinstance(p, QtWidgets.QTabWidget):
-            return True
-        p = p.parentWidget()
-    return False
+def tasks_dock(mw):
+    """The task view's own dock (Std_TaskView), or None."""
+    _c, QtWidgets = _qt()
+    docks = mw.findChildren(QtWidgets.QDockWidget)
+    for d in docks:
+        if is_tasks(d.objectName()):
+            return d
+    for d in docks:
+        w = d.widget()
+        if w is not None and any(is_tasks("", n) for n in _classes_in(w, QtWidgets)[:1]):
+            return d
+    return None
+
+
+class TabBar:
+    """Model | Tasks as a QTabWidget (FreeCAD 1.0's Combo View): panels are
+    tabs of it."""
+
+    kind = "tabs"
+
+    def __init__(self, tabs):
+        self.tabs = tabs
+        self.tasks, self.model = TASKS, "Model"
+
+    def titles(self):
+        return [self.tabs.tabText(i) for i in range(self.tabs.count())]
+
+    def current(self):
+        return self.tabs.tabText(self.tabs.currentIndex())
+
+    def turn_to(self, title):
+        for i, t in enumerate(self.titles()):
+            if t == title:
+                self.tabs.setCurrentIndex(i)
+                return True
+        return False
+
+    def add(self, e, mw):
+        self.tabs.addTab(e["frame"], e["title"])
+        e["dock"].hide()
+
+    def remove(self, e, mw):
+        i = self.tabs.indexOf(e["frame"])
+        if i >= 0:
+            self.tabs.removeTab(i)
+
+    def front(self, e):
+        self.tabs.setCurrentWidget(e["frame"])
+
+    def watch(self, fn):
+        t = self.tabs
+        # A Qt property: FreeCAD's tab widget may come back in a new Python
+        # wrapper, which would not keep a Python attribute.
+        if not t.property("panelLayout"):
+            t.currentChanged.connect(lambda i: fn(t.tabText(i)))
+            t.setProperty("panelLayout", True)
+
+
+class DockBar:
+    """Model and Tasks as docks of their own, tabbed together by the main
+    window (FreeCAD 1.1): a panel is a third dock tabbed with them."""
+
+    kind = "docks"
+
+    def __init__(self, mw, model, tasks=None):
+        self.mw, self.model_dock, self.tasks_dock = mw, model, tasks
+        self.tasks = tasks.windowTitle() if tasks is not None else TASKS
+        self.model = model.windowTitle()
+
+    def group(self):
+        try:
+            mates = list(self.mw.tabifiedDockWidgets(self.model_dock))
+        except Exception:  # noqa: BLE001
+            mates = []
+        return [self.model_dock] + [d for d in mates if d is not self.model_dock]
+
+    def titles(self):
+        return [d.windowTitle() for d in self.group()]
+
+    def current(self):
+        """The title of the dock in front: of a tab group only the dock in
+        front is visible."""
+        for d in self.group():
+            if d.isVisible():
+                return d.windowTitle()
+        return ""
+
+    def turn_to(self, title):
+        for d in self.group():
+            if d.windowTitle() == title:
+                d.raise_()
+                return True
+        return False
+
+    def add(self, e, mw):
+        QtCore, _w = _qt()
+        dock = e["dock"]
+        dock.setWidget(e["frame"])
+        dock.setMaximumWidth(16777215)
+        # The whole height of the left side, as Model and Tasks have: no cap.
+        dock.setMaximumHeight(16777215)
+        mw.addDockWidget(QtCore.Qt.LeftDockWidgetArea, dock)
+        mw.tabifyDockWidget(self.model_dock, dock)
+        dock.show()
+
+    def remove(self, e, mw):
+        # Out of the window, the widget kept (it goes back in its dock).
+        mw.removeDockWidget(e["dock"])
+
+    def front(self, e):
+        e["dock"].raise_()
+
+    def watch(self, fn):
+        mw = self.mw
+        if mw.property("panelLayoutDocks"):
+            return
+        try:
+            mw.tabifiedDockWidgetActivated.connect(lambda d: fn(d.windowTitle()))
+            mw.setProperty("panelLayoutDocks", True)
+        except Exception:  # noqa: BLE001 — Qt before 5.8: the poll's view of what is in front
+            pass
+
+
+def left_bar(mw):
+    """Where left-tab puts a panel: the Combo View's Model | Tasks tab
+    widget (FreeCAD 1.0), else the Model dock's tab group (1.1); None in
+    a window with neither."""
+    t = combo_tabs(mw)
+    if t is not None:
+        return TabBar(t)
+    model = combo_dock(mw)
+    if model is None:
+        return None
+    return DockBar(mw, model, tasks_dock(mw))
 
 
 def combo_dock(mw):
@@ -253,7 +412,7 @@ def combo_dock(mw):
                 names.append(w.metaObject().className())
         except Exception:  # noqa: BLE001
             continue
-        if any(is_combo("", n) for n in names):
+        if any(is_combo("", n) or "TreeWidget" in n or "TreeView" in n or "TreePanel" in n for n in names):
             return d
     return None
 
@@ -271,8 +430,9 @@ def frame(content):
     sa.setMinimumWidth(0)
     # The content follows the viewport's width (never wider: no clipping at
     # the right edge); its rows wrap or stack to fit.
-    content.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Preferred)
+    content.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Expanding)
     content.setMinimumWidth(0)
+    content.setMaximumHeight(16777215)  # nothing caps its height
     sa.setWidget(content)
     return sa
 
@@ -372,7 +532,7 @@ class Placer:
         self.entries = {}
         self.memory = Memory()
         self.slide = None
-        self.combo = None
+        self.bar = None
         self.timer = None
         self.mw = None
         self.active = None
@@ -397,7 +557,8 @@ class Placer:
 
     def _closed(self, dock):
         for e in self.entries.values():
-            if e.get("dock") is dock and e.get("where") == RIGHT:
+            # Closed with its X: on the right, or a dock tabbed with Model.
+            if e.get("dock") is dock and (e.get("where") == RIGHT or (e.get("where") == LEFT_TAB and getattr(e.get("bar"), "kind", "") == "docks")):
                 e["wanted"] = False
 
     # -- the API (the same in every add-on's copy) -----------------------------
@@ -425,8 +586,10 @@ class Placer:
         before, maxed = (mw.width(), mw.height()), mw.isMaximized() or mw.isFullScreen()
         if e["where"] and e["where"] != layout:
             self._take_back(e)
-        if layout == LEFT_TAB and combo_tabs(mw) is None:
-            layout = RIGHT  # no Combo View in this window: the right side
+        if layout == LEFT_TAB:
+            self.bar = left_bar(mw)
+            if self.bar is None:
+                layout = RIGHT  # no Model or Combo View in this window: the right side
         fresh = e["where"] != layout
         # Shown as its workbench opens (the workbench's Activated runs before
         # the switch signal): what comes forward is Memory's choice, and a
@@ -495,8 +658,8 @@ class Placer:
             return False
         if e.pop("arrived", False) and e["where"] != RIGHT:
             return True
-        if e["where"] == LEFT_TAB and self.combo is not None:
-            self.combo.setCurrentWidget(e["frame"])
+        if e["where"] == LEFT_TAB and self.bar is not None:
+            self.bar.front(e)
         elif e["where"] == LEFT_SLIDE and self.slide is not None:
             self.slide.tabs.setCurrentWidget(e["frame"])
             self.slide.set_open(True)
@@ -526,23 +689,18 @@ class Placer:
         self._unstick()
 
     def _unstick(self):
-        """The Combo View left on an empty Tasks tab (no task running):
-        Model in front (in left-tab, Memory's choice first)."""
-        tabs = self.combo or combo_tabs(self._main())
-        if tabs is None:
+        """Model and Tasks left on an empty Tasks (no task running): Model
+        in front (in left-tab, Memory's choice first)."""
+        bar = self.bar or left_bar(self._main())
+        if bar is None:
             return
-        titles = [tabs.tabText(i) for i in range(tabs.count())]
-        cur = tabs.tabText(tabs.currentIndex())
-        to = unstick(titles, cur, task_running())
+        titles = bar.titles()
+        to = unstick(titles, bar.current(), task_running(), bar.tasks, bar.model)
         if to is None:
             return
         wb = active_workbench() or self.active
         mine = self.memory.last.get(wb) if read() == LEFT_TAB else None
-        to = mine if mine in titles and mine != TASKS else to
-        for i, t in enumerate(titles):
-            if t == to:
-                tabs.setCurrentIndex(i)
-                return
+        bar.turn_to(mine if mine in titles and mine != bar.tasks else to)
 
     def _squeeze(self, on):
         """While the slide-out is open, the Combo View at most
@@ -579,24 +737,16 @@ class Placer:
     def _front(self, wb):
         layout = read()
         ours = self._ours(wb)
-        if layout == LEFT_TAB and self.combo is not None:
+        if layout == LEFT_TAB and self.bar is not None:
             title = self.memory.opened(wb, ours) if ours else self.memory.last.get(wb)
             if title and not task_running():
-                self._turn_to(title)
+                self.bar.turn_to(title)
         elif layout == LEFT_SLIDE and self.slide is not None:
             if ours:
                 for e in self.entries.values():
                     if e["title"] == ours and e.get("frame") is not None and e["where"] == LEFT_SLIDE:
                         self.slide.tabs.setCurrentWidget(e["frame"])
             self.slide.set_open(bool(ours) and self.memory.slide_open(wb))
-
-    def _turn_to(self, title):
-        t = self.combo
-        for i in range(t.count()):
-            if t.tabText(i) == title:
-                t.setCurrentIndex(i)
-                return True
-        return False
 
     def _right(self, e, front):
         QtCore, _w = _qt()
@@ -624,21 +774,16 @@ class Placer:
 
     def _left_tab(self, e, front):
         mw = self._main()
-        tabs = self.combo = combo_tabs(mw)
+        bar = self.bar = self.bar or left_bar(mw)
         if e["where"] != LEFT_TAB:
             content = self._content(e)
             e["frame"] = frame(content)
-            tabs.addTab(e["frame"], e["title"])
-            e["dock"].hide()
-            e["where"] = LEFT_TAB
-            # A Qt property: FreeCAD's tab widget may come back in a new
-            # Python wrapper, which would not keep a Python attribute.
-            if not tabs.property("panelLayout"):
-                tabs.currentChanged.connect(lambda i: self.memory.chose(active_workbench() or self.active, tabs.tabText(i)))
-                tabs.setProperty("panelLayout", True)
+            bar.add(e, mw)
+            e["where"], e["bar"] = LEFT_TAB, bar
+            bar.watch(lambda title: self.memory.chose(active_workbench() or self.active, title, bar.tasks))
             self._poll()
         if front and not task_running():
-            tabs.setCurrentWidget(e["frame"])
+            bar.front(e)
 
     def _left_slide(self, e, front):
         mw = self._main()
@@ -663,12 +808,13 @@ class Placer:
         (hidden); or off the right side's width cap."""
         where, dock = e["where"], e["dock"]
         if e.get("frame") is not None:
-            holder = {LEFT_TAB: self.combo, LEFT_SLIDE: self.slide.tabs if self.slide else None}.get(where)
+            if where == LEFT_TAB and e.get("bar") is not None:
+                e.pop("bar").remove(e, self._main())
             f = e.pop("frame")
-            if holder is not None:
-                i = holder.indexOf(f)
+            if where == LEFT_SLIDE and self.slide is not None:
+                i = self.slide.tabs.indexOf(f)
                 if i >= 0:
-                    holder.removeTab(i)
+                    self.slide.tabs.removeTab(i)
             content = f.takeWidget()
             e["content"] = None
             if content is not None:
@@ -692,9 +838,14 @@ class Placer:
         def tick():
             if not any(e["where"] == LEFT_TAB for e in self.entries.values()):
                 return
-            back = self.memory.task(task_running(), active_workbench() or self.active)
-            if back and self.combo is not None:
-                self._turn_to(back)
+            bar = self.bar
+            if bar is None:
+                return
+            # Tasks forward while a task runs; when it ends, what was in
+            # front before.
+            to = self.memory.task(task_running(), active_workbench() or self.active, bar.tasks)
+            if to:
+                bar.turn_to(to)
 
         self.timer.timeout.connect(tick)
         self.timer.start()

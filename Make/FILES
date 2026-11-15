@@ -19,6 +19,7 @@ tests/test_gui_text.py
 tests/test_handlers.py
 tests/test_icons.py
 tests/test_layout.py
+tests/test_layout_placer.py
 tests/test_loads_alone.py
 tests/test_mass.py
 tests/test_mill.py
