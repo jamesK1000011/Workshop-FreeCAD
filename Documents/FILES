@@ -2,6 +2,7 @@ Init.py
 package.xml
 tests/test_api.py
 tests/test_drawing.py
+tests/test_handlers.py
 tests/test_iso286.py
 tests/test_share.py
 tests/test_sheets.py
@@ -18,6 +19,10 @@ workshop_documents/fam_share.py
 workshop_documents/geo.py
 workshop_documents/guides/drawing.md
 workshop_documents/guides/share.md
+workshop_documents/handlers/__init__.py
+workshop_documents/handlers/_lent.py
+workshop_documents/handlers/drawing.py
+workshop_documents/handlers/share.py
 workshop_documents/iso286.py
 workshop_documents/libpack.py
 workshop_documents/materials.py
