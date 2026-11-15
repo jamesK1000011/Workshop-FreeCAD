@@ -251,12 +251,39 @@ class Plain(unittest.TestCase):
         pkg = os.path.join(ROOT, "workshop_make")
         for path in glob.glob(os.path.join(pkg, "**", "*.py"), recursive=True):
             name = os.path.basename(path)
-            # The family layer, and the helpers only it loads.
-            if name in ("agentlink_families.py", "maps.py", "printed.py", "tooldata.py") or name.startswith("fam_"):
+            # The family layer, and the helper only it loads. maps.py and
+            # printed.py are lent what they need by it (maps.register,
+            # printed.register), so they are held to this too.
+            if name in ("agentlink_families.py", "tooldata.py") or name.startswith("fam_"):
                 continue
             for n in ast.walk(ast.parse(open(path, encoding="utf-8").read())):
                 mods = [a.name for a in n.names] if isinstance(n, ast.Import) else [n.module or ""] if isinstance(n, ast.ImportFrom) else []
                 self.assertFalse(any(m.split(".")[0] == "agentlink" for m in mods), f"{name} imports {mods}")
+
+    def test_maps_and_printed_are_lent_what_they_need(self):
+        out = run('''
+import types
+from workshop_make import maps, printed
+OUT["loaded"] = sorted(m for m in sys.modules if m.split(".")[0] == "agentlink")
+OUT["before"] = [maps.render, printed.hooks]
+try:
+    maps.wall(None, {"objects": []})
+except RuntimeError as e:
+    OUT["unlent"] = str(e)
+got = []
+render = types.SimpleNamespace(register_map=lambda *a: got.append(a[0]))
+maps.register(render)
+ext = []
+hooks = types.SimpleNamespace(extend_tool=lambda name, *a: ext.append(name), analysis=lambda s, k: {"from": "hooks", "kind": k})
+printed.register(hooks)
+OUT["maps"] = [got, maps.render is render]
+OUT["printed"] = [ext, printed.hooks is hooks, printed._last(object())]
+''')
+        self.assertEqual(out["loaded"], [])
+        self.assertEqual(out["before"], [None, None])
+        self.assertIn("renderer", out["unlent"])
+        self.assertEqual(out["maps"], [["wall"], True])
+        self.assertEqual(out["printed"], [["fea_setup", "fea_solve"], True, {"from": "hooks", "kind": "fea"}])
 
 
 if __name__ == "__main__":

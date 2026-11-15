@@ -2,7 +2,19 @@
 # The wall-thickness map in Agent Link's view_render { map: "wall" }: the
 # wall at each spot of the parts, straight in from the surface to where the
 # material ends (red thin). Registered with Agent Link's renderer by
-# agentlink_families; its ray casting is Agent Link's (render.wall_map).
+# agentlink_families, which lends that renderer here (register): its ray
+# casting is Agent Link's (render.wall_map). This module never imports
+# Agent Link.
+
+# Agent Link's render module, lent by the family layer.
+render = None
+
+
+def register(host_render):
+    """Lend Agent Link's renderer and register the wall map with it."""
+    global render
+    render = host_render
+    render.register_map("wall", wall, ABOUT)
 
 
 def _bodies(s, a):
@@ -16,8 +28,9 @@ def _bodies(s, a):
 
 def wall(s, a):
     import numpy as np
-    from agentlink import render
 
+    if render is None:
+        raise RuntimeError("the wall map needs Agent Link's renderer (lent by agentlink_families)")
     reach = float(a.get("reach", 12.0))
     layers = []
     for i, o in enumerate(_bodies(s, a)):

@@ -27,8 +27,9 @@ def _register():
     # One list of wall readers: whatever add-on reads walls better is asked
     # by the printability check here.
     printability.WALL_READERS = hooks.readers("wall")
-    render.register_map("wall", maps.wall, maps.ABOUT)
-    # Print-aware strength on Agent Link's FEM tools.
+    maps.register(render)  # lends the renderer: maps.py imports no Agent Link
+    # Print-aware strength on Agent Link's FEM tools (lends the hooks:
+    # printed.py imports no Agent Link).
     printed.register(hooks)
 
 
