@@ -356,7 +356,8 @@
        "add",
        "set",
        "remove"
-      ]
+      ],
+      "default": "list"
      },
      "type": {
       "type": "string"
@@ -398,7 +399,13 @@
    },
    "changes": true,
    "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
-   "date": "2026-11-14"
+   "date": "2026-11-14",
+   "reads": {
+    "action": [
+     "list",
+     "of"
+    ]
+   }
   },
   "part_spec": {
    "group": "make",

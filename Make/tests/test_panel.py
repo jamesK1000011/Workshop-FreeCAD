@@ -21,7 +21,7 @@ def hosted(doc):
     s = R.Session(doc)
     table = handlers.bound(s)
     def call(tool, args):
-        ch = R.changes(tool)
+        ch = R.changes(tool, args)  # a read (setup list) is no undo step, as in Agent Link
         if ch: doc.openTransaction(tool)
         try:
             out = table[tool](dict(args))
@@ -123,8 +123,9 @@ class Runner(unittest.TestCase):
         self.assertEqual(res[6][1]["error"]["code"], "invalid_input")
         self.assertEqual(res[7][1]["error"]["code"], "not_found")
         self.assertTrue(res[8][0])
-        # One undo step per changing call that went through; a refused one undone.
-        self.assertEqual([t[0] for t in out["alone_tx"]].count("open"), 9)
+        # One undo step per changing call that went through; a refused one
+        # undone; setup's action list is a read, no undo step.
+        self.assertEqual([t[0] for t in out["alone_tx"]].count("open"), 8)
         self.assertIn(("abort",), [tuple(t) for t in out["alone_tx"]])
 
     def test_reviewer(self):
@@ -176,6 +177,29 @@ OUT["built"] = [type(t["factory"](Panel())).__name__ for t in hooks.TABS]
         self.assertEqual(out["built"], ["SetupsTab", "MaterialsTab", "FitsTab"])
         if out["where"]:  # an Agent Link with tabs per workbench: only in Make's, Review too
             self.assertEqual(out["where"], {t: ["WorkshopMakeWorkbench"] for t in ("Setups", "Materials", "Fits", "Review")})
+
+
+class Reads(unittest.TestCase):
+    def test_a_panel_refresh_changes_nothing(self):
+        """setup's action list or of is a read: no undo step (the document
+        stayed "1*" after each panel refresh on the Mac); a change still is."""
+        out = run(r'''
+from workshop_make import runner as R, panel as P
+OUT["changes"] = [R.changes("setup", {"action": "list"}), R.changes("setup", {}), R.changes("setup", {"action": "of"}),
+                  R.changes("setup", {"action": "add"}), R.changes("part_spec", {}), R.changes("fit", {})]
+seen = []
+def quiet_runner(tool, args, quiet=False):
+    seen.append([tool, args.get("action"), quiet])
+    return True, {"setups": []}
+quiet_runner.quiet_ok = True
+t = P.SetupsTab(runner=quiet_runner)
+t.fill()
+OUT["seen"] = seen
+''')
+        self.assertEqual(out["changes"], [False, False, False, True, True, False])
+        # The tab's own refresh is quiet; a click (New) is not.
+        self.assertTrue(out["seen"])
+        self.assertTrue(all(q for _t, a, q in out["seen"] if a == "list"))
 
 
 class NarrowDock(unittest.TestCase):
