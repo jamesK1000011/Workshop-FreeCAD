@@ -39,7 +39,7 @@ def calibration(doc):
     c = store.read(doc, "fit", None) if doc is not None else None
     if c:
         return {"hole": float(c.get("hole", 0.2)), "shaft": float(c.get("shaft", 0.0))}, "calibrated"
-    return {"hole": 0.2, "shaft": 0.0}, "none — the typical printer assumed (holes print 0.2 mm small)"
+    return {"hole": 0.2, "shaft": 0.0}, "none, so holes are assumed to print 0.2 mm small"
 
 
 def add_bodies(session, made, base_name=None, placement=None):

@@ -8,6 +8,14 @@
  ],
  "additionalProperties": false,
  "properties": {
+  "name": {
+   "type": "string",
+   "minLength": 1
+  },
+  "sameAs": {
+   "type": "string",
+   "minLength": 1
+  },
   "metal": {
    "type": "boolean"
   },

@@ -73,15 +73,24 @@ class QDoubleSpinBox(W):
 
 class QTreeWidgetItem:
     def __init__(self, texts=()):
-        self.texts, self.d = [str(t) for t in texts], {}
+        self.texts, self.d, self.tips = [str(t) for t in texts], {}, {}
     def text(self, i): return self.texts[i]
     def setData(self, c, role, v): self.d[(c, role)] = v
     def data(self, c, role): return self.d.get((c, role))
-    def setToolTip(self, *a): pass
+    def setToolTip(self, c, t): self.tips[c] = t
+
+class QHeaderView(W):
+    Stretch, ResizeToContents, Interactive = "stretch", "contents", "interactive"
+    def __init__(self, *a, **k):
+        super().__init__(); self.modes, self.last = {}, True
+    def setSectionResizeMode(self, i, m): self.modes[i] = m
+    def setStretchLastSection(self, v): self.last = bool(v)
 
 class QTreeWidget(W):
     def __init__(self, *a, **k):
-        super().__init__(); self.rows, self.cur = [], None
+        super().__init__(); self.rows, self.cur, self.hdr, self.hbar = [], None, QHeaderView(), "as needed"
+    def header(self): return self.hdr
+    def setHorizontalScrollBarPolicy(self, p): self.hbar = p
     def addTopLevelItem(self, it): self.rows.append(it)
     def clear(self): self.rows, self.cur = [], None
     def currentItem(self): return self.cur
@@ -118,11 +127,11 @@ class QTabWidget(W):
 qt = types.ModuleType("PySide.QtGui")
 for n in ("QWidget", "QLabel", "QPushButton", "QLineEdit", "QVBoxLayout", "QHBoxLayout", "QFormLayout", "QDockWidget", "QSizePolicy", "QPalette", "QInputDialog", "QFileDialog", "QDesktopServices"):
     setattr(qt, n, type(n, (W,), {}))
-for c in (QComboBox, QDoubleSpinBox, QTreeWidget, QTreeWidgetItem, QListWidget, QListWidgetItem, QTabWidget):
+for c in (QHeaderView, QComboBox, QDoubleSpinBox, QTreeWidget, QTreeWidgetItem, QListWidget, QListWidgetItem, QTabWidget):
     setattr(qt, c.__name__, c)
 core = types.ModuleType("PySide.QtCore")
 core.QObject = W
-core.Qt = types.SimpleNamespace(UserRole=32, Checked=2, Unchecked=0, ItemIsUserCheckable=16, LeftDockWidgetArea=1, ElideRight=1)
+core.Qt = types.SimpleNamespace(UserRole=32, Checked=2, Unchecked=0, ItemIsUserCheckable=16, LeftDockWidgetArea=1, ElideRight=1, ScrollBarAlwaysOff="off")
 core.QEvent = types.SimpleNamespace(PaletteChange=39)
 core.QUrl = W
 pyside = types.ModuleType("PySide")

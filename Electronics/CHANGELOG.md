@@ -21,6 +21,7 @@ The first tagged release, 0.2.0 (the version in `package.xml`), is being prepare
 
 ### Changed
 
+- No calibration reads "none, so holes are assumed to print 0.2 mm small".
 - Installs alone: its own enclosure maker and its own copies of what it used
   from AddonKit; it reads the printer fit itself and no longer needs Workshop
   Parts.

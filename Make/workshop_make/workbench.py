@@ -42,6 +42,16 @@ def make_class(Gui):
 
                 FreeCAD.Console.PrintLog(f"Workshop Make: panel not shown ({e})\n")
 
+        def Deactivated(self):
+            # Leaving Make: a part the panel selected to show its work (a
+            # review's) is not left selected; the person's own selection stays.
+            try:
+                from . import panel
+
+                panel.put_back_selection()
+            except Exception:  # noqa: BLE001 — never stop a workbench switch
+                pass
+
         def GetClassName(self):
             return "Gui::PythonWorkbench"
 

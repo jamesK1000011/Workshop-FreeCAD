@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 """Documents' panel: the Manual tab, an assembly manual step by step (tick
-the parts that go on next, name the step, Add step; then Make manual).
+the parts that go on next, name the step, then press Add Step; then Make
+Manual).
 
 Written against a runner, runner(tool, args) -> (ok, result): under Agent
 Link the panel's _call (shown and logged like the agent's work), alone
@@ -47,6 +48,25 @@ def parts(doc):
 
 NO_PARTS = "No parts in the document yet."
 NO_STEPS = "No steps yet: tick the parts that go on first, then Add Step."
+HOW = "Tick the parts that go on next, name the step, then press Add Step."
+
+
+def fit_columns(tree, n, stretch=(0,)):
+    """Columns fitted to a narrow dock (354 px showed a horizontal
+    scrollbar and cut "Note"): the stretch columns share the width and
+    elide, the rest sized to their contents; no horizontal scrollbar."""
+    try:
+        Mode = getattr(QtWidgets.QHeaderView, "ResizeMode", QtWidgets.QHeaderView)
+        h = tree.header()
+        h.setStretchLastSection(False)
+        for i in range(n):
+            h.setSectionResizeMode(i, Mode.Stretch if i in stretch else Mode.ResizeToContents)
+        Policy = getattr(QtCore.Qt, "ScrollBarPolicy", QtCore.Qt)
+        tree.setHorizontalScrollBarPolicy(Policy.ScrollBarAlwaysOff)
+        Elide = getattr(QtCore.Qt, "TextElideMode", QtCore.Qt)
+        tree.setTextElideMode(Elide.ElideRight)
+    except Exception:  # noqa: BLE001 — an older Qt: its defaults
+        pass
 
 
 def exploded_steps(rows):
@@ -105,7 +125,9 @@ class ManualTab(_Base):
         self.doc_fn = doc_fn or _doc
         self.rows, self.file = [], None
         lay = QtWidgets.QVBoxLayout(self)
-        lay.addWidget(QtWidgets.QLabel("Tick the parts that go on next, name the step, Add step:"))
+        how = QtWidgets.QLabel(HOW)
+        how.setWordWrap(True)
+        lay.addWidget(how)
         self.parts = QtWidgets.QListWidget()
         lay.addWidget(self.parts, 1)
         self.no_parts = self._empty(NO_PARTS)
@@ -124,6 +146,7 @@ class ManualTab(_Base):
         self.steps = QtWidgets.QTreeWidget()
         self.steps.setHeaderLabels(["#", "Step", "Parts", "Note"])
         self.steps.setRootIsDecorated(False)
+        fit_columns(self.steps, 4, stretch=(1, 2, 3))
         lay.addWidget(self.steps, 1)
         self.no_steps = self._empty(NO_STEPS)
         self.no_steps.setVisible(True)
@@ -186,7 +209,12 @@ class ManualTab(_Base):
     def _show_rows(self):
         self.steps.clear()
         for k, r in enumerate(self.rows):
-            self.steps.addTopLevelItem(QtWidgets.QTreeWidgetItem([str(k + 1), r["title"], ", ".join(r["bodies"]), r["note"]]))
+            texts = [str(k + 1), r["title"], ", ".join(r["bodies"]), r["note"]]
+            it = QtWidgets.QTreeWidgetItem(texts)
+            for i, t in enumerate(texts):
+                if t:
+                    it.setToolTip(i, t)  # a cell may be elided in the narrow dock
+            self.steps.addTopLevelItem(it)
         self.no_steps.setVisible(not self.rows)
         self.fill()
 

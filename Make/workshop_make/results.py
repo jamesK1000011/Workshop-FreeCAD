@@ -59,6 +59,55 @@ def material_name(text):
     return f"{name} (assumed: no material set yet; the Materials tab sets one)" if assumed else name
 
 
+def length(v, n=2):
+    """A length in mm as FreeCAD shows it (its unit schema and decimals,
+    "5.20 mm"), else n decimals and mm where FreeCAD is not here."""
+    if not isinstance(v, (int, float)):
+        return "–"
+    try:
+        import FreeCAD
+
+        q = FreeCAD.Units.Quantity(float(v), FreeCAD.Units.Length).UserString
+        if isinstance(q, str) and q:
+            return q
+    except Exception:  # noqa: BLE001 — no FreeCAD, or an older one
+        pass
+    return f"{v:.{n}f} mm"
+
+
+def volume(v):
+    """A volume given in mm³: mm³ under a cubic centimetre, else cm³."""
+    if not isinstance(v, (int, float)):
+        return "–"
+    return f"{v:.1f} mm³" if abs(v) < 1000 else f"{v / 1000:.1f} cm³"
+
+
+def figures_line(fig):
+    """Part review's figures as the panel's footer line, each with its unit
+    and the material by its display name: "Volume 24.0 cm³ · Mass 9.6 g ·
+    Material PLA · As printed: …"."""
+    bits = []
+    if "volume" in fig:
+        bits.append(f"Volume {volume(fig['volume'])}")
+    if "mass" in fig:
+        bits.append(f"Mass {_mass(fig['mass'])}")
+    if "encasedMass" in fig:
+        bits.append(f"Encased {_mass(fig['encasedMass'])}")
+    if fig.get("material") is not None:
+        name = material_name(fig["material"])
+        bits.append("Material " + (name.split(" (")[0] + " (assumed)" if "(assumed" in name else name))
+    if "wall" in fig:
+        bits.append(f"Least wall {length(fig['wall'])}")
+    if "safety" in fig:
+        bits.append(f"Safety factor {_g(fig['safety'])}")
+    if fig.get("as"):
+        a = str(fig["as"])
+        bits.append("As " + a if a.startswith("printed") else "Made " + a)
+    shown = ("volume", "mass", "encasedMass", "material", "wall", "safety", "as")
+    bits += [f"{k} {v}" for k, v in fig.items() if k not in shown]
+    return "  ·  ".join(bits)
+
+
 # Mass is shown to one decimal everywhere (Part Review and Mass Properties
 # agree): a tenth of a gram is past what a printer or scale holds to.
 def _mass(v):
