@@ -21,7 +21,12 @@ def _host():
     from agentlink import hooks
 
     workshop_documents._hosted = True
-    if hasattr(hooks, "register_tab"):
+    from . import layout
+
+    # The Manual is Documents' own dock beside Model and Tasks (its clicks
+    # run through Agent Link); only an Agent Link that cannot place it
+    # hosts it in its panel.
+    if hasattr(hooks, "register_tab") and layout.hosted_tabs(hooks):
         from . import panel
 
         for title, cls, order in panel.HOSTED:
