@@ -108,10 +108,10 @@ class Panel:
 
 # name (after Workshop_Documents_) -> command.
 COMMANDS = {
-    "Drawing": Form("drawing", "Drawing", "A dimensioned sheet of standard views: a TechDraw page, and SVG, PDF and DXF files", "TechDraw_PageDefault"),
+    "Drawing": Form("drawing", "Drawing", "A dimensioned sheet of standard views: a TechDraw page, and SVG, PDF and DXF files", "Workshop_Documents_Drawing"),
     "Exploded": Form("exploded", "Exploded drawing", "An assembly manual: exploded views a step, balloons and a bill of materials", "Workshop_Documents_Exploded"),
     "LibraryPack": Form("library", "Library pack", "The parts as STEP and STL with a README, a licence and credits, nothing personal in the files", "Workshop_Documents_LibraryPack"),
-    "PatentFigures": Run("patent_figures", "Patent figures", "Line figures of the parts with reference numerals, for a patent application", "TechDraw_ProjectionGroup"),
+    "PatentFigures": Run("patent_figures", "Patent figures", "Line figures of the parts with reference numerals, for a patent application", "Workshop_Documents_PatentFigures"),
     "PatentDraft": Form("patent", "Patent draft", "A draft to start a patent attorney's work from: the figures described, numerals listed", "document-new"),
     "Panel": Panel(),
 }

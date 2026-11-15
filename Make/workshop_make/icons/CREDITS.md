@@ -16,3 +16,4 @@ Each icon here is hand-drawn on a 64×64 canvas in FreeCAD's Artwork Guidelines 
 | Workshop_Make_ThreadLookup.svg | Tabler `screw` | Orange hex head on an Aluminium threaded shank |
 | Workshop_Make_Slice.svg | Tabler `stack-2` | Orange layers with a Sky Blue cutting plane |
 | Workshop_Make_PrinterStatus.svg | MDI `printer-3d-nozzle-alert` | Aluminium printer frame with an Orange part and a Chameleon progress bar |
+| Workshop_Make_Pauses.svg | Tabler `player-pause` | Two Sky Blue pause bars over an Orange printed layer (FreeCAD has no pause icon of its own) |

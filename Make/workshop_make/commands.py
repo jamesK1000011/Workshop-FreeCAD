@@ -150,7 +150,7 @@ COMMANDS = {
     "Calibrate": Form("calibrate", "Calibrate", "How much this printer prints a hole small and a peg big", "Workshop_Make_Calibrate"),
     "Hole": Form("hole", "Hole", "A hole for hardware: clearance, counterbore, countersink, nut trap, insert, magnet", "PartDesign_Hole"),
     "Embed": Form("embed", "Embed", "A pocket for a bought part encased mid-print, with its pause", "PartDesign_Pocket"),
-    "Pauses": Run("hw_pauses", "Pauses", "Every pause the part's print needs: layers, heights, what goes in", "media-playback-pause"),
+    "Pauses": Run("hw_pauses", "Pauses", "Every pause the part's print needs: layers, heights, what goes in", "Workshop_Make_Pauses"),
     "ThreadLookup": ThreadLookup("thread_lookup", "Thread lookup", "A thread's sizes from the standards: major, pitch, minor, tap drill", "Workshop_Make_ThreadLookup", body=False),
     "Slice": Form("slice", "Slice", "Slice the part in its print setup with the slicer on this computer", "Workshop_Make_Slice"),
     "CutExport": Run("cut_export", "Cut export", "DXF and SVG of a sheet part's flat profile, laid out on the sheet", "Std_Export"),
