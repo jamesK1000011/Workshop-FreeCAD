@@ -40,9 +40,11 @@ workshop_documents/handlers/_lent.py
 workshop_documents/handlers/drawing.py
 workshop_documents/handlers/share.py
 workshop_documents/icons/CREDITS.md
+workshop_documents/icons/Workshop_Documents_Drawing.svg
 workshop_documents/icons/Workshop_Documents_Exploded.svg
 workshop_documents/icons/Workshop_Documents_LibraryPack.svg
 workshop_documents/icons/Workshop_Documents_Manual.svg
+workshop_documents/icons/Workshop_Documents_PatentFigures.svg
 workshop_documents/icons/Workshop_Documents_Workbench.svg
 workshop_documents/iso286.py
 workshop_documents/libpack.py

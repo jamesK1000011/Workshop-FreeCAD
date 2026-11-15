@@ -10,3 +10,5 @@ Each icon here is hand-drawn on a 64×64 canvas in FreeCAD's Artwork Guidelines 
 | Workshop_Documents_Exploded.svg | Tabler `stack-3` | Three Orange parts pulled apart along an axis, Sky Blue arrows |
 | Workshop_Documents_LibraryPack.svg | Tabler `package-export` | Orange parcel with an Aluminium README sheet |
 | Workshop_Documents_Manual.svg | Tabler `book` | Open Aluminium book, Orange spine and step boxes |
+| Workshop_Documents_Drawing.svg | Tabler `layout-board` | Aluminium sheet with two Sky Blue views, a dimension and an Orange title block (TechDraw's icons are not loaded before TechDraw) |
+| Workshop_Documents_PatentFigures.svg | Tabler `file-description` | Aluminium sheet with a line figure and an Orange reference numeral |

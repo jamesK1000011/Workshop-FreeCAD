@@ -17,8 +17,8 @@ PKG = glob.glob(os.path.join(ROOT, "workshop_*", "__init__.py"))[0].rsplit(os.se
 ICONS = os.path.join(ROOT, PKG, "icons")
 
 # FreeCAD's own icons the commands name, resolved by FreeCAD at runtime.
-FREECAD_ICONS = {"document-new", "document-open", "list-add", "list-remove", "media-playback-pause", "Std_Export",
-                 "PartDesign_Hole", "PartDesign_Pocket", "TechDraw_PageDefault", "TechDraw_ProjectionGroup"}
+FREECAD_ICONS = {"document-new", "document-open", "list-add", "list-remove", "Std_Export",
+                 "PartDesign_Hole", "PartDesign_Pocket"}
 TANGO = set("""fce94f edd400 c4a000 fcaf3e f57900 ce5c00 e9b96e c17d11 8f5902 8ae234 73d216 4e9a06
 729fcf 3465a4 204a87 ad7fa8 75507b 5c3566 ef2929 cc0000 a40000 34e0e2 16d0d2 06989a eeeeec d3d7cf babdb6 888a85 555753 2e3436""".split())
 

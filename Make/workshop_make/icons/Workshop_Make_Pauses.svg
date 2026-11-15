@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<title>Workshop_Make_Pauses</title>
+<path d="M6,50 L18,44 H58 L46,50 Z" fill="#fcaf3e" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round"/>
+<path d="M6,50 H46 V56 H6 Z" fill="#f57900" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round"/>
+<path d="M46,50 L58,44 V50 L46,56 Z" fill="#ce5c00" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round"/>
+<rect x="18" y="8" width="10" height="30" rx="2" fill="#729fcf" stroke="#204a87" stroke-width="2"/>
+<rect x="36" y="8" width="10" height="30" rx="2" fill="#729fcf" stroke="#204a87" stroke-width="2"/>
+<path d="M21,11 V35 M39,11 V35" fill="none" stroke="#eeeeec" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+</svg>
