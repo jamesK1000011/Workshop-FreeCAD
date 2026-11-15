@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<title>Workshop_Parts_GridfinityBaseplate</title>
+<defs><linearGradient id="Workshop_Parts_GridfinityBaseplate_g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d3d7cf"/><stop offset="1" stop-color="#888a85"/></linearGradient><linearGradient id="Workshop_Parts_GridfinityBaseplate_g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ce5c00"/><stop offset="1" stop-color="#f57900"/></linearGradient><linearGradient id="Workshop_Parts_GridfinityBaseplate_g3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ce5c00"/><stop offset="1" stop-color="#f57900"/></linearGradient><linearGradient id="Workshop_Parts_GridfinityBaseplate_g4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ce5c00"/><stop offset="1" stop-color="#f57900"/></linearGradient><linearGradient id="Workshop_Parts_GridfinityBaseplate_g5" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ce5c00"/><stop offset="1" stop-color="#f57900"/></linearGradient><linearGradient id="Workshop_Parts_GridfinityBaseplate_g6" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ce5c00"/><stop offset="1" stop-color="#f57900"/></linearGradient><linearGradient id="Workshop_Parts_GridfinityBaseplate_g7" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ce5c00"/><stop offset="1" stop-color="#f57900"/></linearGradient><linearGradient id="Workshop_Parts_GridfinityBaseplate_g8" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ce5c00"/><stop offset="1" stop-color="#f57900"/></linearGradient><linearGradient id="Workshop_Parts_GridfinityBaseplate_g9" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ce5c00"/><stop offset="1" stop-color="#f57900"/></linearGradient><linearGradient id="Workshop_Parts_GridfinityBaseplate_g10" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ce5c00"/><stop offset="1" stop-color="#f57900"/></linearGradient></defs>
+<rect x="4" y="4" width="56" height="56" rx="4" fill="url(#Workshop_Parts_GridfinityBaseplate_g1)" stroke="#2e3436" stroke-width="2" stroke-linejoin="round"/>
+<rect x="6" y="6" width="52" height="52" rx="2" fill="none" stroke="#888a85" stroke-width="2" opacity="0.8"/>
+<rect x="9" y="9" width="14" height="14" rx="2" fill="url(#Workshop_Parts_GridfinityBaseplate_g2)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round"/>
+<path d="M11,21 V11 H21" fill="none" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.8"/>
+<rect x="9" y="25" width="14" height="14" rx="2" fill="url(#Workshop_Parts_GridfinityBaseplate_g3)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round"/>
+<path d="M11,37 V27 H21" fill="none" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.8"/>
+<rect x="9" y="41" width="14" height="14" rx="2" fill="url(#Workshop_Parts_GridfinityBaseplate_g4)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round"/>
+<path d="M11,53 V43 H21" fill="none" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.8"/>
+<rect x="25" y="9" width="14" height="14" rx="2" fill="url(#Workshop_Parts_GridfinityBaseplate_g5)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round"/>
+<path d="M27,21 V11 H37" fill="none" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.8"/>
+<rect x="25" y="25" width="14" height="14" rx="2" fill="url(#Workshop_Parts_GridfinityBaseplate_g6)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round"/>
+<path d="M27,37 V27 H37" fill="none" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.8"/>
+<rect x="25" y="41" width="14" height="14" rx="2" fill="url(#Workshop_Parts_GridfinityBaseplate_g7)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round"/>
+<path d="M27,53 V43 H37" fill="none" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.8"/>
+<rect x="41" y="9" width="14" height="14" rx="2" fill="url(#Workshop_Parts_GridfinityBaseplate_g8)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round"/>
+<path d="M43,21 V11 H53" fill="none" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.8"/>
+<rect x="41" y="25" width="14" height="14" rx="2" fill="url(#Workshop_Parts_GridfinityBaseplate_g9)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round"/>
+<path d="M43,37 V27 H53" fill="none" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.8"/>
+<rect x="41" y="41" width="14" height="14" rx="2" fill="url(#Workshop_Parts_GridfinityBaseplate_g10)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round"/>
+<path d="M43,53 V43 H53" fill="none" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.8"/>
+</svg>

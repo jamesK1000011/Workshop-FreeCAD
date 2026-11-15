@@ -2,8 +2,8 @@
 """Make's FreeCAD commands: each runs one of Make's tools through its own
 runner (workshop_make.runner: the handler the agent's tool calls, one undo
 step), on the part selected or the one there is. Forms open as task panels.
-Icons are FreeCAD's own, by name, until Workshop's are drawn. No agent and
-no Agent Link needed."""
+Icons: Make's own (icons/, by file stem) where FreeCAD has none to reuse,
+else FreeCAD's own by name. No agent and no Agent Link needed."""
 import FreeCAD
 import FreeCADGui
 
@@ -111,7 +111,7 @@ class PrinterSend(Run):
 
 class Panel:
     def GetResources(self):
-        return {"MenuText": "Make panel", "ToolTip": "Setups, materials, fits and review: Agent Link's panel when it hosts Make, else Make's own dock", "Pixmap": "Std_DlgParameter"}
+        return {"MenuText": "Make panel", "ToolTip": "Setups, materials, fits and review: Agent Link's panel when it hosts Make, else Make's own dock", "Pixmap": "Workshop_Make_Workbench"}
 
     def IsActive(self):
         return True
@@ -124,22 +124,22 @@ class Panel:
 
 # name (after Workshop_Make_) -> command; the tool it runs is the echo's.
 COMMANDS = {
-    "NewSetup": Form("setup_new", "New setup", "A setup: how parts are made (print, cut, mill) and its settings", "document-new"),
+    "NewSetup": Form("setup_new", "New setup", "A setup: how parts are made (print, cut, mill) and its settings", "Workshop_Make_NewSetup"),
     "AddBody": Form("setup_add", "Add body", "Put the selected part in a setup", "list-add"),
     "RemoveSetup": Form("setup_remove", "Remove setup", "Remove a setup (its parts then have no process)", "list-remove"),
-    "DfmCheck": Run("dfm_check", "DFM check", "Is the part printable as it stands: walls, overhangs, bridges, holes, bed contact, build volume", "Part_CheckGeometry"),
-    "PartReview": Run("part_review", "Part review", "One verdict on the part: soundness, then its process's checks, wall and mass", "Std_ViewScreenShot"),
-    "MassProperties": Run("mass_properties", "Mass properties", "Mass as made (as printed in a print setup), centre of mass, inertia", "Std_MeasureDistance"),
-    "FitSize": Form("fit_size", "Fit size", "The size to model a hole or peg at for a bought part, the printer's calibration added", "PartDesign_Hole"),
-    "Calibrate": Form("calibrate", "Calibrate", "How much this printer prints a hole small and a peg big", "preferences-system"),
+    "DfmCheck": Run("dfm_check", "DFM check", "Is the part printable as it stands: walls, overhangs, bridges, holes, bed contact, build volume", "Workshop_Make_DfmCheck"),
+    "PartReview": Run("part_review", "Part review", "One verdict on the part: soundness, then its process's checks, wall and mass", "Workshop_Make_PartReview"),
+    "MassProperties": Run("mass_properties", "Mass properties", "Mass as made (as printed in a print setup), centre of mass, inertia", "Workshop_Make_MassProperties"),
+    "FitSize": Form("fit_size", "Fit size", "The size to model a hole or peg at for a bought part, the printer's calibration added", "Workshop_Make_FitSize"),
+    "Calibrate": Form("calibrate", "Calibrate", "How much this printer prints a hole small and a peg big", "Workshop_Make_Calibrate"),
     "Hole": Form("hole", "Hole", "A hole for hardware: clearance, counterbore, countersink, nut trap, insert, magnet", "PartDesign_Hole"),
     "Embed": Form("embed", "Embed", "A pocket for a bought part encased mid-print, with its pause", "PartDesign_Pocket"),
     "Pauses": Run("hw_pauses", "Pauses", "Every pause the part's print needs: layers, heights, what goes in", "media-playback-pause"),
-    "ThreadLookup": ThreadLookup("thread_lookup", "Thread lookup", "A thread's sizes from the standards: major, pitch, minor, tap drill", "PartDesign_Hole", body=False),
-    "Slice": Form("slice", "Slice", "Slice the part in its print setup with the slicer on this computer", "Std_Export"),
+    "ThreadLookup": ThreadLookup("thread_lookup", "Thread lookup", "A thread's sizes from the standards: major, pitch, minor, tap drill", "Workshop_Make_ThreadLookup", body=False),
+    "Slice": Form("slice", "Slice", "Slice the part in its print setup with the slicer on this computer", "Workshop_Make_Slice"),
     "CutExport": Run("cut_export", "Cut export", "DXF and SVG of a sheet part's flat profile, laid out on the sheet", "Std_Export"),
     "MillExport": Run("mill_export", "Mill export", "STEP of a milled part and its setup sheet", "Std_Export"),
-    "PrinterStatus": Run("printer_status", "Printer status", "The printer's state now: temperatures, job, progress", "help-browser", body=False),
+    "PrinterStatus": Run("printer_status", "Printer status", "The printer's state now: temperatures, job, progress", "Workshop_Make_PrinterStatus", body=False),
     "PrinterSend": PrinterSend("printer_send", "Send to printer", "Upload a G-code file to the printer (it is not started)", "document-open", body=False),
     "Panel": Panel(),
 }

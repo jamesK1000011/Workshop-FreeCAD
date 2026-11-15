@@ -1,9 +1,13 @@
 Init.py
 InitGui.py
+LICENSES/Apache-2.0.txt
+LICENSES/MIT.txt
+REUSE.toml
 package.xml
 tests/test_api.py
 tests/test_electronics.py
 tests/test_handlers.py
+tests/test_icons.py
 tests/test_loads_alone.py
 workshop_electronics/__init__.py
 workshop_electronics/agentlink_families.py
@@ -20,6 +24,9 @@ workshop_electronics/fam_electronics.py
 workshop_electronics/geo.py
 workshop_electronics/guides/electronics.md
 workshop_electronics/handlers.py
+workshop_electronics/icons/CREDITS.md
+workshop_electronics/icons/Workshop_Electronics_ImportBoard.svg
+workshop_electronics/icons/Workshop_Electronics_Workbench.svg
 workshop_electronics/kicad.py
 workshop_electronics/pcb.py
 workshop_electronics/records.py

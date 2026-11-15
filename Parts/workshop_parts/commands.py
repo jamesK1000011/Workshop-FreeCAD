@@ -20,7 +20,7 @@ class Make:
         self.generator = generator
 
     def GetResources(self):
-        return {"MenuText": api.NAMES[self.generator] + "…", "ToolTip": TIPS[self.generator]}
+        return {"MenuText": api.NAMES[self.generator] + "…", "ToolTip": TIPS[self.generator], "Pixmap": command_name(self.generator)}
 
     def IsActive(self):
         return True
@@ -48,8 +48,13 @@ class Make:
             pass
 
 
+def command_name(generator):
+    """The command (and its icon's file stem) for a generator."""
+    return "Workshop_Parts_" + "".join(w.title() for w in generator.split("_"))
+
+
 NAMES = []
 for g in api.GENERATORS:
-    n = "Workshop_Parts_" + "".join(w.title() for w in g.split("_"))
+    n = command_name(g)
     FreeCADGui.addCommand(n, Make(g))
     NAMES.append(n)

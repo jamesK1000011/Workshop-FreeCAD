@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<title>Workshop_Make_Slice</title>
+<defs><linearGradient id="Workshop_Make_Slice_g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f57900"/><stop offset="1" stop-color="#ce5c00"/></linearGradient><linearGradient id="Workshop_Make_Slice_g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f57900"/><stop offset="1" stop-color="#ce5c00"/></linearGradient><linearGradient id="Workshop_Make_Slice_g3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f57900"/><stop offset="1" stop-color="#ce5c00"/></linearGradient><linearGradient id="Workshop_Make_Slice_g4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f57900"/><stop offset="1" stop-color="#ce5c00"/></linearGradient></defs>
+<path d="M6,50 L18,44 H58 L46,50 Z" fill="#fcaf3e" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M6,50 H46 V55 H6 Z" fill="url(#Workshop_Make_Slice_g1)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M46,50 L58,44 V49 L46,55 Z" fill="#ce5c00" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M6,38 L18,32 H58 L46,38 Z" fill="#fcaf3e" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M6,38 H46 V43 H6 Z" fill="url(#Workshop_Make_Slice_g2)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M46,38 L58,32 V37 L46,43 Z" fill="#ce5c00" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M6,26 L18,20 H58 L46,26 Z" fill="#fcaf3e" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M6,26 H46 V31 H6 Z" fill="url(#Workshop_Make_Slice_g3)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M46,26 L58,20 V25 L46,31 Z" fill="#ce5c00" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M6,14 L18,8 H58 L46,14 Z" fill="#fcaf3e" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M6,14 H46 V19 H6 Z" fill="url(#Workshop_Make_Slice_g4)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M46,14 L58,8 V13 L46,19 Z" fill="#ce5c00" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M2,30 H62" fill="none" stroke="#204a87" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M2,30 H62" fill="none" stroke="#729fcf" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>

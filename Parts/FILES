@@ -1,8 +1,12 @@
 Init.py
 InitGui.py
+LICENSES/Apache-2.0.txt
+LICENSES/MIT.txt
+REUSE.toml
 package.xml
 tests/test_api.py
 tests/test_handlers.py
+tests/test_icons.py
 tests/test_loads_alone.py
 tests/test_parts_agent.py
 workshop_parts/__init__.py
@@ -20,5 +24,11 @@ workshop_parts/geo.py
 workshop_parts/gridfinity.py
 workshop_parts/guides/parts.md
 workshop_parts/handlers.py
+workshop_parts/icons/CREDITS.md
+workshop_parts/icons/Workshop_Parts_BoardBox.svg
+workshop_parts/icons/Workshop_Parts_GridfinityBaseplate.svg
+workshop_parts/icons/Workshop_Parts_GridfinityBin.svg
+workshop_parts/icons/Workshop_Parts_ProjectBox.svg
+workshop_parts/icons/Workshop_Parts_Workbench.svg
 workshop_parts/records.py
 workshop_parts/refusal.py

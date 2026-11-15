@@ -7,6 +7,7 @@
   <maintainer email="jamesK1000011@users.noreply.github.com">jamesK1000011</maintainer>
   <license file="../LICENSE">LGPL-2.1-or-later</license>
   <url type="repository" branch="main">https://github.com/jamesK1000011/Workshop-FreeCAD</url>
+  <icon>workshop_electronics/icons/Workshop_Electronics_Workbench.svg</icon>
   <freecadmin>1.0.0</freecadmin>
   <tag>KiCad</tag>
   <tag>PCB</tag>
@@ -17,6 +18,7 @@
       <name>Workshop Electronics</name>
       <classname>WorkshopElectronicsWorkbench</classname>
       <subdirectory>./</subdirectory>
+      <icon>workshop_electronics/icons/Workshop_Electronics_Workbench.svg</icon>
     </workbench>
   </content>
 </package>

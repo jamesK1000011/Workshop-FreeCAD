@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<title>Workshop_Documents_Exploded</title>
+<defs><linearGradient id="Workshop_Documents_Exploded_g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f57900"/><stop offset="1" stop-color="#ce5c00"/></linearGradient><linearGradient id="Workshop_Documents_Exploded_g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f57900"/><stop offset="1" stop-color="#ce5c00"/></linearGradient><linearGradient id="Workshop_Documents_Exploded_g3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f57900"/><stop offset="1" stop-color="#ce5c00"/></linearGradient></defs>
+<path d="M10,12 L20,6 H54 L44,12 Z" fill="#fcaf3e" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M10,12 H44 V18 H10 Z" fill="url(#Workshop_Documents_Exploded_g1)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M44,12 L54,6 V12 L44,18 Z" fill="#ce5c00" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M10,32 L20,26 H54 L44,32 Z" fill="#fcaf3e" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M10,32 H44 V38 H10 Z" fill="url(#Workshop_Documents_Exploded_g2)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M44,32 L54,26 V32 L44,38 Z" fill="#ce5c00" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M10,52 L20,46 H54 L44,52 Z" fill="#fcaf3e" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M10,52 H44 V58 H10 Z" fill="url(#Workshop_Documents_Exploded_g3)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M44,52 L54,46 V52 L44,58 Z" fill="#ce5c00" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M60,4 V60" fill="none" stroke="#555753" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="4 3"/>
+<path d="M4,20 V24 M4,40 V44" fill="none" stroke="#204a87" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1,22 L4,18 L7,22 Z M1,42 L4,38 L7,42 Z" fill="#729fcf" stroke="#204a87" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>
