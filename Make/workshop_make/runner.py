@@ -16,13 +16,21 @@ _DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 _CHANGES = None
 
 
-def changes(tool):
-    """Whether the tool changes the document (data/tools.json)."""
+def changes(tool, args=None):
+    """Whether this call of the tool changes the document (data/tools.json):
+    a changing tool's reads ("reads": setup's action list or of) do not,
+    so a panel's refresh opens no undo step and marks nothing changed."""
     global _CHANGES
     if _CHANGES is None:
         with open(os.path.join(_DATA, "tools.json"), encoding="utf-8") as f:
-            _CHANGES = {k: bool(v.get("changes")) for k, v in json.load(f)["entries"].items()}
-    return _CHANGES.get(tool, False)
+            _CHANGES = {k: (bool(v.get("changes")), v.get("reads") or {},
+                            (v.get("inputSchema") or {}).get("properties") or {})
+                        for k, v in json.load(f)["entries"].items()}
+    ch, reads, props = _CHANGES.get(tool, (False, {}, {}))
+    if not ch:
+        return False
+    a = args or {}
+    return not any(a.get(k, props.get(k, {}).get("default")) in vals for k, vals in reads.items())
 
 
 def _solid(o):
@@ -151,7 +159,7 @@ def local(doc_fn=None, table=None):
             return False, {"error": {"code": "not_found", "message": f"{tool}: not a tool of Workshop Make."}}
         doc = (doc_fn or _active_doc)()
         s = session_for(doc)
-        if not changes(tool):
+        if not changes(tool, args):
             return answer(lambda a: fn(s, a), args)
         doc.openTransaction(tool)
         ok, out = answer(lambda a: fn(s, a), args)

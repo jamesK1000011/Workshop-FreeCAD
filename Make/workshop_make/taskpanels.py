@@ -258,7 +258,10 @@ class FormPanel:
                 elif kind == "body":
                     items, start = body_items(P.parts(P._doc()), body)
                 else:
-                    ok, out = self.runner("setup", {"action": "list"})
+                    # Filling the list, not the person's click: quiet
+                    # under Agent Link (nothing shown, nothing in Activity).
+                    quiet = {"quiet": True} if getattr(self.runner, "quiet_ok", False) else {}
+                    ok, out = self.runner("setup", {"action": "list"}, **quiet)
                     items = [(s.get("id"), f"{s.get('name')} ({s.get('id')})") for s in (out.get("setups") or [])] if ok else []
                     if not items:
                         items = [("", "No setups yet")]

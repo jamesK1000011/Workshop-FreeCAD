@@ -196,6 +196,14 @@ class Tab(_Base):
         self.msg.setObjectName("bad" if bad else "msg")
         self.msg.setStyleSheet(f"color: {theme.roles(self)['bad' if bad else 'muted']};")
 
+    def read(self, tool, args):
+        """The tab's own refresh: under Agent Link quiet (not the agent's
+        work: nothing shown, nothing in Activity); a click goes through
+        self.runner and shows."""
+        if getattr(self.runner, "quiet_ok", False):
+            return self.runner(tool, args, quiet=True)
+        return self.runner(tool, args)
+
     def button(self, text, tip, fn):
         b = QtWidgets.QPushButton(text)
         b.setToolTip(tip)
@@ -252,7 +260,7 @@ class SetupsTab(Tab):
         self.lay.addLayout(row)
 
     def fill(self):
-        ok, out = self.runner("setup", {"action": "list"})
+        ok, out = self.read("setup", {"action": "list"})
         self.setups.clear()
         names = parts(self.doc_fn())
         _sync(self.body, names)
