@@ -17,11 +17,13 @@ import re
 import FreeCAD
 import TechDraw  # noqa: F401 — the family stands on TechDraw; left out without it
 
-from addonkit import geo, iso286, sheets
-from addonkit import records as store
-from addonkit.techdraw import wait_views as _wait_views
+from workshop_documents import geo
+from workshop_documents import iso286
+from workshop_documents import sheets
+from workshop_documents import records as store
+from workshop_documents.td_wait import wait_views as _wait_views
 from agentlink.protocol import ToolError
-from workshop_common import tooldefs
+from workshop_documents import tooldata as tooldefs
 
 from . import views
 
@@ -666,7 +668,7 @@ def tools(session):
     # ---- drawing_exploded ------------------------------------------------------------------
 
     def drawing_exploded(a):
-        from addonkit.materials import DENSITY
+        from workshop_documents.materials import DENSITY
 
         steps = a.get("steps")
         if not isinstance(steps, list) or not steps or not all(isinstance(x, dict) and x.get("add") for x in steps):

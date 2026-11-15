@@ -10,8 +10,8 @@ import re
 import FreeCAD
 import Part
 
-from addonkit import geo
-from addonkit import records as store
+from workshop_make import geo
+from workshop_make import records as store
 from agentlink.families import material as matfam
 from agentlink.protocol import ToolError
 

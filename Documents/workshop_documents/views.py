@@ -98,7 +98,7 @@ def visible_point(shape, others, view, tries=8):
     """A point on a shape's face that the viewer sees in this view, other
     shapes in front counted: the faces turned most to the viewer, biggest
     first. None when every face tried is hidden."""
-    from addonkit.geo import _ray_hits
+    from workshop_documents.geo import _ray_hits
 
     Z, _, _ = frame(view)
     solid = shape.Solids[0] if shape.Solids else None

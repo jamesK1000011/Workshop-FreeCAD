@@ -21,7 +21,7 @@ try:
 except ImportError:
     HAVE = False
 
-from addonkit import data  # noqa: E402
+from workshop_electronics import datafiles as data  # noqa: E402
 
 DATA = os.path.join(ROOT, "workshop_electronics", "data")
 

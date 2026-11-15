@@ -52,7 +52,7 @@ class Api(unittest.TestCase):
         self.assertEqual(out["printerFit"].split(" ")[0], "none")
 
     def test_refusals_say_the_range(self):
-        from workshop_common import Refused
+        from workshop_parts.refusal import Refused
         from workshop_parts import api
 
         with self.assertRaises(Refused) as e:
@@ -62,7 +62,7 @@ class Api(unittest.TestCase):
             api.make(None, "spaceship", {}, measure=True)
 
     def test_records_fit_used(self):
-        from workshop_common import records
+        from workshop_parts import records
         from workshop_parts import api
 
         records.write(self.doc, "fit", {"hole": 0.35, "shaft": 0.05})

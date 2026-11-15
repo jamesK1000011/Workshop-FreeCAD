@@ -15,7 +15,7 @@ import os
 import FreeCAD
 import Part
 
-from addonkit import records as store
+from workshop_make import records as store
 from agentlink.protocol import ToolError
 
 from . import sheetfile as sf
@@ -27,7 +27,7 @@ INFO = "Sheet parts for laser, waterjet, plasma and router: the cut check, and D
 V = FreeCAD.Vector
 # The machines' kerfs and the materials are data (data/cut-machines.json,
 # data/shop-materials.json); the person's own win.
-from addonkit import data as _data
+from workshop_make import datafiles as _data
 
 _D = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 _SHOP = _data.load(_D, "shop-materials", package="workshop_make")["entries"]

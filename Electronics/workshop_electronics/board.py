@@ -11,7 +11,7 @@ import re
 import FreeCAD
 import Part
 
-from addonkit import geo
+from workshop_electronics import geo
 
 # Volume resistivity, Ω·cm, typical published figures for printed parts —
 # the maker's sheet is the authority.

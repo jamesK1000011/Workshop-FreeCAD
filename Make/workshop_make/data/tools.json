@@ -1,5 +1,4 @@
 {
- "$schema": "tools.schema.json",
  "dataVersion": "1.0.0",
  "licence": "CC-BY-4.0",
  "about": "Make's tools for agents (through Agent Link): name, what it does, its arguments as JSON Schema, its group, whether it changes the document.",
@@ -110,7 +109,8 @@
    },
    "changes": true,
    "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
-   "date": "2026-11-14"
+   "date": "2026-11-14",
+   "pathIsCurve": true
   },
   "thread_lookup": {
    "group": "thread",
@@ -460,7 +460,8 @@
    },
    "changes": false,
    "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
-   "date": "2026-11-14"
+   "date": "2026-11-14",
+   "heavy": true
   },
   "part_review": {
    "group": "make",
@@ -503,7 +504,8 @@
    },
    "changes": false,
    "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
-   "date": "2026-11-14"
+   "date": "2026-11-14",
+   "heavy": true
   },
   "slice": {
    "group": "make",
@@ -530,7 +532,8 @@
    },
    "changes": false,
    "source": "Agent Link for FreeCAD 1f705f4 (moved to Workshop Make)",
-   "date": "2026-11-14"
+   "date": "2026-11-14",
+   "heavy": true
   },
   "mass_calibrate": {
    "group": "mass",
@@ -779,7 +782,8 @@
    },
    "changes": false,
    "source": "Agent Link for FreeCAD 25bafcb (moved to Workshop Make)",
-   "date": "2026-11-14"
+   "date": "2026-11-14",
+   "heavy": true
   },
   "slice_read": {
    "group": "slice",
@@ -1180,7 +1184,8 @@
    },
    "changes": false,
    "source": "Agent Link for FreeCAD 5b1bbde (moved to Workshop Make)",
-   "date": "2026-11-14"
+   "date": "2026-11-14",
+   "writes": true
   },
   "fea_frame": {
    "group": "strength",
@@ -1239,7 +1244,8 @@
    },
    "changes": false,
    "source": "Agent Link for FreeCAD 5b1bbde (moved to Workshop Make)",
-   "date": "2026-11-14"
+   "date": "2026-11-14",
+   "heavy": true
   }
  }
 }

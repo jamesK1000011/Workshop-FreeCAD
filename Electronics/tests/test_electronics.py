@@ -26,7 +26,7 @@ try:
 except ImportError:
     AGENT = False
 
-from addonkit import archive  # noqa: E402
+from workshop_electronics import archive  # noqa: E402
 from workshop_electronics import kicad  # noqa: E402
 from workshop_electronics import pcb as packing  # noqa: E402
 

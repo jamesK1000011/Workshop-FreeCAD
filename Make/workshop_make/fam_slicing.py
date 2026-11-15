@@ -7,7 +7,7 @@
 import json
 import os
 
-from addonkit import records as store
+from workshop_make import records as store
 from agentlink.protocol import ToolError
 
 from . import fam_embed, orcalib, printability, tooldefs
@@ -15,7 +15,7 @@ from . import fam_embed, orcalib, printability, tooldefs
 GROUP = "slice"
 INFO = "Slicing with PrusaSlicer, OrcaSlicer or Bambu Studio, profiles by path, the encased parts' pauses written in."
 
-from addonkit.materials import DENSITY  # noqa: E402 — the one filament table (AddonKit)
+from workshop_make.materials import DENSITY  # noqa: E402 — Make's filament table
 
 
 class _Orca:

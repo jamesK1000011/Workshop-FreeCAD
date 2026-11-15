@@ -1,0 +1,162 @@
+{
+ "$schema": "metric-hardware.schema.json",
+ "dataVersion": "1.0.0",
+ "licence": "CC-BY-4.0",
+ "about": "Metric screws' holes, heads, nuts and heat-set inserts, mm.",
+ "entries": {
+  "M2": {
+   "clear": [
+    2.2,
+    2.4,
+    2.6
+   ],
+   "head": [
+    3.8,
+    2.0
+   ],
+   "csk": 3.8,
+   "nut": [
+    4.0,
+    1.6
+   ],
+   "insert": [
+    3.2,
+    4.0
+   ],
+   "source": "ISO 273 clearance holes (close, medium, coarse); ISO 4762 socket head d, k; ISO 10642 countersunk head d (ISO 2009 under M3); ISO 4032 nut s, m; heat-set insert hole d and depth: typical maker figures, the maker's sheet is the authority",
+   "date": "2026-11-14"
+  },
+  "M2.5": {
+   "clear": [
+    2.7,
+    2.9,
+    3.1
+   ],
+   "head": [
+    4.5,
+    2.5
+   ],
+   "csk": 4.7,
+   "nut": [
+    5.0,
+    2.0
+   ],
+   "insert": [
+    3.6,
+    4.0
+   ],
+   "source": "ISO 273 clearance holes (close, medium, coarse); ISO 4762 socket head d, k; ISO 10642 countersunk head d (ISO 2009 under M3); ISO 4032 nut s, m; heat-set insert hole d and depth: typical maker figures, the maker's sheet is the authority",
+   "date": "2026-11-14"
+  },
+  "M3": {
+   "clear": [
+    3.2,
+    3.4,
+    3.6
+   ],
+   "head": [
+    5.5,
+    3.0
+   ],
+   "csk": 6.72,
+   "nut": [
+    5.5,
+    2.4
+   ],
+   "insert": [
+    4.0,
+    5.7
+   ],
+   "source": "ISO 273 clearance holes (close, medium, coarse); ISO 4762 socket head d, k; ISO 10642 countersunk head d (ISO 2009 under M3); ISO 4032 nut s, m; heat-set insert hole d and depth: typical maker figures, the maker's sheet is the authority",
+   "date": "2026-11-14"
+  },
+  "M4": {
+   "clear": [
+    4.3,
+    4.5,
+    4.8
+   ],
+   "head": [
+    7.0,
+    4.0
+   ],
+   "csk": 8.96,
+   "nut": [
+    7.0,
+    3.2
+   ],
+   "insert": [
+    5.6,
+    8.1
+   ],
+   "source": "ISO 273 clearance holes (close, medium, coarse); ISO 4762 socket head d, k; ISO 10642 countersunk head d (ISO 2009 under M3); ISO 4032 nut s, m; heat-set insert hole d and depth: typical maker figures, the maker's sheet is the authority",
+   "date": "2026-11-14"
+  },
+  "M5": {
+   "clear": [
+    5.3,
+    5.5,
+    5.8
+   ],
+   "head": [
+    8.5,
+    5.0
+   ],
+   "csk": 11.2,
+   "nut": [
+    8.0,
+    4.7
+   ],
+   "insert": [
+    6.4,
+    9.5
+   ],
+   "source": "ISO 273 clearance holes (close, medium, coarse); ISO 4762 socket head d, k; ISO 10642 countersunk head d (ISO 2009 under M3); ISO 4032 nut s, m; heat-set insert hole d and depth: typical maker figures, the maker's sheet is the authority",
+   "date": "2026-11-14"
+  },
+  "M6": {
+   "clear": [
+    6.4,
+    6.6,
+    7.0
+   ],
+   "head": [
+    10.0,
+    6.0
+   ],
+   "csk": 13.44,
+   "nut": [
+    10.0,
+    5.2
+   ],
+   "insert": [
+    8.0,
+    12.7
+   ],
+   "source": "ISO 273 clearance holes (close, medium, coarse); ISO 4762 socket head d, k; ISO 10642 countersunk head d (ISO 2009 under M3); ISO 4032 nut s, m; heat-set insert hole d and depth: typical maker figures, the maker's sheet is the authority",
+   "date": "2026-11-14"
+  },
+  "M8": {
+   "clear": [
+    8.4,
+    9.0,
+    10.0
+   ],
+   "head": [
+    13.0,
+    8.0
+   ],
+   "csk": 17.92,
+   "nut": [
+    13.0,
+    6.8
+   ],
+   "insert": [
+    9.6,
+    12.7
+   ],
+   "source": "ISO 273 clearance holes (close, medium, coarse); ISO 4762 socket head d, k; ISO 10642 countersunk head d (ISO 2009 under M3); ISO 4032 nut s, m; heat-set insert hole d and depth: typical maker figures, the maker's sheet is the authority",
+   "date": "2026-11-14"
+  }
+ }
+}

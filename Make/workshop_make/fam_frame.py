@@ -9,7 +9,7 @@ import os
 
 import FreeCAD
 
-from addonkit import ccx as ccx_io
+from workshop_make import ccx as ccx_io
 
 from . import frame as FR
 from . import tooldefs

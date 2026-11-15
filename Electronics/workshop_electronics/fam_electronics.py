@@ -15,13 +15,13 @@ import tempfile
 import FreeCAD
 import Part
 
-from addonkit import Refused, geo
-from addonkit import records as store
-from workshop_common import tooldefs
-from workshop_parts import boxes
-from workshop_parts.api import calibration as _calibration
+from workshop_electronics.refusal import Refused
+from workshop_electronics import geo
+from workshop_electronics import records as store
+from workshop_electronics import tooldata as tooldefs
 
 from . import board as B
+from . import enclosure as boxes
 from . import kicad, pcb
 
 GROUP = "electronics"
@@ -32,7 +32,13 @@ V = FreeCAD.Vector
 
 
 def calibration(doc):
-    return _calibration(doc)
+    """The printer's fit calibration kept with the document (the "fit"
+    record, docs/records.md in Agent Link), else the typical printer's:
+    holes print 0.2 mm small. Gives (calibration, how it was found)."""
+    c = store.read(doc, "fit", None) if doc is not None else None
+    if c:
+        return {"hole": float(c.get("hole", 0.2)), "shaft": float(c.get("shaft", 0.0))}, "calibrated"
+    return {"hole": 0.2, "shaft": 0.0}, "none — the typical printer assumed (holes print 0.2 mm small)"
 
 
 def add_bodies(session, made, base_name=None, placement=None):

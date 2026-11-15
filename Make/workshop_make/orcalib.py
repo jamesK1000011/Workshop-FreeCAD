@@ -7,7 +7,7 @@ import importlib
 import os
 import sys
 
-from addonkit import Refused
+from workshop_make.refusal import Refused
 
 HOW = ("Slicing needs Agent Link for OrcaSlicer (github.com/jamesK1000011/AgentLink-OrcaSlicer, the slicers' "
        "command lines): install it beside this add-on, or set ORCALINK_DIR to its folder.")

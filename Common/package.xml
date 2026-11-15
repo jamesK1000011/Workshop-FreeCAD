@@ -1,14 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
   <name>Workshop Common</name>
-  <description>The Workshop workbench every Workshop for FreeCAD add-on adds its commands to (records, shapes and fits come from AddonKit).</description>
-  <version>0.2.0</version>
+  <description>The Workshop workbench every Workshop for FreeCAD add-on adds its commands to; no add-on needs it to work.</description>
+  <version>0.3.0</version>
   <date>2026-11-14</date>
   <maintainer email="jamesK1000011@users.noreply.github.com">jamesK1000011</maintainer>
   <license file="../LICENSE">LGPL-2.1-or-later</license>
   <url type="repository" branch="main">https://github.com/jamesK1000011/Workshop-FreeCAD</url>
   <freecadmin>1.0.0</freecadmin>
-  <depend>AddonKit</depend>
   <content>
     <workbench>
       <name>Workshop</name>

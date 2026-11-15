@@ -1,0 +1,65 @@
+{
+ "type": "object",
+ "required": [
+  "name",
+  "density",
+  "source",
+  "date"
+ ],
+ "additionalProperties": false,
+ "properties": {
+  "name": {
+   "type": "string",
+   "minLength": 1
+  },
+  "density": {
+   "type": "number",
+   "minimum": 0.1,
+   "maximum": 25
+  },
+  "E": {
+   "type": [
+    "number",
+    "null"
+   ]
+  },
+  "nu": {
+   "type": [
+    "number",
+    "null"
+   ]
+  },
+  "yield": {
+   "type": [
+    "number",
+    "null"
+   ]
+  },
+  "uts": {
+   "type": [
+    "number",
+    "null"
+   ]
+  },
+  "k": {
+   "type": [
+    "number",
+    "null"
+   ]
+  },
+  "softens": {
+   "type": [
+    "number",
+    "null"
+   ]
+  },
+  "source": {
+   "type": "string",
+   "minLength": 1
+  },
+  "date": {
+   "type": "string",
+   "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+  }
+ }
+}

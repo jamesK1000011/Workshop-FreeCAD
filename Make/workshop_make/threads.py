@@ -6,7 +6,7 @@
 
 import os
 
-from addonkit import data
+from workshop_make import datafiles as data
 
 INCH = 25.4
 
@@ -16,7 +16,7 @@ MINOR_INT = 1.082532  # D1 = D - 1.082532 P (the nut's minor)
 MINOR_EXT = 1.226869  # d3 = d - 1.226869 P (the bolt's minor)
 
 # The tables are data (data/threads.json: every size with its source); the
-# person's own sizes go in ~/.config/addonkit/workshop_make/threads.json.
+# person's own sizes go in ~/.config/workshop_make/threads.json.
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROWS = data.load(os.path.join(_HERE, "data"), "threads", package="workshop_make")["entries"].values()
 # (nominal mm, coarse pitch, tap drill mm)
