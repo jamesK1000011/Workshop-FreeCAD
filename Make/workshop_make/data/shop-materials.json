@@ -1,10 +1,11 @@
 {
  "$schema": "shop-materials.schema.json",
- "dataVersion": "1.0.0",
+ "dataVersion": "1.1.0",
  "licence": "CC-BY-4.0",
- "about": "Materials as the cut and mill checks see them: whether sheets of it are cut here, metal or not (the cut rules), and the thinnest wall a mill leaves standing, mm. Order is the order offered.",
+ "about": "Materials as the cut and mill checks see them: whether sheets of it are cut here, metal or not (the cut rules), and the thinnest wall a mill leaves standing, mm. Order is the order offered. name is how a person reads it; sameAs marks another spelling of an entry (found by search, listed once).",
  "entries": {
   "steel": {
+   "name": "Steel",
    "metal": true,
    "cut": true,
    "millWall": 0.8,
@@ -12,6 +13,7 @@
    "date": "2026-11-14"
   },
   "stainless": {
+   "name": "Stainless Steel",
    "metal": true,
    "cut": true,
    "millWall": 0.8,
@@ -19,6 +21,8 @@
    "date": "2026-11-14"
   },
   "aluminium": {
+   "name": "Aluminium",
+   "sameAs": "aluminum",
    "metal": true,
    "cut": true,
    "millWall": 1.0,
@@ -26,6 +30,7 @@
    "date": "2026-11-14"
   },
   "aluminum": {
+   "name": "Aluminum",
    "metal": true,
    "cut": true,
    "millWall": 1.0,
@@ -33,6 +38,7 @@
    "date": "2026-11-14"
   },
   "brass": {
+   "name": "Brass",
    "metal": true,
    "cut": true,
    "millWall": 0.8,
@@ -40,6 +46,7 @@
    "date": "2026-11-14"
   },
   "copper": {
+   "name": "Copper",
    "metal": true,
    "cut": true,
    "millWall": 1.0,
@@ -47,6 +54,7 @@
    "date": "2026-11-14"
   },
   "titanium": {
+   "name": "Titanium",
    "metal": true,
    "cut": true,
    "millWall": 1.0,
@@ -54,18 +62,21 @@
    "date": "2026-11-14"
   },
   "acrylic": {
+   "name": "Acrylic",
    "metal": false,
    "cut": true,
    "source": "Typical shop rules of thumb (Agent Link); the shop's own limits win",
    "date": "2026-11-14"
   },
   "plywood": {
+   "name": "Plywood",
    "metal": false,
    "cut": true,
    "source": "Typical shop rules of thumb (Agent Link); the shop's own limits win",
    "date": "2026-11-14"
   },
   "wood": {
+   "name": "Wood",
    "metal": false,
    "cut": true,
    "millWall": 3.0,
@@ -73,48 +84,56 @@
    "date": "2026-11-14"
   },
   "mdf": {
+   "name": "MDF",
    "metal": false,
    "cut": true,
    "source": "Typical shop rules of thumb (Agent Link); the shop's own limits win",
    "date": "2026-11-14"
   },
   "hdpe": {
+   "name": "HDPE",
    "metal": false,
    "cut": true,
    "source": "Typical shop rules of thumb (Agent Link); the shop's own limits win",
    "date": "2026-11-14"
   },
   "polycarbonate": {
+   "name": "Polycarbonate",
    "metal": false,
    "cut": true,
    "source": "Typical shop rules of thumb (Agent Link); the shop's own limits win",
    "date": "2026-11-14"
   },
   "cardboard": {
+   "name": "Cardboard",
    "metal": false,
    "cut": true,
    "source": "Typical shop rules of thumb (Agent Link); the shop's own limits win",
    "date": "2026-11-14"
   },
   "rubber": {
+   "name": "Rubber",
    "metal": false,
    "cut": true,
    "source": "Typical shop rules of thumb (Agent Link); the shop's own limits win",
    "date": "2026-11-14"
   },
   "foam": {
+   "name": "Foam",
    "metal": false,
    "cut": true,
    "source": "Typical shop rules of thumb (Agent Link); the shop's own limits win",
    "date": "2026-11-14"
   },
   "carbon": {
+   "name": "Carbon Fiber",
    "metal": false,
    "cut": true,
    "source": "Typical shop rules of thumb (Agent Link); the shop's own limits win",
    "date": "2026-11-14"
   },
   "plastic": {
+   "name": "Plastic",
    "metal": false,
    "cut": false,
    "millWall": 1.5,
@@ -122,6 +141,7 @@
    "date": "2026-11-14"
   },
   "pom": {
+   "name": "POM (Acetal)",
    "metal": false,
    "cut": false,
    "millWall": 1.5,

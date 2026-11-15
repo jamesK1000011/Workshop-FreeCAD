@@ -163,7 +163,7 @@ OUT["tx2"] = d2.tx
 OUT["noexec"] = "exec_" not in open(form.__file__).read() and "QDialog" not in open(form.__file__).read()
 """)
         self.assertEqual(out["title"], "Project box")
-        self.assertTrue(out["line0"].startswith("Printer fit: "), out["line0"])
+        self.assertEqual(out["line0"], "Printer calibration: none, so holes are assumed to print 0.2 mm small.")
         self.assertTrue(out["noexec"])
         self.assertEqual((out["first"], out["msg"]), (False, "Too big."))
         self.assertTrue(out["second"])
@@ -178,7 +178,7 @@ OUT["bad"] = commands.summary(None, "project_box", {"wall": 999})
 OUT["fine"] = commands.summary(None, "project_box", {})
 """)
         self.assertTrue(out["bad"].startswith("Not yet: wall"), out["bad"])
-        self.assertTrue(out["fine"].startswith("Printer fit: "), out["fine"])
+        self.assertEqual(out["fine"], "Printer calibration: none, so holes are assumed to print 0.2 mm small.")
 
     def test_command_opens_the_panel(self):
         out = run("""
@@ -279,3 +279,73 @@ OUT["told"], OUT["shown"], OUT["tx"] = told, len(shown), FreeCAD.ActiveDocument.
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Said(unittest.TestCase):
+    def test_report_line_reads_as_sentences(self):
+        """The Report line read "made Gridfinity bin 1x1x3 (none — the
+        typical printer assumed (holes print 0.2 mm small))." on the Mac."""
+        out = run("""
+from workshop_parts import api
+OUT["none"] = api.report_line({"bodies": ["Gridfinity bin 1x1x3"], "printerFit": api.calibration(None)[1]})
+OUT["kept"] = api.report_line({"bodies": ["Case", "Case lid"], "printerFit": "calibrated"})
+OUT["src"] = [open(f).read() for f in (api.__file__, __import__("workshop_parts.commands").commands.__file__)]
+""")
+        self.assertEqual(out["none"], "Workshop: made Gridfinity bin 1×1×3. Printer calibration: none, so holes are assumed to print 0.2 mm small.")
+        self.assertEqual(out["kept"], "Workshop: made Case, Case lid. Printer calibration: the one kept with this document.")
+        for src in out["src"]:
+            self.assertNotIn("typical printer assumed", src)
+
+
+class Placing(unittest.TestCase):
+    def test_beside_the_documents_solids(self):
+        """New parts landed at the origin, inside the parts already there:
+        +X of everything, 10 mm clear; an empty document keeps the origin."""
+        out = run("""
+from workshop_parts import placing as P
+OUT["empty"] = P.beside([], (0, 0, 0, 42, 42, 21))
+OUT["one"] = P.beside([(0, 0, 0, 50, 30, 10)], (0, 0, 0, 42, 42, 21))
+OUT["many"] = P.beside([(-20, 0, 0, 10, 5, 5), (30, -40, 0, 60, 0, 8)], [(-21, -21, 0, 21, 21, 21), (30, 0, 0, 50, 10, 2)])
+OUT["gap"] = P.beside([(0, 0, 0, 5, 5, 5)], (0, 0, 0, 1, 1, 1), gap=2)
+""")
+        self.assertEqual(out["empty"], [0.0, 0.0, 0.0])
+        self.assertEqual(out["one"], [60.0, 0.0, 0.0])
+        self.assertEqual(out["many"], [91.0, 0.0, 0.0])  # 60 + 10 - (-21)
+        self.assertEqual(out["gap"], [7.0, 0.0, 0.0])
+
+    def test_make_moves_into_a_document_with_solids(self):
+        out = run("""
+import types
+from workshop_parts import api
+class BB:
+    def __init__(self, b): self.XMin, self.YMin, self.ZMin, self.XMax, self.YMax, self.ZMax = b
+class Sh:
+    def __init__(self, b): self.BoundBox, self.Solids, self.Volume, self.moved = BB(b), [1], 1.0, None
+    def isNull(self): return False
+    def copy(self): return Sh((self.BoundBox.XMin, self.BoundBox.YMin, self.BoundBox.ZMin, self.BoundBox.XMax, self.BoundBox.YMax, self.BoundBox.ZMax))
+    def translate(self, v): self.moved = list(v)
+class O:
+    def __init__(self, sh=None): self.Shape, self.Visibility, self.Label = sh, True, ""
+class D:
+    def __init__(self, objs): self.Objects, self.Meta = objs, {}
+    def addObject(self, t, n):
+        o = O(); self.Objects.append(o); return o
+    def recompute(self): pass
+api.geo.V = lambda *a: a
+api.geo.soundness = lambda sh: {"ok": True}
+api.geo.box_of = lambda sh: {"min": [sh.BoundBox.XMin, sh.BoundBox.YMin, sh.BoundBox.ZMin], "max": [sh.BoundBox.XMax, sh.BoundBox.YMax, sh.BoundBox.ZMax], "size": [0, 0, 0]}
+api.build = lambda g, p, cal: ({}, [("Bin", Sh((-21, -21, 0, 21, 21, 21)))], {})
+hidden = O(Sh((0, 0, 0, 500, 500, 500))); hidden.Visibility = False
+full = D([O(Sh((0, 0, 0, 50, 30, 10))), hidden])
+out = api.make(full, "gridfinity_bin", {})
+OUT["moved"] = full.Objects[-1].Shape.moved
+OUT["by"] = out.get("movedBy")
+OUT["min"] = out["parts"][0]["min"]
+empty = D([])
+out = api.make(empty, "gridfinity_bin", {})
+OUT["empty"] = [empty.Objects[-1].Shape.moved, out.get("movedBy")]
+""")
+        self.assertEqual(out["moved"], [81.0, 0.0, 0.0])  # 50 + 10 - (-21); the hidden one not counted
+        self.assertEqual(out["by"], [81.0, 0.0, 0.0])
+        self.assertEqual(out["min"], [60.0, -21.0, 0.0])
+        self.assertEqual(out["empty"], [None, None])

@@ -3,11 +3,13 @@
 # agent all call. No agent needed; Agent Link's tools (agentlink_families)
 # are a thin layer over these.
 
+import re
+
 from workshop_parts.refusal import Refused
 from workshop_parts import geo
 from workshop_parts import records
 
-from . import boxes, gridfinity
+from . import boxes, gridfinity, placing
 
 GENERATORS = {
     "gridfinity_bin": gridfinity.PARAMS,
@@ -31,7 +33,24 @@ def calibration(doc):
     c = records.read(doc, "fit", None) if doc is not None else None
     if c:
         return {"hole": float(c.get("hole", 0.2)), "shaft": float(c.get("shaft", 0.0))}, "calibrated"
-    return {"hole": 0.2, "shaft": 0.0}, "none — the typical printer assumed (holes print 0.2 mm small)"
+    return {"hole": 0.2, "shaft": 0.0}, NO_CALIBRATION
+
+
+# What printerFit says with no calibration kept: a clause that reads in a
+# sentence ("Printer calibration: none, so …").
+NO_CALIBRATION = "none, so holes are assumed to print 0.2 mm small"
+
+
+def calibration_said(said):
+    """printerFit as a person reads it after "Printer calibration: "."""
+    return "the one kept with this document" if said == "calibrated" else str(said)
+
+
+def report_line(out):
+    """The Report view's line for a part made: what was made, then the
+    printer calibration its holes took, in sentences."""
+    names = ", ".join(re.sub(r"(?<=\d)x(?=\d)", "×", str(b)) for b in out.get("bodies") or [])
+    return f"Workshop: made {names}. Printer calibration: {calibration_said(out.get('printerFit', 'calibrated'))}."
 
 
 def tight_box(shape):
@@ -85,6 +104,9 @@ def _unique(doc, label):
 def make(doc, generator, params=None, name=None, measure=False, placement=None):
     """Make a standard part in doc, each piece its own body (a box and its
     lid are two). measure: build it and give the sizes, add nothing.
+    placement: a move for the pieces; none given, a document that already
+    holds solids gets the part beside them (+X, 10 mm clear), an empty one
+    keeps it at the origin.
     Gives {generator, values, parts [{name, volume, min, max, size}],
     bodies [labels], printerFit, …what the generator says}."""
     cal, said = calibration(doc)
@@ -96,6 +118,14 @@ def make(doc, generator, params=None, name=None, measure=False, placement=None):
         return {**out, "made": False}
     if doc is None:
         raise Refused("No document to make it in: open or make one.", "invalid_state")
+    if placement is None:
+        move = placing.beside(placing.doc_boxes(doc), [placing.shape_box(sh) for _n, sh in made])
+        if any(move):
+            placement = geo.V(*move)
+            for pt in parts:
+                for k in ("min", "max"):
+                    pt[k] = [round(a + d, 3) for a, d in zip(pt[k], move)]
+            out["movedBy"] = list(move)
     labels = []
     for i, (n, shape) in enumerate(made):
         label = _unique(doc, (name + ("" if i == 0 else " lid")) if name else n)

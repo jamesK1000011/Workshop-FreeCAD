@@ -56,6 +56,31 @@ OUT["alone_service"] = alone.service
 
 
 class Manual(unittest.TestCase):
+    def test_steps_table_fits_the_dock_and_says_how(self):
+        """In the 354 px dock the steps table showed a horizontal scrollbar
+        and cut "Note"; the line above the parts read "…, Add step:"."""
+        out = run(r'''
+from workshop_documents import panel as P
+labels = []
+real = P.QtWidgets.QLabel
+class L(real):
+    def __init__(self, *a, **k):
+        super().__init__(*a, **k); labels.append(self)
+P.QtWidgets.QLabel = L
+t = P.ManualTab(runner=lambda tool, a: (True, {}))
+t.fill()
+t.parts.rows[0].setCheckState(2); t.title.setText("Base"); t.note.setText("a long note on the screws"); t.add()
+h = t.steps.hdr
+OUT["fit"] = [h.modes, h.last, t.steps.hbar]
+OUT["tips"] = [r.tips for r in t.steps.rows]
+OUT["how"] = labels[0].text()
+OUT["empty"] = P.NO_STEPS
+''')
+        self.assertEqual(out["fit"], [{"0": "contents", "1": "stretch", "2": "stretch", "3": "stretch"}, False, "off"])
+        self.assertEqual(out["tips"], [{"0": "1", "1": "Base", "2": "Box", "3": "a long note on the screws"}])
+        self.assertEqual(out["how"], "Tick the parts that go on next, name the step, then press Add Step.")
+        self.assertEqual(out["empty"], "No steps yet: tick the parts that go on first, then Add Step.")
+
     def test_hidden_parts_listed_and_empty_lines(self):
         out = run(r'''
 from workshop_documents import panel as P

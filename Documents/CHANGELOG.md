@@ -28,6 +28,8 @@ The first tagged release, 0.2.0 (the version in `package.xml`), is being prepare
 
 ### Changed
 
+- The Manual tab's steps table fits the dock (no horizontal scrollbar, cut
+  cells in tooltips); its instruction reads "…, then press Add Step."
 - Installs alone: its own copies of the sheet writer, ISO 286, materials and
   TechDraw's wait, trimmed to what it uses.
 - Tool bodies moved into `handlers/` with no Agent Link import.

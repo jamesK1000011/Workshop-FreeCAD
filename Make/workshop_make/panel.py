@@ -14,6 +14,7 @@ beside the model tree. No Agent Link import here."""
 
 from . import materials as fil
 from . import records as store
+from . import results
 from . import runner as local_runner
 from . import theme
 
@@ -43,33 +44,60 @@ def parts(doc):
     return [o.Label for o in local_runner.bodies_in(doc)]
 
 
-def summary(settings):
-    """A setup's settings in a line: 'h2d, 0.4 nozzle, 0.2 layers, 15% infill'."""
+# A print setup's key settings when it sets none: what Make's checks and
+# the slicer take (printability.rules_for, the generic printer).
+PRINT_DEFAULTS = {"printer": "generic", "nozzle": 0.4, "layerHeight": 0.2}
+PRINTERS = {"generic": "Generic", "bed-slinger": "Bed slinger", "corexy": "CoreXY", "h2d": "H2D"}
+
+
+def _mm(v):
+    return f"{v:g} mm" if isinstance(v, (int, float)) else (f"{v} mm" if str(v).replace(".", "", 1).isdigit() else str(v))
+
+
+def summary(settings, kind=None):
+    """A setup's settings in a line: 'H2D, 0.4 mm nozzle, 0.2 mm layers,
+    15% infill'. A print setup always shows its printer, nozzle and layer
+    height, the defaults where it sets none ("Defaults: …" when it sets
+    nothing); another kind with nothing set says "Defaults"."""
     s = dict(settings or {})
+    s.pop("fit", None)
     bits = []
-    if s.get("printer"):
-        bits.append(str(s["printer"]))
-    if s.get("nozzle"):
-        bits.append(f"{s['nozzle']:g} nozzle" if isinstance(s["nozzle"], (int, float)) else f"{s['nozzle']} nozzle")
-    if s.get("layerHeight"):
-        bits.append(f"{s['layerHeight']:g} layers" if isinstance(s["layerHeight"], (int, float)) else str(s["layerHeight"]))
+    shown = dict(s)
+    if kind == "print":
+        shown = {**PRINT_DEFAULTS, **s}
+    if shown.get("printer"):
+        bits.append(PRINTERS.get(str(shown["printer"]), str(shown["printer"])))
+    if shown.get("nozzle"):
+        bits.append(f"{_mm(shown['nozzle'])} nozzle")
+    if shown.get("layerHeight"):
+        bits.append(f"{_mm(shown['layerHeight'])} layers")
     if s.get("infill") is not None:
         v = s["infill"]
         bits.append(f"{v:g}% infill" if isinstance(v, (int, float)) else f"{v} infill")
-    rest = [k for k in s if k not in ("printer", "nozzle", "layerHeight", "infill", "fit")]
+    rest = [k for k in s if k not in ("printer", "nozzle", "layerHeight", "infill")]
     bits += [f"{k} {s[k]}" for k in rest[:3]]
-    return ", ".join(bits)
+    line = ", ".join(bits)
+    if not any(k in s for k in ("printer", "nozzle", "layerHeight")) and kind == "print" and not rest and s.get("infill") is None:
+        return "Defaults: " + line
+    return line or "Defaults"
+
+
+def setup_name(s):
+    """A setup's name shown once: its name, its kind only where the name
+    doesn't say it ("Print", not "Print (Print)"; "Bracket run (Print)")."""
+    label = store.TYPES.get(s.get("type"), {}).get("label", s.get("type", "")) or ""
+    name = str(s.get("name") or "").strip() or str(s.get("id") or "")
+    return name if not label or label.lower() in name.lower() else f"{name} ({label})"
 
 
 def setup_rows(out, names):
-    """(rows [(id, 'name (kind)', parts, settings)], parts in no setup)
-    from setup list's answer."""
+    """(rows [(id, name, parts, settings)], parts in no setup) from setup
+    list's answer."""
     setups = (out or {}).get("setups") or []
     rows = []
     for s in setups:
-        label = store.TYPES.get(s.get("type"), {}).get("label", s.get("type", ""))
-        rows.append((s.get("id"), f"{s.get('name')} ({label})", ", ".join(s.get("bodies") or []) or "—",
-                     summary({k: v for k, v in s.items() if k not in ("id", "type", "name", "bodies")})))
+        rows.append((s.get("id"), setup_name(s), ", ".join(s.get("bodies") or []) or "—",
+                     summary({k: v for k, v in s.items() if k not in ("id", "type", "name", "bodies")}, s.get("type"))))
     none = [b for b in names if not any(b in (s.get("bodies") or []) for s in setups)]
     return rows, none
 
@@ -96,7 +124,7 @@ def material_rows(doc):
         elif mid:
             out.append((b, str(mid), ""))
         else:
-            out.append((b, "— (PLA assumed)", f"{fil.DENSITY.get('pla', 1.24):.3g}"))
+            out.append((b, "PLA (assumed)", f"{fil.DENSITY.get('pla', 1.24):.3g}"))
     return out
 
 
@@ -109,42 +137,145 @@ def _shop():
         return {}
 
 
+def shop_name(key, entry=None):
+    """A shop material's display name (its data's name, Title Case), else
+    its key in Title Case."""
+    n = (entry or {}).get("name")
+    return n if n else str(key).replace("-", " ").title()
+
+
 def material_hits(words="", limit=40):
     """Make's materials matching words: its filaments (a part can be given
-    one) and its shop materials (what the cut and mill checks take).
-    [(id, name, category, density, E, yield, givable)]."""
+    one) and its shop materials (what the cut and mill checks take), each
+    by its display name. A spelling of another (aluminium beside aluminum)
+    is not listed twice: it finds the one it is the same as.
+    [(id, name, category, density, E, yield, givable, what it is for)]."""
     w = [x for x in str(words or "").lower().split() if x]
     out = []
     for k, f in fil.FILAMENTS.items():
-        hay = f"{k} {f.get('name', '')} filament".lower()
+        hay = f"{k} {f.get('name', '')} printing filament".lower()
         if all(x in hay for x in w):
-            out.append((k, f.get("name", k), "Printing filament", f.get("density"), f.get("E"), f.get("yield"), True))
-    for k, v in _shop().items():
-        cat = "Shop: " + ", ".join(x for x in ("metal" if v.get("metal") else "", "cut" if v.get("cut") else "", "mill" if "millWall" in v else "") if x)
-        if all(x in f"{k} {cat}".lower() for x in w):
-            out.append((k, k, cat, None, None, None, False))
+            out.append((k, f.get("name", k), "Filament", f.get("density"), f.get("E"), f.get("yield"), True, "Printing filament: a part can be given it."))
+    shop = _shop()
+    also = {}
+    for k, v in shop.items():
+        if v.get("sameAs"):
+            also.setdefault(v["sameAs"], []).append(k)
+    for k, v in shop.items():
+        if v.get("sameAs") in shop:
+            continue
+        uses = [x for x in ("cut" if v.get("cut") else "", "mill" if "millWall" in v else "") if x]
+        cat = "Metal" if v.get("metal") else "Non-metal"
+        hay = " ".join([k, shop_name(k, v), cat, "shop", *uses, *also.get(k, [])]).lower()
+        if all(x in hay for x in w):
+            out.append((k, shop_name(k, v), cat, None, None, None, False,
+                        f"Shop material for the {' and '.join(uses) or 'shop'} checks" + (f" (also found as {', '.join(also[k])})" if also.get(k) else "") + "."))
     return out[:limit]
 
 
 def fit_rows(out):
-    """[(fit, 'model at' mm)] from fit size's answer."""
-    return [(k, f"{v:.3f}") for k, v in ((out or {}).get("model") or {}).items() if isinstance(v, (int, float))]
+    """[(fit, size to model at, with its unit)] from fit size's answer."""
+    return [(k, results.length(v)) for k, v in ((out or {}).get("model") or {}).items() if isinstance(v, (int, float))]
+
+
+# How a part is made, as the verdict line says it.
+MADE = {"printed": "printed", "print": "printed", "cut": "cut", "mill": "milled", "milled": "milled"}
 
 
 def review_lines(out, body):
     """(verdict text, colour role, [(mark, finding, fix)], figures line)."""
     v = str(out.get("verdict", "?"))
     role = {"pass": "ok", "warn": "warn", "fix": "bad", "fail": "bad"}.get(v, "muted")
-    head = f"{v.upper()} — {body}, made by {out.get('process', 'unknown')}"
+    proc = str(out.get("process") or "unknown")
+    how = MADE.get(proc, "process not set" if proc == "unknown" else f"made by {proc}")
+    head = f"{v.upper()} — {body}, {how}"
     rows = []
     for f in out.get("findings") or []:
         sev = {"error": "✗", "warning": "!", "info": "·"}.get(str(f.get("severity", "")).lower(), "·")
         rows.append((sev, str(f.get("says") or f.get("message") or f.get("what") or f.get("id", "")), str(f.get("fix") or f.get("do") or "")))
-    fig = out.get("figures") or {}
-    return head, role, rows, "  ·  ".join(f"{k} {v}" for k, v in fig.items())
+    return head, role, rows, results.figures_line(out.get("figures") or {})
+
+
+EMPTY_REVIEW = "No review yet: pick a part, then press Review."
+
+
+# ---- a selection the panel made is not left behind ----
+
+# [(document name, object name, the selection before the click)]
+_LENT = []
+
+
+def _selected():
+    """{(document name, object name)} selected now."""
+    import FreeCADGui
+
+    out = set()
+    for o in FreeCADGui.Selection.getSelection():
+        d = getattr(o, "Document", None)
+        out.add((getattr(d, "Name", ""), getattr(o, "Name", "")))
+    return out
+
+
+def lend_selection(before, doc, label):
+    """After a click on label's part: note that its selection is the
+    panel's (shown while Make is up) unless the person had it already."""
+    try:
+        objs = doc.getObjectsByLabel(label) if doc is not None else []
+    except Exception:  # noqa: BLE001
+        objs = []
+    for o in objs:
+        key = (getattr(doc, "Name", ""), o.Name)
+        if key not in before:
+            _LENT.append((key[0], key[1], set(before)))
+
+
+def put_back_selection():
+    """Leaving Make: the parts the panel selected and the person left as
+    they were are unselected; a selection the person made stays."""
+    if not _LENT:
+        return
+    try:
+        import FreeCADGui
+
+        now = _selected()
+        for dn, on, before in list(_LENT):
+            if (dn, on) in now and now <= (before | {(dn, on)} | {(a, b) for a, b, _ in _LENT}):
+                FreeCADGui.Selection.removeSelection(dn, on)
+    except Exception:  # noqa: BLE001 — never stop a workbench switch
+        pass
+    del _LENT[:]
 
 
 # ---- the widgets ----
+
+def fit_columns(tree, n, stretch=(0,)):
+    """Columns fitted to a narrow dock (see Tab.tree)."""
+    try:
+        Mode = getattr(QtWidgets.QHeaderView, "ResizeMode", QtWidgets.QHeaderView)
+        h = tree.header()
+        h.setStretchLastSection(False)
+        h.setMinimumSectionSize(24)
+        for i in range(n):
+            h.setSectionResizeMode(i, Mode.Stretch if i in stretch else Mode.ResizeToContents)
+        Policy = getattr(QtCore.Qt, "ScrollBarPolicy", QtCore.Qt)
+        tree.setHorizontalScrollBarPolicy(Policy.ScrollBarAlwaysOff)
+        Elide = getattr(QtCore.Qt, "TextElideMode", QtCore.Qt)
+        tree.setTextElideMode(Elide.ElideRight)
+    except Exception:  # noqa: BLE001 — an older Qt: its defaults
+        pass
+
+
+def item(texts, tips=None):
+    """A row whose every cell carries its full text as its tooltip (a cell
+    may be elided in the narrow dock)."""
+    texts = [str(t) for t in texts]
+    it = QtWidgets.QTreeWidgetItem(texts)
+    for i, t in enumerate(texts):
+        tip = (tips or {}).get(i) or t
+        if tip:
+            it.setToolTip(i, tip)
+    return it
+
 
 def _doc():
     import FreeCAD
@@ -210,10 +341,14 @@ class Tab(_Base):
         b.clicked.connect(fn)
         return b
 
-    def tree(self, heads):
+    def tree(self, heads, stretch=(0,)):
+        """A table fitted to the dock: the stretch columns share the width
+        and elide (the full text in each cell's tooltip), the rest sized
+        to their contents; never a horizontal scrollbar."""
         t = QtWidgets.QTreeWidget()
         t.setHeaderLabels(heads)
         t.setRootIsDecorated(False)
+        fit_columns(t, len(heads), stretch)
         return t
 
     def empty_line(self, text):
@@ -237,7 +372,7 @@ class SetupsTab(Tab):
     NAME = "MakeSetups"
 
     def build(self):
-        self.setups = self.tree(["Setup", "Parts", "Settings"])
+        self.setups = self.tree(["Setup", "Parts", "Settings"], stretch=(1, 2))
         self.lay.addWidget(self.setups, 1)
         self.none = self.empty_line(EMPTY_SETUPS)
         self.lay.addWidget(self.none)
@@ -270,9 +405,8 @@ class SetupsTab(Tab):
         rows, none = setup_rows(out, names)
         self.none.setVisible(not rows)
         for sid, name, ps, sets in rows:
-            it = QtWidgets.QTreeWidgetItem([name, ps, sets])
+            it = item([name, ps, sets])
             it.setData(0, QtCore.Qt.UserRole, sid)
-            it.setToolTip(2, sets)
             self.setups.addTopLevelItem(it)
         self.say(True, out, ("In no setup (no process yet): " + ", ".join(none)) if none else "")
 
@@ -309,16 +443,16 @@ class MaterialsTab(Tab):
     NAME = "MakeMaterials"
 
     def build(self):
-        self.parts = self.tree(["Part", "Material", "Density g/cm³"])
+        self.parts = self.tree(["Part", "Material", "g/cm³"], stretch=(0, 1))
         self.lay.addWidget(self.parts, 1)
         row = QtWidgets.QHBoxLayout()
         self.find = QtWidgets.QLineEdit()
-        self.find.setPlaceholderText("Find a material (pla, petg, steel …)")
+        self.find.setPlaceholderText("Find a material (PLA, PETG, steel …)")
         self.find.returnPressed.connect(self.search)
         row.addWidget(self.find, 1)
         row.addWidget(self.button("Find", "Make's filaments and shop materials.", self.search))
         self.lay.addLayout(row)
-        self.hits = self.tree(["Material", "Category", "Density", "E MPa", "Yield MPa"])
+        self.hits = self.tree(["Material", "Kind", "g/cm³", "E, MPa", "Yield, MPa"], stretch=(0,))
         self.lay.addWidget(self.hits, 1)
         row = QtWidgets.QHBoxLayout()
         row.addStretch(1)
@@ -329,14 +463,14 @@ class MaterialsTab(Tab):
     def fill(self):
         self.parts.clear()
         for row in material_rows(self.doc_fn()):
-            self.parts.addTopLevelItem(QtWidgets.QTreeWidgetItem(list(row)))
+            self.parts.addTopLevelItem(item(row, {2: f"Density {row[2]} g/cm³" if row[2] else ""}))
         if not self.hits.topLevelItemCount():
             self.search()
 
     def search(self):
         self.hits.clear()
-        for mid, name, cat, d, e, y, _give in material_hits(self.find.text().strip()):
-            it = QtWidgets.QTreeWidgetItem([str(name), cat] + ["" if v is None else f"{v:g}" for v in (d, e, y)])
+        for mid, name, cat, d, e, y, _give, what in material_hits(self.find.text().strip()):
+            it = item([str(name), cat] + ["" if v is None else f"{v:g}" for v in (d, e, y)], {0: f"{name}: {what}", 1: f"{cat}: {what}"})
             it.setData(0, QtCore.Qt.UserRole, mid)
             self.hits.addTopLevelItem(it)
         self.msg.setText("")
@@ -374,13 +508,14 @@ class FitsTab(Tab):
         self.of = QtWidgets.QComboBox()
         self.of.addItems(["Hole", "Shaft"])
         self.body = QtWidgets.QComboBox()
-        self.body.setToolTip("The part, so its print setup's calibration is used (blank: the document's).")
-        form.addRow("Bought part / mate", self.nominal)
+        self.nominal.setToolTip("The bought part's size, or the mating part's.")
+        self.body.setToolTip("The part, so its print setup's calibration is used (else the document's).")
+        form.addRow("Bought part size", self.nominal)
         form.addRow("Modelling a", self.of)
         form.addRow("In part", self.body)
         self.lay.addLayout(form)
         self.lay.addWidget(self.button("Size It", "The size to model at, each fit.", self.size))
-        self.table = self.tree(["Fit", "Model at mm"])
+        self.table = self.tree(["Fit", "Model at"], stretch=(0,))
         self.lay.addWidget(self.table, 1)
         # The printer's calibration as a form (label above its box when
         # narrow), Keep under it: one row of five was cut off.
@@ -392,6 +527,7 @@ class FitsTab(Tab):
             sb.setRange(-1, 1)
             sb.setDecimals(2)
             sb.setSingleStep(0.05)
+            sb.setSuffix(" mm")
             sb.setToolTip(tip)
         self.cal_hole.setValue(0.2)
         cal.addRow("Printer: holes small by", self.cal_hole)
@@ -400,7 +536,9 @@ class FitsTab(Tab):
         self.lay.addWidget(self.button("Keep", "Every hole and fit sized from now on takes it.", self.calibrate))
 
     def fill(self):
-        _sync(self.body, [""] + parts(self.doc_fn()))
+        # The document's parts, the first picked: a blank first item read as
+        # an empty box with a body in the document (live on the Mac).
+        _sync(self.body, parts(self.doc_fn()))
 
     def size(self):
         args = {"action": "size", "nominal": round(self.nominal.value(), 3), "of": self.of.currentText().lower()}
@@ -412,8 +550,10 @@ class FitsTab(Tab):
             self.say(ok, out)
             return
         for k, v in fit_rows(out):
-            self.table.addTopLevelItem(QtWidgets.QTreeWidgetItem([k, v]))
-        self.say(True, out, "Calibration: " + str(out.get("printerFit", "")))
+            self.table.addTopLevelItem(item([k, v]))
+        from . import api
+
+        self.say(True, out, f"Printer calibration: {api.calibration_said(out.get('printerFit', ''))}.")
 
     def calibrate(self):
         ok, out = self.runner("fit", {"action": "calibrate", "hole": round(self.cal_hole.value(), 3), "shaft": round(self.cal_shaft.value(), 3)})
@@ -434,8 +574,11 @@ class ReviewTab(Tab):
         self.verdict = QtWidgets.QLabel("")
         self.verdict.setWordWrap(True)
         self.lay.addWidget(self.verdict)
-        self.findings = self.tree(["", "Finding", "Fix"])
+        self.findings = self.tree(["", "Finding", "Fix"], stretch=(1, 2))
         self.lay.addWidget(self.findings, 1)
+        self.none = self.empty_line(EMPTY_REVIEW)
+        self.none.setVisible(True)
+        self.lay.addWidget(self.none)
 
     def fill(self):
         _sync(self.body, parts(self.doc_fn()))
@@ -443,19 +586,26 @@ class ReviewTab(Tab):
     def review(self):
         body = self.body.currentText()
         if not body:
+            self.msg.setText("Pick a part first.")
             return
+        try:
+            before = _selected()
+        except Exception:  # noqa: BLE001 — no Gui
+            before = None
         ok, out = self.runner("part_review", {"body": body})
+        if before is not None:
+            lend_selection(before, self.doc_fn(), body)
         self.findings.clear()
         if not ok:
             self.verdict.setText("")
+            self.none.setVisible(True)
             self.say(ok, out)
             return
         head, role, rows, figs = review_lines(out, body)
         self.verdict.setText(f"<span style='color:{theme.roles(self)[role]}'>{head}</span>")
+        self.none.setVisible(False)
         for r in rows or [("", "Nothing found", "")]:
-            it = QtWidgets.QTreeWidgetItem(list(r))
-            it.setToolTip(1, r[1])
-            self.findings.addTopLevelItem(it)
+            self.findings.addTopLevelItem(item(r))
         self.say(True, out, figs)
 
 

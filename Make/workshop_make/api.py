@@ -31,7 +31,17 @@ def calibration(doc, body=None):
     the document's (fit calibrate), else the typical printer's."""
     s = records.setup_of(doc, body, "print") if body else None
     c = (s or {}).get("fit") or records.read(doc, "fit", None)
-    return (c, "calibrated") if c else (dict(fits.DEFAULT_CAL), "none — the typical printer assumed (holes print 0.2 mm small)")
+    return (c, "calibrated") if c else (dict(fits.DEFAULT_CAL), NO_CALIBRATION)
+
+
+# What printerFit says with no calibration kept: a clause that reads in a
+# sentence ("Printer calibration: none, so …").
+NO_CALIBRATION = "none, so holes are assumed to print 0.2 mm small"
+
+
+def calibration_said(said):
+    """printerFit as a person reads it after "Printer calibration: "."""
+    return "the one kept with this document" if said == "calibrated" else str(said)
 
 
 def calibrate(doc, hole=0.2, shaft=0.0):
@@ -54,7 +64,7 @@ def fit_size(nominal, of="hole", kind=None, doc=None, body=None, cal=None):
         raise Refused(f"kind: one of {', '.join(fits.FITS)}.")
     said = "given"
     if cal is None:
-        cal, said = calibration(doc, body) if doc is not None else (dict(fits.DEFAULT_CAL), "none — the typical printer assumed")
+        cal, said = calibration(doc, body) if doc is not None else (dict(fits.DEFAULT_CAL), NO_CALIBRATION)
     out = {k: round(fits.size_fit(k, nominal, of, cal), 3) for k in ([kind] if kind else fits.FITS)}
     return {"of": of, "nominal": nominal, "model": out, "printerFit": said}
 

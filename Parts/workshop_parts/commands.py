@@ -96,7 +96,7 @@ def run(doc, generator, values):
         out = api.make(doc, generator, values)
     except Refused as e:
         return False, e.message
-    FreeCAD.Console.PrintMessage(f"Workshop: made {', '.join(out['bodies'])} ({out['printerFit']}).\n")
+    FreeCAD.Console.PrintMessage(api.report_line(out) + "\n")
     try:
         FreeCADGui.SendMsgToActiveView("ViewFit")
     except Exception:
@@ -113,7 +113,7 @@ def summary(doc, generator, values):
         api.check(generator, values)
     except Refused as e:
         return "Not yet: " + e.message
-    return "Printer fit: " + api.calibration(doc)[1]
+    return f"Printer calibration: {api.calibration_said(api.calibration(doc)[1])}."
 
 
 def command_name(generator):

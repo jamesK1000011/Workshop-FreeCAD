@@ -89,7 +89,7 @@ class Tabs(unittest.TestCase):
     def test_tabs_send_what_the_old_tabs_sent(self):
         out = run(TABS)
         self.assertEqual(out["orders"], [["Setups", 30], ["Materials", 32], ["Fits", 34]])
-        self.assertEqual(out["setup_rows"], [["Print (Print)", "Box", "0.4 nozzle"]] if out["setup_rows"][0][0] == "Print (Print)" else out["setup_rows"])
+        self.assertEqual(out["setup_rows"], [["Print", "Box", "Generic, 0.4 mm nozzle, 0.2 mm layers"]])
         self.assertIn("Lid", out["in_none"])
         calls = out["calls"]
         self.assertIn(["setup", {"action": "add", "type": "print", "bodies": ["Lid"]}], calls)
@@ -101,8 +101,8 @@ class Tabs(unittest.TestCase):
         self.assertIn(["part_spec", {"bodies": ["Box"], "material": "petg"}], calls)
         self.assertIn(["part_spec", {"bodies": ["Box"], "material": ""}], calls)
         self.assertEqual(out["mat_msg"], "no")
-        self.assertIn(["fit", {"action": "size", "nominal": 5.0, "of": "hole"}], calls)
-        self.assertEqual(out["fit_rows"], [["slide", "5.250"]])
+        self.assertIn(["fit", {"action": "size", "nominal": 5.0, "of": "hole", "body": "Box"}], calls)
+        self.assertEqual(out["fit_rows"], [["slide", "5.25 mm"]])
         self.assertIn(["fit", {"action": "calibrate", "hole": 0.2, "shaft": 0.0}], calls)
         self.assertIn(["part_review", {"body": "Box"}], calls)
         self.assertEqual(out["review_msg"], "no")
@@ -425,3 +425,142 @@ OUT["printed"] = [ext, printed.hooks is hooks, printed._last(object())]
 
 if __name__ == "__main__":
     unittest.main()
+
+
+LIVE = r'''
+from workshop_make import panel as P, results as R
+OUT["names"] = [P.setup_name(s) for s in ({"id": "S1", "type": "print", "name": "Print"}, {"id": "S2", "type": "print", "name": "Print 2"},
+                                          {"id": "S3", "type": "print", "name": "Bracket run"}, {"id": "S4", "type": "cut", "name": ""})]
+OUT["sums"] = [P.summary({}, "print"), P.summary({"printer": "h2d", "layerHeight": 0.12, "infill": 15}, "print"), P.summary({}, "cut"), P.summary({"fit": {"hole": 0.1}}, "print")]
+hits = P.material_hits("")
+OUT["hit_names"] = [h[1] for h in hits]
+OUT["hit_kinds"] = sorted({h[2] for h in hits})
+OUT["aluminium"] = [h[0] for h in P.material_hits("aluminium")]
+OUT["mat_rows"] = P.material_rows(Doc(("Box",)))
+OUT["fits"] = P.fit_rows({"model": {"slide": 5.2, "press": 4.9}})
+OUT["head"] = [P.review_lines({"verdict": v, "process": p}, "Body")[0] for v, p in (("pass", "printed"), ("fix", "cut"), ("pass", "mill"), ("unknown", "unknown"))]
+OUT["foot"] = P.review_lines({"verdict": "pass", "process": "printed", "figures": {"volume": 24000.0, "mass": 9.6, "material": "pla", "as": "printed: 2 walls"}}, "Body")[3]
+OUT["foot_small"] = R.figures_line({"volume": 512.0, "mass": 0.6, "material": "pla (assumed: none set)", "wall": 1.2})
+'''
+
+
+class LiveFindings(unittest.TestCase):
+    """What driving the Make dock on the Mac (354 px, FreeCAD Dark) found."""
+
+    def test_setup_named_once_and_settings_shown(self):
+        out = run(LIVE)
+        self.assertEqual(out["names"], ["Print", "Print 2", "Bracket run (Print)", "S4 (Cut)"])
+        self.assertEqual(out["sums"], ["Defaults: Generic, 0.4 mm nozzle, 0.2 mm layers", "H2D, 0.4 mm nozzle, 0.12 mm layers, 15% infill", "Defaults",
+                                       "Defaults: Generic, 0.4 mm nozzle, 0.2 mm layers"])
+
+    def test_materials_by_display_name_once(self):
+        out = run(LIVE)
+        names = out["hit_names"]
+        self.assertIn("Aluminum", names)
+        self.assertNotIn("Aluminium", names)  # a spelling of Aluminum: found by search, listed once
+        self.assertEqual(out["aluminium"], ["aluminum"])
+        for n in names:
+            self.assertTrue(n[0].isupper(), n)
+        self.assertIn("Stainless Steel", names)
+        self.assertEqual(len(names), len(set(names)))
+        self.assertEqual(out["hit_kinds"], ["Filament", "Metal", "Non-metal"])
+        self.assertEqual(out["mat_rows"], [["Box", "PLA (assumed)", "1.24"]])
+
+    def test_fits_and_review_with_units(self):
+        out = run(LIVE)
+        self.assertEqual(out["fits"], [["slide", "5.20 mm"], ["press", "4.90 mm"]])
+        self.assertEqual(out["head"], ["PASS — Body, printed", "FIX — Body, cut", "PASS — Body, milled", "UNKNOWN — Body, process not set"])
+        self.assertEqual(out["foot"], "Volume 24.0 cm³  ·  Mass 9.6 g  ·  Material PLA  ·  As printed: 2 walls")
+        self.assertEqual(out["foot_small"], "Volume 512.0 mm³  ·  Mass 0.6 g  ·  Material PLA (assumed)  ·  Least wall 1.20 mm")
+
+    def test_tables_fit_the_dock(self):
+        """Every table: no horizontal scrollbar, a stretch column, the rest
+        sized to contents; every cell's full text in its tooltip."""
+        out = run(r'''
+from workshop_make import panel as P
+def fake(tool, args):
+    if tool == "setup":
+        return True, {"setups": [{"id": "S1", "type": "print", "name": "Print", "bodies": ["Box"]}]}
+    if tool == "part_review":
+        return True, {"verdict": "pass", "process": "printed", "findings": [{"severity": "warning", "says": "A long finding", "fix": "Do it"}], "figures": {}}
+    return True, {"model": {"slide": 5.25}}
+OUT["trees"] = []
+for cls in (P.SetupsTab, P.MaterialsTab, P.FitsTab, P.ReviewTab):
+    t = cls(runner=fake)
+    t.fill()
+    if cls is P.FitsTab: t.size()
+    if cls is P.ReviewTab:
+        OUT["review_empty_before"] = t.none.visible
+        t.review()
+        OUT["review_empty_after"] = t.none.visible
+    for tr in [v for v in vars(t).values() if isinstance(v, P.QtWidgets.QTreeWidget)]:
+        OUT["trees"].append({"tab": cls.__name__, "modes": tr.hdr.modes, "last": tr.hdr.last, "hbar": tr.hbar,
+                             "tips": all(r.texts[i] in (r.tips.get(i) or "") for r in tr.rows for i in range(len(r.texts)) if r.texts[i])})
+''')
+        self.assertEqual(len(out["trees"]), 5)
+        for t in out["trees"]:
+            self.assertEqual(t["hbar"], "off", t)
+            self.assertFalse(t["last"], t)
+            self.assertIn("stretch", t["modes"].values(), t)
+            self.assertTrue(set(t["modes"].values()) <= {"stretch", "contents"}, t)
+            self.assertTrue(t["tips"], t)
+        self.assertTrue(out["review_empty_before"])
+        self.assertFalse(out["review_empty_after"])
+
+    def test_fits_labels_and_calibration_in_mm(self):
+        out = run(r'''
+from workshop_make import panel as P
+rows = []
+class Form(P.QtWidgets.QWidget):
+    def addRow(self, label, w): rows.append(label)
+P.QtWidgets.QFormLayout = Form
+f = P.FitsTab(runner=lambda t, a: (True, {"setups": []}))
+f.doc_fn = lambda: Doc(("Body",))
+f.fill()
+OUT["rows"] = rows
+OUT["in_part"] = [f.body.itemText(i) for i in range(f.body.count())]
+OUT["suffix"] = [getattr(sb, "suffix", "") for sb in (f.nominal, f.cal_hole, f.cal_shaft)]
+f.runner = lambda t, a: (True, {"model": {"slide": 5.2}, "printerFit": "none, so holes are assumed to print 0.2 mm small"})
+f.size()
+OUT["said"] = f.msg.text()
+''')
+        self.assertIn("Bought part size", out["rows"])
+        self.assertEqual(out["in_part"], ["Body"])
+        self.assertEqual(out["suffix"], [" mm", " mm", " mm"])
+        self.assertEqual(out["said"], "Printer calibration: none, so holes are assumed to print 0.2 mm small.")
+
+    def test_review_leaves_no_selection_behind(self):
+        """The part the review showed stayed selected after leaving Make:
+        put back on leaving, unless the person had selected it."""
+        out = run(r'''
+from workshop_make import panel as P, workbench
+sel = set()
+class O:
+    def __init__(self, n): self.Name, self.Label, self.Document = n, n, D
+class D:
+    Name = "Doc"
+    @staticmethod
+    def getObjectsByLabel(l): return [O(l)]
+Gui.Selection.getSelection = lambda *a: [O(n) for _d, n in sorted(sel)]
+Gui.Selection.removeSelection = lambda d, n: sel.discard((d, n))
+def runner(tool, args):  # Agent Link's _call shows the click: it selects the part
+    sel.add(("Doc", args["body"]))
+    return True, {"verdict": "pass", "process": "printed", "findings": [], "figures": {}}
+t = P.ReviewTab(runner=runner, doc_fn=lambda: D)
+t.body.addItems(["Body"])
+t.review()
+OUT["during"] = sorted(sel)
+class G:
+    class Workbench:
+        pass
+wb = workbench.make_class(G)()
+wb.Deactivated()
+OUT["after"] = sorted(sel)
+sel.add(("Doc", "Body"))  # the person picked it first
+t.review()
+wb.Deactivated()
+OUT["kept"] = sorted(sel)
+''')
+        self.assertEqual(out["during"], [["Doc", "Body"]])
+        self.assertEqual(out["after"], [])
+        self.assertEqual(out["kept"], [["Doc", "Body"]])

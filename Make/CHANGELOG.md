@@ -25,6 +25,15 @@ The first tagged release, 0.3.0 (the version in `package.xml`), is being prepare
 
 ### Changed
 
+- The Make dock as tried live in a 354 px dock: a setup named once ("Print",
+  not "Print (Print)") with its printer, nozzle and layer height or its
+  defaults; tables fitted to the dock (no horizontal scrollbar, cut cells'
+  full text in tooltips); shop materials by display name, aluminium found as
+  Aluminum and listed once; Fits lists the document's parts, sizes in mm
+  with their units, calibration fields in mm, "Bought part size"; Review's
+  verdict "PASS — Body, printed", its figures with units, a line before the
+  first review, and a part it selected unselected on leaving Make. No
+  calibration reads "none, so holes are assumed to print 0.2 mm small".
 - Installs alone: its own copies of what it used from AddonKit (records,
   shape helpers, fits, the data loader, CalculiX, sheets, materials), with
   its own data files, trimmed to what it uses.
