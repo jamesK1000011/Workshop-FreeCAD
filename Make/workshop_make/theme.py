@@ -73,10 +73,21 @@ def style(widget, name, css):
     the palette changes (a pack applied)."""
     widget.setObjectName(name)
 
+    busy = []
+
     def apply():
+        # setStyleSheet sends a PaletteChange of its own: a change met while
+        # applying is ignored, so a sheet whose colours move the palette
+        # cannot recurse (it did in Texturizer's copy, crashing FreeCAD).
+        if busy:
+            return
         text = fill(css, roles(widget)).replace("#SELF", "#" + name)
         if widget.styleSheet() != text:
-            widget.setStyleSheet(text)
+            busy.append(1)
+            try:
+                widget.setStyleSheet(text)
+            finally:
+                busy.clear()
 
     apply()
     try:
