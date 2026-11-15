@@ -22,6 +22,10 @@ from workshop_make import records as store
 from . import orcalib
 from .tooldefs import _agent
 
+# Agent Link's hooks, lent by the family layer (register, from
+# agentlink_families): this module never imports Agent Link.
+hooks = None
+
 LAYER_FACTOR = 0.5  # across-layer strength taken as this share of the yield
 KEY = "fea"  # the study's record (Agent Link's strength family keeps it there)
 
@@ -106,12 +110,11 @@ def setup_after(a, out, s):
 
 
 def _last(s):
-    try:
-        from agentlink import hooks
-
+    """The session's last FEA run: Agent Link's (hooks.analysis, lent at
+    register) or the one kept on the session."""
+    r = None
+    if hooks is not None and hasattr(hooks, "analysis"):
         r = hooks.analysis(s, "fea")
-    except ImportError:
-        r = None
     return r if r is not None else getattr(s, "_agentlink_fea", None)
 
 
@@ -157,7 +160,11 @@ def solve_after(a, out, s):
     return out
 
 
-def register(hooks):
+def register(host_hooks):
+    """Print-aware strength on Agent Link's fea_setup and fea_solve; its
+    hooks kept for _last. Called by the family layer, which lends them."""
+    global hooks
+    hooks = host_hooks
     try:
         hooks.extend_tool("fea_setup", SETUP_ARGS, setup_before, setup_after, SETUP_SAYS)
         hooks.extend_tool("fea_solve", {}, None, solve_after, SOLVE_SAYS)
