@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# This add-on's own copy; it was AddonKit's addonkit.fits, retired 14 Nov 2026.
+# Workshop Parts' own copy of Workshop Make's fits.py, trimmed to what Parts uses; 14 Nov 2026.
 # Fits and hardware holes for made parts. Sizes are the standards' (ISO 273
 # clearance holes, ISO 4762 socket heads, ISO 10642 countersunk heads, ISO
 # 4032 nuts; ISO 2009 for the countersunk heads under M3); heat-set inserts are typical figures, the maker's sheet is
@@ -17,35 +17,6 @@ from . import datafiles as _data
 
 V = FreeCAD.Vector
 _DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
-
-# ---- fits ---------------------------------------------------------------------------------
-
-# Diametral gap between hole and peg as modelled, for a calibrated printer.
-# (data/fits.json; the person's own values in ~/.config/workshop_parts/fits.json)
-FITS = {k: v["gap"] for k, v in _data.load(_DATA, "fits", package="workshop_parts")["entries"].items()}
-DEFAULT_CAL = {"hole": 0.2, "shaft": 0.0}
-
-
-def size_fit(kind, nominal, of, cal):
-    """The size to model a hole or a peg at for a fit on `nominal` (the
-    bought part's, or the mating part's): a hole opened by the gap and by
-    what the printer takes off a hole; a peg shrunk by what it adds."""
-    if kind not in FITS:
-        raise ValueError(f"kind: one of {', '.join(FITS)}.")
-    if of == "hole":
-        return nominal + FITS[kind] + cal["hole"]
-    if of == "shaft":
-        return nominal - cal["shaft"]
-    raise ValueError("of: hole or shaft.")
-
-
-def stack(items):
-    """A tolerance stack: each item's nominal and ± tolerance (sign of the
-    nominal says which way it adds). Worst case and root-sum-square."""
-    nom = sum(i["nominal"] for i in items)
-    wc = sum(abs(i.get("tol", 0)) for i in items)
-    rss = math.sqrt(sum(i.get("tol", 0) ** 2 for i in items))
-    return {"nominal": round(nom, 3), "worstCase": [round(nom - wc, 3), round(nom + wc, 3)], "rss": [round(nom - rss, 3), round(nom + rss, 3)]}
 
 
 # ---- hardware -----------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# This add-on's own copy; it was AddonKit's addonkit.records, retired 14 Nov 2026.
+# Workshop Make's own copy of Agent Link for FreeCAD's store.py (records format: Agent Link docs/records.md), trimmed to what Make uses; 14 Nov 2026.
 # What the agent records about the parts, kept in the document itself so it
 # is saved with the .FCStd: how each part is made (setups), what it is made
 # of, the limits it must meet (the spec), and the findings accepted on
@@ -95,17 +95,6 @@ def write(doc, name, value):
         doc.Meta = m
         return
     _set(o, name, raw)
-
-
-def remove(doc, name):
-    if not _objects(doc):
-        m = dict(doc.Meta or {})
-        m.pop(KEY + name, None)
-        doc.Meta = m
-        return
-    o = holder(doc, make=(KEY + name) in (doc.Meta or {}))
-    if o is not None and _prop(name) in o.PropertiesList:
-        setattr(o, _prop(name), "")
 
 
 # ---- setups: how each part is made --------------------------------------------------------

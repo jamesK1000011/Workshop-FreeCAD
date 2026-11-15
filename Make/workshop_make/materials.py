@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# This add-on's own copy; it was AddonKit's addonkit.materials, retired 14 Nov 2026.
-"""Printing filaments: one table every add-on reads (data/filaments.json),
-so a density or a modulus is never kept twice. The person's own filaments
+# Workshop Make's own copy of Agent Link for FreeCAD's materials.py, trimmed to what Make uses; 14 Nov 2026.
+"""Printing filaments, read from this add-on's own data/filaments.json
+(each add-on that needs them carries its own). The person's own filaments
 go in ~/.config/workshop_make/filaments.json and win over ours.
 No FreeCAD here."""
 
@@ -20,10 +20,6 @@ def filaments():
 
 FILAMENTS = filaments()
 DENSITY = {k: v["density"] for k, v in FILAMENTS.items()}
-
-
-def density(key, default=None):
-    return DENSITY.get(str(key).lower(), default)
 
 
 def card(key):

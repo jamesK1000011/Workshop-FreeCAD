@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# This add-on's own copy; it was AddonKit's addonkit.geo, retired 14 Nov 2026.
+# Workshop Make's own copy of Agent Link for FreeCAD's geometry.py, trimmed to what Make uses; 14 Nov 2026.
 # Shape building and reading on FreeCAD's Part module: rounded-rectangle
 # prisms and ruled lofts (what the generators are made of), and the readings
 # the checks give — sound or not, sliver faces, the least wall by rays.
@@ -7,63 +7,7 @@
 
 import math
 
-import FreeCAD
 import Part
-
-V = FreeCAD.Vector
-
-
-def round_rect(cx, cy, w, d, r, z):
-    """A w x d rectangle centred on (cx, cy) at height z, corners of radius r,
-    as a closed wire. Always eight edges when r > 0, so ruled lofts between
-    stations pair edge for edge."""
-    hw, hd = w / 2.0, d / 2.0
-    R = max(0.0, min(r, hw - 1e-3, hd - 1e-3))
-    if R < 1e-3:
-        p = [V(cx - hw, cy - hd, z), V(cx + hw, cy - hd, z), V(cx + hw, cy + hd, z), V(cx - hw, cy + hd, z)]
-        return Part.Wire([Part.LineSegment(p[i], p[(i + 1) % 4]).toShape() for i in range(4)])
-    x0, x1, y0, y1 = cx - hw, cx + hw, cy - hd, cy + hd
-    c = R * (1 - math.sqrt(0.5))
-    e = [
-        Part.LineSegment(V(x0 + R, y0, z), V(x1 - R, y0, z)).toShape(),
-        Part.Arc(V(x1 - R, y0, z), V(x1 - c, y0 + c, z), V(x1, y0 + R, z)).toShape(),
-        Part.LineSegment(V(x1, y0 + R, z), V(x1, y1 - R, z)).toShape(),
-        Part.Arc(V(x1, y1 - R, z), V(x1 - c, y1 - c, z), V(x1 - R, y1, z)).toShape(),
-        Part.LineSegment(V(x1 - R, y1, z), V(x0 + R, y1, z)).toShape(),
-        Part.Arc(V(x0 + R, y1, z), V(x0 + c, y1 - c, z), V(x0, y1 - R, z)).toShape(),
-        Part.LineSegment(V(x0, y1 - R, z), V(x0, y0 + R, z)).toShape(),
-        Part.Arc(V(x0, y0 + R, z), V(x0 + c, y0 + c, z), V(x0 + R, y0, z)).toShape(),
-    ]
-    return Part.Wire(e)
-
-
-def prism(cx, cy, w, d, r, z0, z1):
-    """A rounded-rectangle prism from z0 up to z1."""
-    return Part.Face(round_rect(cx, cy, w, d, r, z0)).extrude(V(0, 0, z1 - z0))
-
-
-def stepped(cx, cy, w, d, stations):
-    """A ruled solid through rounded rectangles stacked up: each station
-    (z, inset, r) of a w x d outline, the inset taken from every side."""
-    wires = [round_rect(cx, cy, w - 2 * inset, d - 2 * inset, r, z) for (z, inset, r) in stations]
-    return Part.makeLoft(wires, True, True)
-
-
-def cylinder(r, h, x, y, z):
-    return Part.makeCylinder(r, h, V(x, y, z))
-
-
-def fuse_all(shapes):
-    out = shapes[0]
-    if len(shapes) > 1:
-        out = out.fuse(shapes[1:])
-    return clean(out)
-
-
-def cut_all(shape, tools):
-    if not tools:
-        return shape
-    return clean(shape.cut(tools))
 
 
 def clean(shape):
@@ -283,7 +227,3 @@ def _ray_hits(shape, rays, reach, tol=0.01):
         m = ok & (u >= -1e-9) & (v >= -1e-9) & (u + v <= 1 + 1e-9) & (t > 2e-3) & (t <= reach)
         out.append(round(float(t[m].min()), 3) if m.any() else None)
     return out
-
-
-# For the families: rays against a part, as least_wall casts them.
-ray_hits = _ray_hits

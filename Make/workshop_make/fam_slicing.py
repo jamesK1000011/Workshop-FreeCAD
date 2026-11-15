@@ -13,6 +13,7 @@ from agentlink.protocol import ToolError
 from . import fam_embed, orcalib, printability, tooldefs
 
 GROUP = "slice"
+AREAS = {"slice": "Slice"}
 INFO = "Slicing with PrusaSlicer, OrcaSlicer or Bambu Studio, profiles by path, the encased parts' pauses written in."
 
 from workshop_make.materials import DENSITY  # noqa: E402 — Make's filament table

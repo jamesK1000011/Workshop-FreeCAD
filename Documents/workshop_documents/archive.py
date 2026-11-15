@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# This add-on's own copy; it was AddonKit's addonkit.archive, retired 14 Nov 2026.
+# Workshop Documents' archive.py, the source copy (Workshop Electronics carries its own); it was AddonKit's addonkit.archive, 14 Nov 2026.
 """Zips to hand on (an order package, a library pack): deflated, with no
 folder of the computer's in them and ordinary file modes. Plain Python."""
 

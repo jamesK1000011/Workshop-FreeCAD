@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# This add-on's own copy; it was AddonKit's addonkit.data, retired 14 Nov 2026.
+# Workshop Parts' own copy of Agent Link for FreeCAD's datafiles.py, trimmed to what Parts uses; 14 Nov 2026.
 """Versioned, schema-checked data files: tables (fits, threads, printers,
 materials, presets) and tool definitions kept out of the code.
 
@@ -114,24 +114,6 @@ def _read(path):
         raise DataError(f"{os.path.basename(path)} cannot be read ({e}); reinstall the add-on, or fix the file if it is one of yours.")
 
 
-def check(path, schema_path=None):
-    """Problems with one data file (envelope, provenance, entry schema)."""
-    doc = _read(path)
-    out = validate(doc, ENVELOPE)
-    if out:
-        return out
-    if schema_path is None:
-        sp = doc.get("$schema")
-        schema_path = os.path.join(os.path.dirname(path), sp) if sp else None
-    entry = _read(schema_path) if schema_path and os.path.isfile(schema_path) else None
-    for k, v in doc["entries"].items():
-        if entry is not None:
-            out += validate(v, entry, f"entries.{k}")
-        if isinstance(v, dict) and not (v.get("source") and v.get("date")):
-            out.append(f"entries.{k}: every entry says its source and date")
-    return out
-
-
 def load(folder, name, accepts=">=1.0,<2", package=None, tag=None, user=True):
     """The entries of folder/<name>.json (or <name>@<tag>.json when there is
     one), checked, with the person's overrides laid over them.
@@ -164,12 +146,3 @@ def load(folder, name, accepts=">=1.0,<2", package=None, tag=None, user=True):
                 entries[k] = v
                 overridden.append(k)
     return {"dataVersion": doc["dataVersion"], "entries": entries, "overridden": overridden}
-
-
-def check_folder(folder):
-    """Problems across every data file in a folder (for CI)."""
-    out = []
-    for n in sorted(os.listdir(folder)):
-        if n.endswith(".json") and not n.endswith(".schema.json"):
-            out += [f"{n}: {p}" for p in check(os.path.join(folder, n))]
-    return out

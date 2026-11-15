@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# This add-on's own copy; it was AddonKit's addonkit.fits, retired 14 Nov 2026.
+# Workshop Make's fits.py, the source copy (Workshop Parts carries a trimmed copy; Agent Link for FreeCAD's fits_hw.py is retired); it was AddonKit's addonkit.fits, 14 Nov 2026.
 # Fits and hardware holes for made parts. Sizes are the standards' (ISO 273
 # clearance holes, ISO 4762 socket heads, ISO 10642 countersunk heads, ISO
 # 4032 nuts; ISO 2009 for the countersunk heads under M3); heat-set inserts are typical figures, the maker's sheet is

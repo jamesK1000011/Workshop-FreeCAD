@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# This add-on's own copy; it was AddonKit's addonkit.iso286, retired 14 Nov 2026.
+# Workshop Documents' own copy of Agent Link for FreeCAD's iso286.py, trimmed to what Documents uses; 14 Nov 2026.
 # ISO 286 limits of size for the common fits: the standard tolerance grades
 # IT5 to IT11 and the fundamental deviations of the holes F, G, H, JS and
 # the shafts f, g, h, js, k, n, p, for sizes up to 500 mm. "10 H7" gives
