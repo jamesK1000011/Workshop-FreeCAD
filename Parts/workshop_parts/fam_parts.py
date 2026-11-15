@@ -13,18 +13,23 @@ INFO = "Standard parts made to size (Workshop for FreeCAD · Parts): Gridfinity 
 
 # What the window shows while these run (Agent Link's echo): the Workshop
 # Parts bench, the button of the generator made, "Parts › …" in Activity.
+# COMMANDS is the echo declaration ({tool or prefix: FreeCAD command name});
+# gen_part's button depends on the generator asked for, so it is not in it.
 WORKBENCHES = {"gen_": "WorkshopPartsWorkbench"}
 AREAS = {"gen_": "Parts"}
 COMMANDS = {"gen_make": "Workshop_Parts_GridfinityBin"}
 
 
 def command_for(name, args):
-    """The button that does the same job as this call: one per generator
-    (commands.py names them so)."""
-    gen = (args or {}).get("generator") or ("gridfinity_bin" if name == "gen_make" else None)
-    if name not in ("gen_make", "gen_part") or gen not in api.GENERATORS:
+    """Alias kept for the per-generator button (gen_part, or gen_make with a
+    generator named): one per generator, as commands.py names them; COMMANDS
+    otherwise."""
+    gen = (args or {}).get("generator")
+    if name in ("gen_make", "gen_part") and gen in api.GENERATORS:
+        return "Workshop_Parts_" + "".join(w.title() for w in gen.split("_"))
+    if gen is not None and name in ("gen_make", "gen_part"):
         return None
-    return "Workshop_Parts_" + "".join(w.title() for w in gen.split("_"))
+    return COMMANDS.get(name)
 
 
 def tools(session):
