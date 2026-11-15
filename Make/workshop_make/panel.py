@@ -523,8 +523,11 @@ def dock():
 
 
 def _fill(w):
+    from . import layout
+
     try:
-        w.fill()
+        with layout.keep_marks():  # a refresh changes nothing: the "*" as it was
+            w.fill()
     except Exception as e:  # noqa: BLE001 — a tab never stops the window
         import FreeCAD
 

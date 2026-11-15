@@ -933,3 +933,91 @@ def caller():
         return _hooks().service("panel_caller")
     except Exception:  # noqa: BLE001
         return None
+
+
+# ---- a panel's own work leaves the window's modified mark alone --------------
+# Opening a workbench's panel and refreshing it change nothing in the model,
+# yet something on the window's side can set a document's "*" (seen on the
+# Mac as an add-on's workbench opened: no undo step, the saved file
+# byte-identical).
+# keep_marks() puts back the mark of every document that had none, had no
+# undo step meanwhile, and was marked during the panel's work, at once and
+# again once the window has settled.
+
+KEEP_MARK_MS = (0, 300)
+
+
+def _documents():
+    """[(name, gui document, app document)] of the open documents."""
+    try:
+        import FreeCAD
+        import FreeCADGui
+
+        listed = FreeCAD.listDocuments().items()
+    except Exception:  # noqa: BLE001 — no FreeCAD, or a stand-in without documents
+        return []
+    out = []
+    for name, d in listed:
+        try:
+            g = FreeCADGui.getDocument(name)
+        except Exception:  # noqa: BLE001
+            g = None
+        if g is not None:
+            out.append((name, g, d))
+    return out
+
+
+def marks(docs):
+    """{name: (modified, undo steps)} of docs ([(name, gui doc, app doc)])."""
+    out = {}
+    for name, g, d in docs:
+        try:
+            out[name] = (bool(g.Modified), len(getattr(d, "UndoNames", None) or []))
+        except Exception:  # noqa: BLE001 — a document closing
+            pass
+    return out
+
+
+def put_back(before, docs):
+    """The documents marked since before with no undo step meanwhile get
+    their "*" taken off again; the names put back."""
+    done = []
+    for name, g, d in docs:
+        was = before.get(name)
+        if was is None or was[0]:
+            continue
+        try:
+            if g.Modified and len(getattr(d, "UndoNames", None) or []) == was[1]:
+                g.Modified = False
+                done.append(name)
+        except Exception:  # noqa: BLE001
+            pass
+    return done
+
+
+class keep_marks:
+    """with keep_marks(): … a panel's own work (a workbench opening its
+    panel, a refresh): the window's modified marks as they were."""
+
+    def __init__(self, documents=None, later=None):
+        self.documents = documents or _documents
+        self.later = later
+
+    def __enter__(self):
+        self.before = marks(self.documents())
+        return self
+
+    def __exit__(self, *exc):
+        before, documents = self.before, self.documents
+        put_back(before, documents())
+        later = self.later
+        if later is None:
+            try:
+                QtCore, _w = _qt()
+                later = QtCore.QTimer.singleShot
+            except Exception:  # noqa: BLE001 — no Qt: at once only
+                later = None
+        if later is not None:
+            for ms in KEEP_MARK_MS:
+                later(ms, lambda: put_back(before, documents()))
+        return False

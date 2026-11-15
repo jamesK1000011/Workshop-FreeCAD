@@ -31,9 +31,12 @@ def make_class(Gui):
             # Its panel with it: beside Model and Tasks (the panel layout
             # setting), in front the first time.
             try:
-                from . import panel
+                from . import layout, panel
 
-                panel.show()
+                # Opening the panel changes nothing: the window's "*" stays
+                # as it was (layout.keep_marks).
+                with layout.keep_marks():
+                    panel.show()
             except Exception as e:  # noqa: BLE001 — never stop the bench (no window in tests)
                 import FreeCAD
 

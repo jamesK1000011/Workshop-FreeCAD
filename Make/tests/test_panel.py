@@ -227,6 +227,41 @@ OUT["writes"] = list(d.log)
         self.assertEqual(out["writes"], ["Meta"])
 
 
+class KeepsTheMark(unittest.TestCase):
+    def test_opening_the_workbench_leaves_the_star_alone(self):
+        """Activating Make set the window's "*" on the Mac with no undo step:
+        whatever the panel's opening sets on the window's side is put back;
+        a refresh likewise."""
+        out = run(r'''
+from workshop_make import layout, panel, workbench
+class G:
+    Modified = False
+class D:
+    UndoNames = []
+g, d = G(), D()
+layout._documents = lambda: [("Box", g, d)]
+def show(title="Setups"):
+    g.Modified = True  # a view property set by the panel's opening
+panel.show = show
+class Gui:
+    class Workbench:
+        pass
+    @staticmethod
+    def addWorkbench(w):
+        pass
+wb = workbench.make_class(Gui)()
+wb.Activated()
+OUT["after_activate"] = g.Modified
+class W:
+    def fill(self):
+        g.Modified = True
+panel._fill(W())
+OUT["after_refresh"] = g.Modified
+''')
+        self.assertFalse(out["after_activate"])
+        self.assertFalse(out["after_refresh"])
+
+
 class NarrowDock(unittest.TestCase):
     def test_no_row_too_wide_for_the_dock(self):
         """In the 330 px dock: Setups' two picks on one line and its keys on
