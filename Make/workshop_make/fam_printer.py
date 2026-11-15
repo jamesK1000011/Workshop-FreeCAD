@@ -14,6 +14,8 @@ from . import handlers
 from .handlers import printer as H
 
 GROUP = "printer"
+WORKBENCHES = {"printer_status": "WorkshopMakeWorkbench", "printer_send": "WorkshopMakeWorkbench"}  # Workshop Make's bench, where their buttons are
+COMMANDS = {"printer_status": "Workshop_Make_PrinterStatus", "printer_send": "Workshop_Make_PrinterSend"}  # the button that does the same
 INFO = "Printers on the network (OctoPrint, Moonraker/Klipper, PrusaLink): add, list, status, send G-code; start, pause and stop only on the person's word."
 
 handlers.lend(H, ToolError=ToolError)

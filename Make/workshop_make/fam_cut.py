@@ -18,6 +18,8 @@ from . import handlers
 from .handlers import cut as H
 
 GROUP = "cut"
+WORKBENCHES = {"cut_export": "WorkshopMakeWorkbench"}  # Workshop Make's bench, where their buttons are
+COMMANDS = {"cut_export": "Workshop_Make_CutExport"}  # the button that does the same
 INFO = "Sheet parts for laser, waterjet, plasma and router: the cut check, and DXF/SVG profiles laid out on the sheet."
 
 handlers.lend(H, ToolError=ToolError)

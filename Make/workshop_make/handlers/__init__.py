@@ -36,3 +36,16 @@ def lend(module, **names):
         if not hasattr(module, k):
             raise AttributeError(f"{module.__name__} has no slot {k!r} to lend")
         setattr(module, k, v)
+
+
+def review(session, body):
+    """The verdict on a body for a Review tab (Agent Link's
+    hooks.register_reviewer: fn(session, body)): part_review's answer, or
+    {"error": {code, message}} when it is refused, as a panel's failed call
+    reads. session: the host's (Agent Link's), or None for Make's own in
+    the active document."""
+    from .. import runner
+    from . import make
+
+    ctx = session if session is not None and hasattr(session, "body") else runner.session_for(getattr(session, "doc", None) or runner._active_doc())
+    return runner.answer(lambda a: make.part_review(ctx, a), {"body": body})[1]

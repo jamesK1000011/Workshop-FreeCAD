@@ -16,6 +16,8 @@ from . import handlers
 from .handlers import mill as H
 
 GROUP = "mill"
+WORKBENCHES = {"mill_export": "WorkshopMakeWorkbench"}  # Workshop Make's bench, where their buttons are
+COMMANDS = {"mill_export": "Workshop_Make_MillExport"}  # the button that does the same
 INFO = "Milled parts: reach from the setup's tool directions (undercuts), inside corners, deep holes and pockets, thin walls, stock; STEP and a setup sheet."
 
 handlers.lend(H, ToolError=ToolError)

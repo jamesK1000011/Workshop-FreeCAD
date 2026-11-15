@@ -16,8 +16,9 @@ from . import handlers
 from .handlers import embed as H
 
 GROUP = "embed"
+WORKBENCHES = {"hw_embed": "WorkshopMakeWorkbench", "hw_pauses": "WorkshopMakeWorkbench"}  # Workshop Make's bench, where their buttons are
+COMMANDS = {"hw_embed": "Workshop_Make_Embed", "hw_pauses": "Workshop_Make_Pauses"}  # the button that does the same
 INFO = "Parts encased mid-print: nut, magnet, bearing, insert and weight pockets with a roof, and the pauses to drop them in."
-WORKBENCHES = {"hw_": "WorkshopMakeWorkbench"}  # the Workshop Make bench while these run
 
 handlers.lend(H, ToolError=ToolError)
 

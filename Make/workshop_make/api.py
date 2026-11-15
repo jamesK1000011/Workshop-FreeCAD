@@ -246,6 +246,15 @@ def material_set(doc, bodies, material):
     return mats
 
 
+def material_clear(doc, bodies):
+    """Bodies (labels) back to no material of their own (PLA assumed)."""
+    mats = records.materials(doc)
+    for b in bodies:
+        mats.pop(b, None)
+    records.write(doc, "materials", mats)
+    return mats
+
+
 def rules_of(doc, body):
     """(rules, print setup) for a body: its print setup's nozzle and printer."""
     from . import printability
