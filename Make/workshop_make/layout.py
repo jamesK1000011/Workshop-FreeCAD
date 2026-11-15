@@ -306,6 +306,7 @@ class Placer:
         self.timer = None
         self.mw = None
         self.active = None
+        self.arrived_in = None
         self._watch = None
 
     # -- the window ------------------------------------------------------------
@@ -356,7 +357,20 @@ class Placer:
             self._take_back(e)
         if layout == LEFT_TAB and combo_tabs(mw) is None:
             layout = RIGHT  # no Combo View in this window: the right side
-        getattr(self, "_" + layout.replace("-", "_"))(e, front)
+        fresh = e["where"] != layout
+        # Shown as its workbench opens (the workbench's Activated runs before
+        # the switch signal): what comes forward is Memory's choice, and a
+        # reveal() that follows is left out.
+        now = active_workbench()
+        e["arrived"] = fresh and now != self.arrived_in
+        self.arrived_in = now
+        getattr(self, "_" + layout.replace("-", "_"))(e, front and not fresh)
+        if fresh and layout != RIGHT:
+            # Newly in the Combo View or the slide-out: forward the first
+            # time its workbench opens, after that as the person left it.
+            self._front(active_workbench() or self.active)
+        elif fresh and front:
+            self._right(e, True)
         self._keep_size(before, maxed)
         return e["where"]
 
@@ -408,6 +422,8 @@ class Placer:
         e = self.entries.get(key)
         if not e or not e["where"]:
             return False
+        if e.pop("arrived", False) and e["where"] != RIGHT:
+            return True
         if e["where"] == LEFT_TAB and self.combo is not None:
             self.combo.setCurrentWidget(e["frame"])
         elif e["where"] == LEFT_SLIDE and self.slide is not None:
@@ -423,7 +439,7 @@ class Placer:
         one's back (if the person had not closed it), and what comes
         forward chosen by Memory."""
         name = str(name) if name else active_workbench()
-        self.active = name
+        self.active = self.arrived_in = name
         for key, e in list(self.entries.items()):
             if not belongs(e["workbench"], name):
                 self.hide(key)
@@ -433,6 +449,8 @@ class Placer:
                     self.show(key, e["dock"], e["workbench"], e["title"], force=False, front=False, fronts=e["fronts"])
                 except RuntimeError:  # deleted by Qt
                     self.entries.pop(key, None)
+        for e in self.entries.values():
+            e.pop("arrived", None)
         self._front(name)
 
     # -- placing ---------------------------------------------------------------
@@ -500,9 +518,11 @@ class Placer:
             tabs.addTab(e["frame"], e["title"])
             e["dock"].hide()
             e["where"] = LEFT_TAB
-            if not getattr(tabs, "_panel_layout", False):
-                tabs.currentChanged.connect(lambda i: self.memory.chose(self.active or active_workbench(), tabs.tabText(i)))
-                tabs._panel_layout = True
+            # A Qt property: FreeCAD's tab widget may come back in a new
+            # Python wrapper, which would not keep a Python attribute.
+            if not tabs.property("panelLayout"):
+                tabs.currentChanged.connect(lambda i: self.memory.chose(active_workbench() or self.active, tabs.tabText(i)))
+                tabs.setProperty("panelLayout", True)
             self._poll()
         if front and not task_running():
             tabs.setCurrentWidget(e["frame"])
@@ -511,7 +531,7 @@ class Placer:
         mw = self._main()
         if self.slide is None:
             area = mw.centralWidget()
-            self.slide = _classes()["Slide"](area, on_toggle=lambda on: self.memory.slid(self.active or active_workbench(), on))
+            self.slide = _classes()["Slide"](area, on_toggle=lambda on: self.memory.slid(active_workbench() or self.active, on))
         if e["where"] != LEFT_SLIDE:
             content = self._content(e)
             e["frame"] = frame(content)
@@ -558,7 +578,7 @@ class Placer:
         def tick():
             if not any(e["where"] == LEFT_TAB for e in self.entries.values()):
                 return
-            back = self.memory.task(task_running(), self.active or active_workbench())
+            back = self.memory.task(task_running(), active_workbench() or self.active)
             if back and self.combo is not None:
                 self._turn_to(back)
 
