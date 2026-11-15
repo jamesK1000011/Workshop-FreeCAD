@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# The repository's own files. Each add-on folder (Common, Parts, Make,
+# Electronics, Documents) installs alone and states its files' licences in its
+# own REUSE.toml, with its own LICENSE and LICENSES/.
+version = 1
+
+[[annotations]]
+path = ["package.xml", ".gitignore", ".github/**"]
+SPDX-FileCopyrightText = "Workshop for FreeCAD contributors"
+SPDX-License-Identifier = "LGPL-2.1-or-later"

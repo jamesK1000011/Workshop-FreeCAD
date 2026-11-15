@@ -1,24 +1,29 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
   <name>Workshop Electronics</name>
-  <description>Electronics with the parts: KiCad boards read without KiCad (outline, holes, tall parts), enclosures round them, PCB order packages for the board house, channels inside printed parts for wire or conductive traces. A command in the Workshop workbench; a Python API (workshop_electronics.api); tools for agents through Agent Link when it is installed.</description>
+  <description>Electronics with the parts: KiCad boards read without KiCad (outline, cut-outs, mounting holes, tall parts), enclosures round them, PCB order packages for the board house (nothing uploaded or ordered), channels inside printed parts for wire or conductive traces. Its own workbench (Workshop Electronics) with a KiCad board task panel; a Python API (workshop_electronics.api); tools for agents through Agent Link for FreeCAD when it is installed. Not affiliated with or endorsed by the FreeCAD project or the FPA.</description>
   <version>0.2.0</version>
   <date>2026-11-14</date>
   <maintainer email="jamesK1000011@users.noreply.github.com">jamesK1000011</maintainer>
-  <license file="../LICENSE">LGPL-2.1-or-later</license>
+  <license file="LICENSE">LGPL-2.1-or-later</license>
+  <license file="LICENSES/CC-BY-4.0.txt">CC-BY-4.0</license>
   <url type="repository" branch="main">https://github.com/jamesK1000011/Workshop-FreeCAD</url>
-  <icon>workshop_electronics/icons/Workshop_Electronics_Workbench.svg</icon>
+  <url type="bugtracker">https://github.com/jamesK1000011/Workshop-FreeCAD/issues</url>
+  <url type="readme">https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/Electronics/README.md</url>
   <freecadmin>1.0.0</freecadmin>
+  <icon>workshop_electronics/icons/Workshop_Electronics_Workbench.svg</icon>
   <tag>KiCad</tag>
   <tag>PCB</tag>
   <tag>enclosure</tag>
   <tag>electronics</tag>
+  <tag>agent</tag>
   <content>
     <workbench>
       <name>Workshop Electronics</name>
+      <description>A KiCad board read into the document as a solid, ready for an enclosure round it.</description>
       <classname>WorkshopElectronicsWorkbench</classname>
-      <subdirectory>./</subdirectory>
       <icon>workshop_electronics/icons/Workshop_Electronics_Workbench.svg</icon>
+      <subdirectory>./</subdirectory>
     </workbench>
   </content>
 </package>
