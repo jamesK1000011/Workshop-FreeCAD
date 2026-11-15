@@ -71,6 +71,16 @@ class QDoubleSpinBox(W):
     def setValue(self, v): self.v = float(v)
     def value(self): return self.v
 
+class QCheckBox(W):
+    def __init__(self, *a, **k):
+        super().__init__(*a); self.on = False
+        self.toggled = Signal()
+    def setChecked(self, v): self.on = bool(v); self.toggled.emit(self.on)
+    def isChecked(self): return self.on
+
+class QDialogButtonBox(W):
+    Ok, Cancel, Close = 1, 2, 4
+
 class QTreeWidgetItem:
     def __init__(self, texts=()):
         self.texts, self.d = [str(t) for t in texts], {}
@@ -118,7 +128,7 @@ class QTabWidget(W):
 qt = types.ModuleType("PySide.QtGui")
 for n in ("QWidget", "QLabel", "QPushButton", "QLineEdit", "QVBoxLayout", "QHBoxLayout", "QFormLayout", "QDockWidget", "QSizePolicy", "QPalette", "QInputDialog", "QFileDialog", "QDesktopServices"):
     setattr(qt, n, type(n, (W,), {}))
-for c in (QComboBox, QDoubleSpinBox, QTreeWidget, QTreeWidgetItem, QListWidget, QListWidgetItem, QTabWidget):
+for c in (QComboBox, QDoubleSpinBox, QTreeWidget, QTreeWidgetItem, QListWidget, QListWidgetItem, QTabWidget, QCheckBox, QDialogButtonBox):
     setattr(qt, c.__name__, c)
 core = types.ModuleType("PySide.QtCore")
 core.QObject = W

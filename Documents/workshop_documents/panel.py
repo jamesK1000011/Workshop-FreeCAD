@@ -39,9 +39,14 @@ CSS = "#SELF QPushButton:default {border: 1px solid @accent;}"
 # ---- without Qt (tested headless) ----
 
 def parts(doc):
+    """Every part in the document, hidden ones too: a manual has them all."""
     if doc is None:
         return []
-    return [o.Label for o in local_runner.bodies_in(doc)]
+    return [o.Label for o in local_runner.bodies_in(doc, hidden=True)]
+
+
+NO_PARTS = "No parts in the document yet."
+NO_STEPS = "No steps yet: tick the parts that go on first, then Add Step."
 
 
 def exploded_steps(rows):
@@ -103,6 +108,8 @@ class ManualTab(_Base):
         lay.addWidget(QtWidgets.QLabel("Tick the parts that go on next, name the step, Add step:"))
         self.parts = QtWidgets.QListWidget()
         lay.addWidget(self.parts, 1)
+        self.no_parts = self._empty(NO_PARTS)
+        lay.addWidget(self.no_parts)
         row = QtWidgets.QHBoxLayout()
         self.title = QtWidgets.QLineEdit()
         self.title.setPlaceholderText("Step title (Base, Lid on …)")
@@ -116,6 +123,9 @@ class ManualTab(_Base):
         self.steps.setHeaderLabels(["#", "Step", "Parts", "Note"])
         self.steps.setRootIsDecorated(False)
         lay.addWidget(self.steps, 1)
+        self.no_steps = self._empty(NO_STEPS)
+        self.no_steps.setVisible(True)
+        lay.addWidget(self.no_steps)
         row = QtWidgets.QHBoxLayout()
         self.name = QtWidgets.QLineEdit()
         self.name.setPlaceholderText("Manual name")
@@ -134,6 +144,23 @@ class ManualTab(_Base):
         lay.addWidget(self.credit)
         theme.style(self, self.NAME, CSS)
 
+    def _empty(self, text):
+        lab = QtWidgets.QLabel(text)
+        lab.setWordWrap(True)
+        lab.setVisible(False)
+        return lab
+
+    def showEvent(self, e):
+        """Each time the tab comes up it shows the document's parts as they are now."""
+        try:
+            self.fill()
+        except Exception:  # noqa: BLE001 — a tab never stops the window
+            pass
+        try:
+            super().showEvent(e)
+        except Exception:
+            pass
+
     def _button(self, text, tip, fn):
         b = QtWidgets.QPushButton(text)
         b.setToolTip(tip)
@@ -142,7 +169,9 @@ class ManualTab(_Base):
 
     def fill(self):
         used = {b for r in self.rows for b in r["bodies"]}
-        want = [b for b in parts(self.doc_fn()) if b not in used]
+        every = parts(self.doc_fn())
+        want = [b for b in every if b not in used]
+        self.no_parts.setVisible(not every)
         if [self.parts.item(i).text() for i in range(self.parts.count())] == want:
             return
         self.parts.clear()
@@ -156,6 +185,7 @@ class ManualTab(_Base):
         self.steps.clear()
         for k, r in enumerate(self.rows):
             self.steps.addTopLevelItem(QtWidgets.QTreeWidgetItem([str(k + 1), r["title"], ", ".join(r["bodies"]), r["note"]]))
+        self.no_steps.setVisible(not self.rows)
         self.fill()
 
     def add(self):
@@ -222,6 +252,10 @@ def _raise_hosted(title):
                     d.show()
                     d.raise_()
                 tw.setCurrentIndex(k)
+                try:
+                    tw.widget(k).fill()
+                except Exception:  # noqa: BLE001
+                    pass
                 return True
     return False
 

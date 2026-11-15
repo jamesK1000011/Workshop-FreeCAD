@@ -73,6 +73,9 @@ def setup_rows(out, names):
     return rows, none
 
 
+EMPTY_SETUPS = "No setups yet: Make ▸ New Setup…"
+
+
 def said(ok, out, good=""):
     """(text, is_bad) for a message line under a tab."""
     if ok:
@@ -195,6 +198,22 @@ class Tab(_Base):
         t.setRootIsDecorated(False)
         return t
 
+    def empty_line(self, text):
+        """The line shown under an empty list, saying how to fill it."""
+        lab = QtWidgets.QLabel(text)
+        lab.setObjectName("msg")
+        lab.setWordWrap(True)
+        lab.setVisible(False)
+        return lab
+
+    def showEvent(self, e):
+        """Each time the tab comes up it shows the document as it is now."""
+        _fill(self)
+        try:
+            super().showEvent(e)
+        except Exception:
+            pass
+
 
 class SetupsTab(Tab):
     NAME = "MakeSetups"
@@ -202,6 +221,8 @@ class SetupsTab(Tab):
     def build(self):
         self.setups = self.tree(["Setup", "Parts", "Settings"])
         self.lay.addWidget(self.setups, 1)
+        self.none = self.empty_line(EMPTY_SETUPS)
+        self.lay.addWidget(self.none)
         row = QtWidgets.QHBoxLayout()
         self.kind = QtWidgets.QComboBox()
         self.kind.addItems([store.TYPES[k]["label"] for k in store.TYPES])
@@ -225,6 +246,7 @@ class SetupsTab(Tab):
             self.say(ok, out)
             return
         rows, none = setup_rows(out, names)
+        self.none.setVisible(not rows)
         for sid, name, ps, sets in rows:
             it = QtWidgets.QTreeWidgetItem([name, ps, sets])
             it.setData(0, QtCore.Qt.UserRole, sid)
@@ -447,6 +469,7 @@ def _raise_hosted(title):
                     d.show()
                     d.raise_()
                 tw.setCurrentIndex(k)
+                _fill(tw.widget(k))
                 return True
     return False
 

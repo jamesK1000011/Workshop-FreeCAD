@@ -32,13 +32,29 @@ OUT["mass"] = R.mass({"bodies": [{"body": "QA5", "mass": 12.3456, "com": [1.0, 2
         self.assertTrue(line.startswith("DFM Check · QA5 is not printable"))
         self.assertEqual(out["clean"][0], "QA5 is printable.")
         self.assertEqual(out["review"][0], "QA5 passes.")
-        self.assertIn("Mass: 12.3 g (pla)", out["review"][1])
+        self.assertIn("Mass: 12.3 g (PLA)", out["review"][1])
         verdict, text, line = out["mass"]
-        self.assertEqual(verdict, "QA5 weighs 12.35 g.")
+        # one decimal, as Part Review shows it
+        self.assertEqual(verdict, "QA5 weighs 12.3 g.")
+        self.assertIn("Material: PLA, 1.24 g/cm³", text)
         self.assertIn("Centre of mass: 1, 2.5, 3 mm", text)
         self.assertIn("g·mm²", text)
         for s in (text, line):
             self.assertNotIn("{", s)
+
+    def test_materials_by_name_never_the_tool(self):
+        out = run(r'''
+from workshop_make import results as R
+OUT["names"] = [R.material_name(x) for x in ("pla", "petg", "tpu-95a", "steel-1018", "abs (assumed: material_set records it)", "")]
+OUT["mass"] = R.mass({"bodies": [{"body": "QA5", "mass": 30.53, "material": "pla (assumed: material_set records it)", "density": 1.24}]})[1]
+OUT["review"] = R.review({"body": "QA5", "verdict": "pass", "figures": {"mass": 30.53, "material": "pla"}})[1]
+''')
+        self.assertEqual(out["names"][:4], ["PLA", "PETG", "TPU 95A", "steel-1018"])
+        self.assertTrue(out["names"][4].startswith("ABS (assumed"), out["names"][4])
+        self.assertEqual(out["names"][5], "not set")
+        self.assertNotIn("material_set", out["mass"])
+        self.assertIn("QA5: 30.5 g", out["mass"])
+        self.assertIn("Mass: 30.5 g (PLA)", out["review"])
 
     def test_refusals_in_person_words(self):
         out = run(r'''
@@ -52,6 +68,55 @@ OUT["line"] = R.line("Workshop Make · Pauses", {"body": "QA5", "pauses": [{"z":
         self.assertNotIn("dfm_check", out["tool"])
         self.assertEqual(out["plain"], "Body 'X': not in the document.")
         self.assertEqual(out["line"], "Workshop Make · Pauses · body QA5; pauses 1 item; count 1.")
+
+
+class Commands(unittest.TestCase):
+    def test_command_and_panel_say_the_same(self):
+        out = run(r'''
+from workshop_make import commands as C, taskpanels as T
+OUT["pairs"] = [[c.GetResources()["MenuText"], T.PANELS[c.panel][0]] for c in C.COMMANDS.values() if isinstance(c, C.Form)]
+''')
+        for menu, title in out["pairs"]:
+            self.assertEqual(menu.rstrip("…"), title)
+
+    def test_guidance_is_a_message_and_boxes_are_titled(self):
+        out = run(r'''
+made = []
+class Box:
+    Information, Warning = 1, 2
+    def __init__(self, parent): self.calls = []; made.append(self)
+    def __getattr__(self, n): return lambda *a: self.calls.append([n, list(a)])
+sys.modules["PySide.QtGui"].QMessageBox = Box
+from workshop_make import commands as C
+said.clear()
+warned = []
+FreeCAD.Console.PrintWarning = warned.append
+C.report("Pauses", False, {"error": {"code": "invalid_state", "message": "QA5 is in no print setup: setup add { … }"}}, "hw_pauses", show=True)
+OUT["said"], OUT["warned"] = list(said), list(warned)
+sys.platform = "darwin"
+C.report("Mass properties", True, {"bodies": [{"body": "QA5", "mass": 30.53, "material": "pla", "density": 1.24}]}, "mass_properties", show=True)
+OUT["calls"] = made[-1].calls
+''')
+        self.assertEqual(out["warned"], [])
+        self.assertIn("isn't in a print setup yet", out["said"][0])
+        calls = dict((c[0], c[1]) for c in out["calls"])
+        self.assertEqual(calls["setWindowTitle"], ["Workshop Make · Mass Properties"])
+        self.assertEqual(calls["setText"], ["Workshop Make · Mass Properties"])
+        self.assertTrue(calls["setInformativeText"][0].startswith("QA5 weighs 30.5 g."))
+
+    def test_slice_refuses_a_part_in_no_print_setup(self):
+        out = run(r'''
+from workshop_make import commands as C
+C.R.run = lambda tool, args: (True, {"setups": [{"id": "S1", "type": "print", "bodies": ["Box"]}, {"id": "S2", "type": "cut", "bodies": ["Lid"]}]})
+OUT["box"] = C.no_print_setup("Box")
+OUT["lid"] = C.no_print_setup("Lid")
+OUT["none"] = C.no_print_setup(None)
+from workshop_make import results
+OUT["said"] = results.person_error(OUT["lid"])
+''')
+        self.assertIsNone(out["box"])
+        self.assertIsNone(out["none"])
+        self.assertEqual(out["said"], "Lid isn't in a print setup yet: Make ▸ New Setup… first.")
 
 
 class Panels(unittest.TestCase):
@@ -77,11 +142,65 @@ OUT["no_setups"] = T.FormPanel("setup_remove", runner=lambda t, a: (True, {"setu
         for t in out["titles"].values():
             self.assertTrue(all(w[0].isupper() or w in ("for", "to", "of") for w in t.split()), t)
         self.assertEqual(out["fit"], "")
-        self.assertEqual(out["shown"], ["Print", "CoreXY", "Nut trap", "-z", "M3"])
+        self.assertEqual(out["shown"], ["Print", "CoreXY", "Nut trap", "Down (−Z)", "M3"])
         self.assertEqual(out["body_one"], [[["QA5", "QA5"]], 0])
         self.assertEqual(out["body_sel"], [[["A", "A"], ["B", "B"]], 1])
         self.assertEqual(out["body_many"], ["", "Choose a part"])
         self.assertEqual(out["no_setups"], {"id": ""})
+
+    def test_hole_and_embed_fields_read_as_words(self):
+        out = run(r'''
+from workshop_make import taskpanels as T
+p = T.FormPanel("hole", runner=lambda t, a: (True, {}))
+OUT["through"] = p.values()["depth"]
+OUT["args"] = T.args_of("hole", p.values())[1].get("depth")
+labels = [l for _k, l, _kind, _d, _x in T.PANELS["hole"][3]] + [l for _k, l, _kind, _d, _x in T.PANELS["embed"][3]]
+OUT["labels"] = labels
+OUT["dirs"] = [t for _v, t in T.options(dict((k, x) for k, _l, _kind, _d, x in T.PANELS["hole"][3])["dir"])]
+''')
+        self.assertEqual((out["through"], out["args"]), ("through", "through"))
+        self.assertIn("Depth", out["labels"])
+        self.assertNotIn("Depth (mm or through)", out["labels"])
+        self.assertEqual(out["dirs"], ["Down (−Z)", "Up (+Z)", "Toward −X", "Toward +X", "Toward −Y", "Toward +Y"])
+
+    def test_depth_number_when_not_through(self):
+        out = run(r'''
+from workshop_make import taskpanels as T
+made = []
+orig = sys.modules["PySide.QtGui"].QCheckBox
+class Check(orig):
+    def __init__(self, *a, **k):
+        super().__init__(*a, **k); made.append(self)
+sys.modules["PySide.QtGui"].QCheckBox = Check
+p = T.FormPanel("hole", runner=lambda t, a: (True, {}))
+made[0].setChecked(False)
+OUT["depth"] = T.args_of("hole", p.values())[1].get("depth")
+''')
+        self.assertEqual(out["depth"], 0.1)
+
+    def test_every_panel_says_what_it_does(self):
+        out = run(r'''
+from workshop_make import taskpanels as T
+OUT["missing"] = [k for k in T.PANELS if not T.INTRO.get(k)]
+''')
+        self.assertEqual(out["missing"], [])
+
+    def test_no_setups_leaves_ok_out(self):
+        out = run(r'''
+from workshop_make import taskpanels as T
+for name in ("setup_add", "setup_remove"):
+    p = T.FormPanel(name, runner=lambda t, a: (True, {"setups": []}))
+    OUT[name] = [p.blocked, p.getStandardButtons(), p.accept(), p.msg.text()]
+q = T.FormPanel("setup_remove", runner=lambda t, a: (True, {"setups": [{"id": "S1", "name": "Print"}]}))
+OUT["some"] = [q.blocked, q.getStandardButtons()]
+''')
+        for name in ("setup_add", "setup_remove"):
+            blocked, buttons, accepted, msg = out[name]
+            self.assertEqual(blocked, "No setups yet: Make ▸ New Setup… first.")
+            self.assertEqual(buttons, 2)  # Cancel alone
+            self.assertFalse(accepted)
+            self.assertEqual(msg, blocked)
+        self.assertEqual(out["some"], ["", 3])
 
     def test_a_second_task_is_refused(self):
         out = run(r'''

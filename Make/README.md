@@ -52,14 +52,14 @@ OctoPrint, Moonraker (Klipper) or PrusaLink.
 toolbars and its **Make** menu have:
 
 - **Setup**: **New Setup** (how parts are made: print, cut or mill, and its
-  settings), **Add Body**, **Remove Setup**.
+  settings), **Add Part to Setup**, **Remove Setup**.
 - **Check**: **DFM Check** (is the part printable: walls, overhangs,
-  bridges, holes, bed contact, build volume), **Part review** (one verdict),
+  bridges, holes, bed contact, build volume), **Part Review** (one verdict),
   **Mass Properties** (mass as made, centre of mass).
 - **Fits**: **Fit Size** (the size to model a hole or peg at),
-  **Calibrate** (how much your printer prints holes small and pegs big),
-  **Hole** (clearance, counterbore, countersink, nut trap, insert, magnet).
-- **Hardware**: **Embed** (a pocket for a part dropped in mid-print),
+  **Calibrate Printer** (how much your printer prints holes small and pegs big),
+  **Hole for Hardware** (clearance, counterbore, countersink, nut trap, insert, magnet).
+- **Hardware**: **Embed Hardware** (a pocket for a part dropped in mid-print),
   **Pauses** (every pause the print needs), **Thread Lookup**.
 - **Output**: **Slice**, **Cut Export** (DXF and SVG laid out on the sheet),
   **Mill Export** (STEP and a setup sheet).

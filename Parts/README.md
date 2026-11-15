@@ -60,7 +60,7 @@ or what fit your printer gets. **OK** makes the part as one undo step;
 <!-- screenshot: the Gridfinity bin task panel with its values and the live line -->
 
 Holes get your printer's fit calibration if you made one with Workshop
-Make's **Calibrate**; without one, they are made 0.2 mm big.
+Make's **Calibrate Printer**; without one, they are made 0.2 mm big.
 
 **From Python or a macro:**
 

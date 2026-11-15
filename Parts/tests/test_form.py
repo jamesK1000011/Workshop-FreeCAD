@@ -81,7 +81,7 @@ class QFileDialog:
     def getOpenFileName(cls, *a): return (cls.answer, "")
 
 qt = types.ModuleType("PySide.QtGui")
-for n in ("QWidget", "QLabel", "QPushButton", "QLineEdit", "QHBoxLayout", "QVBoxLayout"):
+for n in ("QWidget", "QLabel", "QPushButton", "QLineEdit", "QHBoxLayout", "QVBoxLayout", "QTableWidget"):
     setattr(qt, n, type(n, (W,), {}))
 for c in (QFormLayout, QCheckBox, QComboBox, QSpinBox, QDoubleSpinBox, QFileDialog):
     setattr(qt, c.__name__, c)
@@ -124,11 +124,11 @@ def run(code):
 class Form(unittest.TestCase):
     def test_built_from_each_table(self):
         out = run("""
-from workshop_parts import api, form
+from workshop_parts import api, form, commands
 for g in api.GENERATORS:
     t = api.params(g)
-    w, lay, fields = form.build(t, "intro")
-    asked = [k for k, s in t.items() if s.get("kind") in ("bool", "enum", "int", "num")]
+    w, lay, fields = form.build(t, "intro", columns=commands.COLUMNS.get(g))
+    asked = [k for k, s in t.items() if s.get("kind") in ("bool", "enum", "int", "num", "points") or (s.get("kind") == "list" and k in commands.COLUMNS.get(g, {}))]
     OUT[g] = {"fields": list(fields), "asked": asked, "rows": len(lay.rows), "values": form.read(fields), "checked": api.check(g, form.read(fields))}
 """)
         for g, o in out.items():
@@ -216,9 +216,49 @@ OUT["fallback"] = form.label_of("dividersX")
             for label in rows:
                 self.assertTrue(label[:1].isupper(), (g, label))
                 self.assertNotIn(label, ("x", "y", "units", "dividersX", "gapLid"), g)
+            self.assertEqual(len(rows), len(set(rows)), (g, "two fields with one label"))
         self.assertEqual(out["style"], ["Open", "Magnets"])
         self.assertEqual(out["value"], "open")
         self.assertEqual(out["fallback"], "Dividers x")
+
+    def test_board_box_asks_for_the_board(self):
+        out = run("""
+from workshop_parts import api, form, commands
+t = api.params("board_box")
+w, lay, fields = form.build(t, "", labels=commands.LABELS["board_box"], columns=commands.COLUMNS["board_box"])
+OUT["labels"] = {k: form.label_of(k, commands.LABELS["board_box"]) for k in ("board", "holes", "openings", "gap", "gapLid")}
+OUT["first"] = form.read(fields)
+fields["holes"][1].add({"x": 3.5, "y": 3.5})
+fields["holes"][1].add({"x": 46.5, "y": 3.5})
+fields["openings"][1].add({"side": "front", "at": 10, "width": 9, "height": 3.5})
+fields["board"][1].boxes[0].setValue(60)
+v = form.read(fields)
+OUT["v"] = [v["board"], v["holes"], v["openings"]]
+OUT["checked"] = api.check("board_box", v)["holes"]
+fields["holes"][1].remove()
+OUT["after"] = form.read(fields)["holes"]
+""")
+        self.assertEqual(out["labels"], {"board": "Board size", "holes": "Mounting holes", "openings": "Connector openings",
+                                         "gap": "Board to wall gap", "gapLid": "Lid spacing on the bed"})
+        self.assertEqual((out["first"]["board"], out["first"]["holes"], out["first"]["openings"]), ([50.0, 30.0], [], []))
+        self.assertEqual(out["v"], [[60.0, 30.0], [[3.5, 3.5], [46.5, 3.5]], [{"side": "front", "at": 10.0, "width": 9.0, "height": 3.5, "z": 0.0}]])
+        self.assertEqual(out["checked"], [[3.5, 3.5], [46.5, 3.5]])
+        self.assertEqual(out["after"], [[3.5, 3.5]])
+
+    def test_magnet_floor_off_while_open(self):
+        out = run("""
+from workshop_parts import api, form, commands
+states = []
+p = form.TaskPanel("Gridfinity Baseplate", api.params("gridfinity_baseplate"), labels=commands.LABELS["gridfinity_baseplate"],
+                   needs=commands.NEEDS["gridfinity_baseplate"])
+floor = p.fields["floor"][1]
+floor.setEnabled = states.append
+p.update()
+p.fields["style"][1].setCurrentIndex(1)
+p.fields["style"][1].setCurrentIndex(0)
+OUT["states"] = states
+""")
+        self.assertEqual(out["states"], [False, True, False])
 
     def test_a_second_task_is_refused(self):
         out = run("""
