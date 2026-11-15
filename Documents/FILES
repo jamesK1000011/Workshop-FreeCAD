@@ -17,6 +17,7 @@ tests/test_handlers.py
 tests/test_icons.py
 tests/test_iso286.py
 tests/test_layout.py
+tests/test_layout_placer.py
 tests/test_loads_alone.py
 tests/test_panel.py
 tests/test_release.py
