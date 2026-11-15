@@ -15,7 +15,6 @@ installed, the same functions are also tools an AI agent can call.
 | [Workshop Make](Make/README.md) | Getting a part made: setups, a printability check and one verdict, fits and hardware holes for your printer, threads, parts encased mid-print, mass, slicing, printers on the network, and output for laser, waterjet and mill. |
 | [Workshop Electronics](Electronics/README.md) | KiCad boards read without KiCad, enclosures round them, PCB order packages, channels for wire inside printed parts. |
 | [Workshop Documents](Documents/README.md) | Drawing sheets, assembly manuals, patent figures and a draft, and library packs to share. |
-| [Workshop Common](Common/README.md) | No longer needed; remove it. |
 
 ## Install
 
