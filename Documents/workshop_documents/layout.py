@@ -219,9 +219,22 @@ def combo_tabs(mw):
     _c, QtWidgets = _qt()
     t = d.findChild(QtWidgets.QTabWidget, "combiTab")
     if t is None:
-        kids = d.findChildren(QtWidgets.QTabWidget)
+        # The outermost tab widget in the dock (Model, Tasks), not the
+        # property editor's View/Data tabs inside the Model tab, which
+        # findChildren can list first (seen in FreeCAD 1.1 on the Mac).
+        kids = [k for k in d.findChildren(QtWidgets.QTabWidget) if not _inside_tabs(k, d, QtWidgets)]
         t = kids[0] if kids else None
     return t
+
+
+def _inside_tabs(w, stop, QtWidgets):
+    """Whether w sits inside another QTabWidget below stop."""
+    p = w.parentWidget()
+    while p is not None and p is not stop:
+        if isinstance(p, QtWidgets.QTabWidget):
+            return True
+        p = p.parentWidget()
+    return False
 
 
 def combo_dock(mw):
