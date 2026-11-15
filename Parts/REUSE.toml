@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
 version = 1
 
 [[annotations]]
@@ -8,3 +9,14 @@ SPDX-License-Identifier = "LGPL-2.1-or-later"
 # Hand-drawn in FreeCAD's icon style (Tango palette). Compositions follow the
 # Tabler Icons (MIT) and Pictogrammers MDI (Apache-2.0) glyphs named in
 # workshop_parts/icons/CREDITS.md; no source paths were copied. Licence texts: LICENSES/.
+
+[[annotations]]
+path = ["workshop_parts/data/**"]
+SPDX-FileCopyrightText = "Workshop for FreeCAD contributors"
+SPDX-License-Identifier = "CC-BY-4.0"
+# Data files and their schemas (LICENSE-DATA). Each entry names its source and date.
+
+[[annotations]]
+path = ["FILES", "package.xml", "CHANGELOG.md", "workshop_parts/guides/*.md", "workshop_parts/icons/CREDITS.md"]
+SPDX-FileCopyrightText = "Workshop for FreeCAD contributors"
+SPDX-License-Identifier = "LGPL-2.1-or-later"

@@ -1,7 +1,12 @@
+CHANGELOG.md
 Init.py
 InitGui.py
+LICENSE
+LICENSE-DATA
 LICENSES/Apache-2.0.txt
+LICENSES/CC-BY-4.0.txt
 LICENSES/MIT.txt
+README.md
 REUSE.toml
 package.xml
 tests/test_api.py
@@ -10,6 +15,8 @@ tests/test_handlers.py
 tests/test_icons.py
 tests/test_loads_alone.py
 tests/test_parts_agent.py
+tests/test_release.py
+tools/gen_readme_tools.py
 workshop_parts/__init__.py
 workshop_parts/agentlink_families.py
 workshop_parts/api.py

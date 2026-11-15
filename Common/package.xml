@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
   <name>Workshop Common</name>
-  <description>No longer needed: each Workshop for FreeCAD add-on has its own workbench. This last release registers nothing and can be removed.</description>
+  <description>No longer needed: each Workshop for FreeCAD add-on has its own workbench. This last release registers nothing and can be removed. Not affiliated with or endorsed by the FreeCAD project or the FPA.</description>
   <version>0.4.0</version>
   <date>2026-11-14</date>
   <maintainer email="jamesK1000011@users.noreply.github.com">jamesK1000011</maintainer>
-  <license file="../LICENSE">LGPL-2.1-or-later</license>
+  <license file="LICENSE">LGPL-2.1-or-later</license>
   <url type="repository" branch="main">https://github.com/jamesK1000011/Workshop-FreeCAD</url>
+  <url type="bugtracker">https://github.com/jamesK1000011/Workshop-FreeCAD/issues</url>
+  <url type="readme">https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/Common/README.md</url>
   <freecadmin>1.0.0</freecadmin>
+  <tag>deprecated</tag>
   <content>
     <other>
       <name>Workshop Common</name>
