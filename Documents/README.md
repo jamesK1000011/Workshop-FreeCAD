@@ -109,6 +109,18 @@ and date, under CC BY 4.0 (`LICENSE-DATA`). Your own entries go in
 `~/.config/workshop_documents/filaments.json`; updates never touch that
 folder, and your entries win.
 
+## Uninstall and privacy
+
+Installed with Workshop for FreeCAD through the Addon Manager, it is removed
+with it (Tools ▸ Addon manager ▸ Workshop for FreeCAD ▸ Uninstall). Installed
+by Agent Link or by hand, delete the `WorkshopDocuments` folder from FreeCAD's `Mod`
+folder and restart FreeCAD. What it wrote beside your documents, or in
+`~/Workshop`, is yours to keep or delete.
+
+Workshop Documents has no telemetry. It makes no network connection on its own. Library packs are scrubbed of personal details before they are written. With Agent Link, what the agent
+reads goes to the AI provider your MCP client uses, under that provider's
+terms.
+
 ## For developers
 
 ```

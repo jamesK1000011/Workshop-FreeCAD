@@ -105,7 +105,8 @@ class RootPackage(unittest.TestCase):
                 self.assertRegex(initgui, r"(?m)^_%s_workbench\.add\(FreeCADGui\)" % pkg)
                 built = open(os.path.join(ROOT, d, pkg, "workbench.py"), encoding="utf-8").read()
                 self.assertRegex(built, r"(?m)^    class %s\(Gui\.Workbench\)" % re.escape(cls))
-                self.assertTrue(os.path.isfile(os.path.join(ROOT, self.one("icon", wbs[d]).text.strip())), d)
+                # A workbench icon is relative to its subdirectory, as FreeCAD reads it.
+                self.assertTrue(os.path.isfile(os.path.join(ROOT, d, self.one("icon", wbs[d]).text.strip())), d)
                 self.assertEqual(own.find("p:freecadmin", NS).text, self.one("freecadmin").text)
         self.assertEqual(sorted(wbs), sorted(want))
         self.assertGreaterEqual(len(want), 4)
