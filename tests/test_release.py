@@ -11,7 +11,18 @@ import subprocess
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ADDONS = [d for d in sorted(os.listdir(ROOT)) if os.path.isfile(os.path.join(ROOT, d, "package.xml"))]
+# This repository's own add-ons: a folder with a package.xml that git tracks.
+# CI checks Agent Link and OrcaLink out beside them in the same folder; those
+# have package.xml too but are not ours (red CI from f3663a5 on).
+def _ours(d):
+    try:
+        out = subprocess.run(["git", "ls-files", "--error-unmatch", f"{d}/package.xml"], cwd=ROOT, capture_output=True, text=True)
+    except OSError:
+        return True
+    return out.returncode == 0
+
+
+ADDONS = [d for d in sorted(os.listdir(ROOT)) if os.path.isfile(os.path.join(ROOT, d, "package.xml")) and _ours(d)]
 MAIN = "LGPL-2.1-or-later"
 SOURCE = (".py", ".js", ".mjs", ".sh")
 NS = {"p": "https://wiki.freecad.org/Package_Metadata"}
