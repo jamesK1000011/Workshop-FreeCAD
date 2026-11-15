@@ -15,8 +15,9 @@ from . import handlers
 from .handlers import thread as H
 
 GROUP = "thread"
+WORKBENCHES = {"thread_lookup": "WorkshopMakeWorkbench"}  # Workshop Make's bench, where their buttons are
+COMMANDS = {"thread_lookup": "Workshop_Make_ThreadLookup"}  # the button that does the same
 INFO = "Screw threads: metric and Unified sizes from the standards, what size a hole or shaft is, and threads cut on holes."
-WORKBENCHES = {"thread_": "WorkshopMakeWorkbench"}  # the Workshop Make bench while these run
 
 # Add-ons that read a thread off a scan register a reader of kind
 # "thread_scan" with Agent Link: f(session, args) -> its reading.

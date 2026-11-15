@@ -12,8 +12,9 @@ from . import handlers
 from .handlers import fits as H
 
 GROUP = "fits"
+WORKBENCHES = {"fit": "WorkshopMakeWorkbench", "hw_hole": "WorkshopMakeWorkbench"}  # Workshop Make's bench, where their buttons are
+COMMANDS = {"fit": "Workshop_Make_FitSize", "hw_hole": "Workshop_Make_Hole"}  # the button that does the same
 INFO = "Fits, printer calibration, tolerance stacks and holes for hardware (Workshop for FreeCAD · Make)."
-WORKBENCHES = {"fit": "WorkshopMakeWorkbench", "hw_": "WorkshopMakeWorkbench"}  # the Workshop Make bench while these run
 LEAN = True
 
 handlers.lend(H, ToolError=ToolError)
@@ -21,3 +22,10 @@ handlers.lend(H, ToolError=ToolError)
 
 def tools(session):
     return tooldefs.build("fits", handlers.bound(session, H.HANDLERS))
+
+
+def command_for(name, args):
+    """The button for a call whose button depends on what it asks."""
+    if name == "fit" and (args or {}).get("action") == "calibrate":
+        return "Workshop_Make_Calibrate"
+    return COMMANDS.get(name)

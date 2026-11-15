@@ -402,7 +402,7 @@
   },
   "part_spec": {
    "group": "make",
-   "description": "The limits every part must meet, kept with the document: spec { minWall mm, massMin g, massMax g } (null drops one; clear: true starts again), and what parts are made of: material (pla, petg, abs, asa, pa6-cf, tpu-95a) for bodies (the one body when left out).",
+   "description": "The limits every part must meet, kept with the document: spec { minWall mm, massMin g, massMax g } (null drops one; clear: true starts again), and what parts are made of: material (pla, petg, abs, asa, pa6-cf, tpu-95a; \"\" forgets theirs) for bodies (the one body when left out).",
    "inputSchema": {
     "type": "object",
     "properties": {

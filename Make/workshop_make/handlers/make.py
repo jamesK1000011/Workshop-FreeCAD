@@ -112,6 +112,8 @@ def part_spec(s, a):
     mats = store.materials(s.doc)
     if a.get("material"):
         mats = api.material_set(s.doc, [s.body(b).Label for b in (a.get("bodies") or [s.body(None).Label])], a["material"])
+    elif a.get("material") == "":
+        mats = api.material_clear(s.doc, [s.body(b).Label for b in (a.get("bodies") or [s.body(None).Label])])
     return {"spec": spec, "materials": mats}
 
 

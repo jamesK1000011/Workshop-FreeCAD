@@ -14,10 +14,11 @@ from . import handlers
 from .handlers import make as H
 
 GROUP = "make"
+WORKBENCHES = {"setup": "WorkshopMakeWorkbench", "dfm_check": "WorkshopMakeWorkbench", "part_review": "WorkshopMakeWorkbench", "slice": "WorkshopMakeWorkbench"}  # Workshop Make's bench, where their buttons are
+COMMANDS = {"setup": "Workshop_Make_NewSetup", "dfm_check": "Workshop_Make_DfmCheck", "part_review": "Workshop_Make_PartReview", "slice": "Workshop_Make_Slice"}  # the button that does the same
 SHOWN = ("dfm_check", "part_review")
 # The Workshop Make bench while these run (Agent Link's echo; exact names, so
 # part_review and part_spec are not taken for core's part_ → Part).
-WORKBENCHES = {"setup": "WorkshopMakeWorkbench", "dfm_check": "WorkshopMakeWorkbench", "part_review": "WorkshopMakeWorkbench", "part_spec": "WorkshopMakeWorkbench"}
 INFO = "How each part is made (setups), its limits and material, the printability check, the verdict, slicing (Workshop for FreeCAD · Make)."
 LEAN = True
 
@@ -31,3 +32,11 @@ handlers.lend(H, ToolError=ToolError, hooks=hooks, matfam=matfam)
 
 def tools(session):
     return tooldefs.build("make", handlers.bound(session, H.HANDLERS))
+
+
+def command_for(name, args):
+    """The button for a call whose button depends on what it asks."""
+    act = (args or {}).get("action")
+    if name == "setup" and act in ("set", "remove"):
+        return "Workshop_Make_" + ("AddBody" if act == "set" else "RemoveSetup")
+    return COMMANDS.get(name)

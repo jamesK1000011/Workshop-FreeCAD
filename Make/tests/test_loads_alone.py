@@ -80,7 +80,11 @@ class LoadsAlone(unittest.TestCase):
         out = load()
         [b] = out["benches"]
         self.assertEqual((b["class"], b["MenuText"], b["classname"]), ("WorkshopMakeWorkbench", "Workshop Make", "Gui::PythonWorkbench"))
-        self.assertEqual((b["toolbars"], b["menus"], out["commands"]), ({}, {}, {}))
+        self.assertEqual(list(b["toolbars"]), ["Setup", "Check", "Fits", "Hardware", "Output", "Printer"])
+        self.assertEqual(b["toolbars"]["Check"], ["Workshop_Make_DfmCheck", "Workshop_Make_PartReview", "Workshop_Make_MassProperties"])
+        self.assertEqual(b["toolbars"]["Printer"], ["Workshop_Make_PrinterStatus", "Workshop_Make_PrinterSend"])
+        self.assertIn("Workshop_Make_Panel", b["menus"]["&Make"])
+        self.assertEqual(set(out["commands"]), set(b["menus"]["&Make"]))
     def test_nothing_else_loaded(self):
         out = load()
         self.assertEqual(out["said"], [])
@@ -95,6 +99,54 @@ class LoadsAlone(unittest.TestCase):
                 if isinstance(n, ast.Assign) and any(getattr(x, "id", None) == "WORKBENCHES" for x in n.targets):
                     benches |= set(ast.literal_eval(n.value).values())
         self.assertEqual(benches, {"WorkshopMakeWorkbench"})
+
+# Changing tools with no button of their own (the agent's; the panel's tabs
+# use some of them: part_spec in Materials).
+NO_BUTTON = {"part_spec", "hw_embed_list", "hw_unembed", "mass_ballast", "mass_target", "mass_calibrate", "thread_cut",
+             "slice_with", "slice_open", "slicer_presets", "printer_add", "printer_pause", "printer_stop", "fea_frame",
+             "cut_check", "mill_check", "slice_read", "thread_identify", "printer_list"}
+
+
+def declared(name):
+    import ast
+    import glob
+
+    out = {}
+    for f in glob.glob(os.path.join(ROOT, "workshop_make", "fam_*.py")):
+        for n in ast.parse(open(f, encoding="utf-8").read()).body:
+            if isinstance(n, ast.Assign) and any(getattr(x, "id", None) == name for x in n.targets):
+                out.update(ast.literal_eval(n.value))
+    return out
+
+
+class Echo(unittest.TestCase):
+    def test_every_button_is_declared_and_only_those(self):
+        with open(os.path.join(ROOT, "workshop_make", "data", "tools.json"), encoding="utf-8") as f:
+            tools = json.load(f)["entries"]
+        cmds, benches = declared("COMMANDS"), declared("WORKBENCHES")
+        self.assertEqual(set(benches), set(cmds), "a bench switch only where the tool has a button")
+        registered = set(load()["commands"])
+        self.assertEqual({v for v in cmds.values() if v not in registered}, set())
+        self.assertEqual({k for k in cmds if k not in tools}, set())
+        changing = {k for k, v in tools.items() if v.get("changes")}
+        self.assertEqual({k for k in changing if k not in cmds and k not in NO_BUTTON}, set())
+        self.assertEqual({k for k in NO_BUTTON & set(cmds)}, set())
+
+    def test_args_pick_the_button(self):
+        from _stubs import run
+
+        out = run(r'''
+al = types.ModuleType("agentlink"); pr = types.ModuleType("agentlink.protocol")
+class ToolError(Exception):
+    def __init__(self, code, message): super().__init__(message); self.code, self.message = code, message
+pr.ToolError = ToolError; al.protocol = pr
+sys.modules.update({"agentlink": al, "agentlink.protocol": pr})
+from workshop_make import fam_fits, fam_make
+OUT["fits"] = [fam_fits.command_for(*c) for c in (("fit", {"action": "calibrate"}), ("fit", {"action": "size"}), ("hw_hole", {}))]
+OUT["make"] = [fam_make.command_for(*c) for c in (("setup", {"action": "add"}), ("setup", {"action": "set"}), ("setup", {"action": "remove"}), ("part_review", {}))]
+''')
+        self.assertEqual(out["fits"], ["Workshop_Make_Calibrate", "Workshop_Make_FitSize", "Workshop_Make_Hole"])
+        self.assertEqual(out["make"], ["Workshop_Make_NewSetup", "Workshop_Make_AddBody", "Workshop_Make_RemoveSetup", "Workshop_Make_PartReview"])
 
 if __name__ == "__main__":
     unittest.main()

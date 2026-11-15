@@ -7,7 +7,11 @@
 # print-aware strength on fea_setup and fea_solve, and the wall and
 # scan-thread readers asked through Agent Link's hooks.
 # Agent Link finds this module by convention and never names it; without
-# Agent Link it is never loaded.
+# Agent Link it is never loaded. It also hosts Make's panel tabs (Setups,
+# Materials, Fits) in Agent Link's panel over its panel._call, gives its
+# Review tab the part_review verdict, and says Make is hosted (so Make's own
+# dock stays away).
+from . import handlers
 from . import fam_cut, fam_embed, fam_fits, fam_frame, fam_make, fam_mass, fam_mill, fam_printer, fam_slicing, fam_thread, maps, printability, printed
 
 AGENTLINK_API = ">=1,<2"
@@ -28,7 +32,30 @@ def _register():
     printed.register(hooks)
 
 
+def _host():
+    """Make's panel tabs in Agent Link's panel and its reviewer."""
+    import workshop_make
+
+    from agentlink import hooks
+
+    workshop_make._hosted = True
+    if hasattr(hooks, "register_tab"):
+        from . import panel
+
+        for title, cls, order in panel.HOSTED:
+            if not any(t.get("title") == title for t in getattr(hooks, "TABS", [])):
+                hooks.register_tab(title, panel.factory(cls), order)
+    if hasattr(hooks, "register_reviewer"):
+        hooks.register_reviewer(handlers.review)
+
+
 try:
     _register()
 except Exception:  # noqa: BLE001 — an Agent Link without these hooks: the tools still load
     pass
+try:
+    _host()
+except Exception:  # noqa: BLE001 — no Qt (a headless Agent Link): the tools still load
+    import workshop_make
+
+    workshop_make._hosted = True

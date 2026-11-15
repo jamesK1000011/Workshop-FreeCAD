@@ -14,8 +14,9 @@ from . import handlers
 from .handlers import mass as H
 
 GROUP = "mass"
+WORKBENCHES = {"mass_properties": "WorkshopMakeWorkbench"}  # Workshop Make's bench, where their buttons are
+COMMANDS = {"mass_properties": "Workshop_Make_MassProperties"}  # the button that does the same
 INFO = "Mass, centre of mass and inertia (as printed or solid, encased parts counted), distance from a target, ballast pockets to reach it."
-WORKBENCHES = {"mass_": "WorkshopMakeWorkbench"}  # the Workshop Make bench while these run
 
 handlers.lend(H, matfam=matfam, ToolError=ToolError)
 

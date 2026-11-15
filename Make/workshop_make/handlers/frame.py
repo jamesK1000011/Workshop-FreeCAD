@@ -20,6 +20,7 @@ ToolError = Refusal
 
 
 V = FreeCAD.Vector
+G = 9810.0  # mm/s², gravity (as Agent Link's strength family had it before the move)
 
 
 def fea_frame(s, a):
