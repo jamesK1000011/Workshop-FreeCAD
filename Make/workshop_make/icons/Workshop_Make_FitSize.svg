@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<title>Workshop_Make_FitSize</title>
+<defs><linearGradient id="Workshop_Make_FitSize_g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fcaf3e"/><stop offset="1" stop-color="#f57900"/></linearGradient><linearGradient id="Workshop_Make_FitSize_g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#729fcf"/><stop offset="1" stop-color="#3465a4"/></linearGradient></defs>
+<path d="M4,34 H60 V60 H4 Z" fill="url(#Workshop_Make_FitSize_g1)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M22,34 V52 H42 V34" fill="#ce5c00" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="25" y="6" width="14" height="42" rx="2" fill="url(#Workshop_Make_FitSize_g2)" stroke="#204a87" stroke-width="2" stroke-linejoin="round"/>
+<rect x="27" y="8" width="10" height="38" rx="0" fill="none" stroke="#729fcf" stroke-width="2" opacity="0.8"/>
+<path d="M22,20 V32 M42,20 V32" fill="none" stroke="#a40000" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M23,26 H41" fill="none" stroke="#a40000" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M23,26 H41" fill="none" stroke="#ef2929" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M23,26 L29,22 V30 Z M41,26 L35,22 V30 Z" fill="#cc0000" stroke="#a40000" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>

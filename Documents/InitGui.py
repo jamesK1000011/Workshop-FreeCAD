@@ -4,8 +4,16 @@
 # drafts, each a command over Documents' own runner (the handler the agent's
 # tool calls; a drawing's page opens in TechDraw), and its Manual panel.
 # Needs no other add-on.
+import os
+
 import FreeCAD
 import FreeCADGui
+
+import workshop_documents
+
+# Its icons, by file stem: the commands' Pixmap names (design 5).
+_ICONS = os.path.join(os.path.dirname(os.path.abspath(workshop_documents.__file__)), "icons")
+FreeCADGui.addIconPath(_ICONS)
 
 try:
     from workshop_documents import commands as _documents_commands  # registers the commands
@@ -16,6 +24,7 @@ except Exception as e:  # noqa: BLE001 — never stop FreeCAD starting
 
 class WorkshopDocumentsWorkbench(FreeCADGui.Workbench):
     MenuText = "Workshop Documents"
+    Icon = os.path.join(_ICONS, "Workshop_Documents_Workbench.svg")
     ToolTip = "Drawings and documents from the bodies: dimensioned sheets, assembly manuals, patent figures, library packs (Workshop for FreeCAD)"
 
     def Initialize(self):

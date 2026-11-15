@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<title>Workshop_Parts_BoardBox</title>
+<defs><linearGradient id="Workshop_Parts_BoardBox_g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fcaf3e"/><stop offset="1" stop-color="#f57900"/></linearGradient><linearGradient id="Workshop_Parts_BoardBox_g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f57900"/><stop offset="1" stop-color="#ce5c00"/></linearGradient><linearGradient id="Workshop_Parts_BoardBox_g3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8ae234"/><stop offset="1" stop-color="#73d216"/></linearGradient><linearGradient id="Workshop_Parts_BoardBox_g4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#888a85"/><stop offset="1" stop-color="#555753"/></linearGradient></defs>
+<path d="M4,34 H42 V60 H4 Z" fill="url(#Workshop_Parts_BoardBox_g1)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M42,34 L60,22 V48 L42,60 Z" fill="url(#Workshop_Parts_BoardBox_g2)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M4,34 L22,22 H60 L42,34 Z" fill="#ce5c00" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M10,32 L24,24 H54 L40,32 Z" fill="url(#Workshop_Parts_BoardBox_g3)" stroke="#4e9a06" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="16" cy="30" r="1.6" fill="#eeeeec" stroke="#4e9a06" stroke-width="1"/>
+<circle cx="38" cy="30" r="1.6" fill="#eeeeec" stroke="#4e9a06" stroke-width="1"/>
+<circle cx="28" cy="25" r="1.6" fill="#eeeeec" stroke="#4e9a06" stroke-width="1"/>
+<circle cx="49" cy="25" r="1.6" fill="#eeeeec" stroke="#4e9a06" stroke-width="1"/>
+<rect x="28" y="12" width="12" height="10" rx="1" fill="url(#Workshop_Parts_BoardBox_g4)" stroke="#2e3436" stroke-width="2" stroke-linejoin="round"/>
+<path d="M30,22 v3 M34,22 v3 M38,22 v3" fill="none" stroke="#555753" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>

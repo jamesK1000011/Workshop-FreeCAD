@@ -7,6 +7,7 @@
   <maintainer email="jamesK1000011@users.noreply.github.com">jamesK1000011</maintainer>
   <license file="../LICENSE">LGPL-2.1-or-later</license>
   <url type="repository" branch="main">https://github.com/jamesK1000011/Workshop-FreeCAD</url>
+  <icon>workshop_documents/icons/Workshop_Documents_Workbench.svg</icon>
   <freecadmin>1.0.0</freecadmin>
   <tag>TechDraw</tag>
   <tag>drawing</tag>
@@ -17,6 +18,7 @@
       <name>Workshop Documents</name>
       <classname>WorkshopDocumentsWorkbench</classname>
       <subdirectory>./</subdirectory>
+      <icon>workshop_documents/icons/Workshop_Documents_Workbench.svg</icon>
     </workbench>
   </content>
 </package>

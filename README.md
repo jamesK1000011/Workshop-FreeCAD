@@ -71,3 +71,8 @@ and `agentlink/families/parts.py` up to commit c954763.
 
 LGPL-2.1-or-later. The Gridfinity profile follows the open Gridfinity
 system by Zack Freedman.
+
+Icons adapted from Tabler Icons (MIT, tabler.io) and Pictogrammers Material
+Design Icons (Apache-2.0, pictogrammers.com). FreeCAD's own icons are used by
+name from FreeCAD. Each add-on's `icons/CREDITS.md` lists what each file
+follows; the licence texts are in its `LICENSES/`.

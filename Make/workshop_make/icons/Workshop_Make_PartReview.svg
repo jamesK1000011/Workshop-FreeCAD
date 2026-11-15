@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<title>Workshop_Make_PartReview</title>
+<defs><linearGradient id="Workshop_Make_PartReview_g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fcaf3e"/><stop offset="1" stop-color="#f57900"/></linearGradient><linearGradient id="Workshop_Make_PartReview_g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f57900"/><stop offset="1" stop-color="#ce5c00"/></linearGradient><linearGradient id="Workshop_Make_PartReview_g3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#729fcf"/><stop offset="1" stop-color="#3465a4"/></linearGradient></defs>
+<path d="M4,18 h30 v30 h-30 Z" fill="url(#Workshop_Make_PartReview_g1)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M4,18 L18,4 L48,4 L34,18 Z" fill="#fcaf3e" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M34,18 L48,4 L48,34 L34,48 Z" fill="url(#Workshop_Make_PartReview_g2)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M6,46 V20 H32" fill="none" stroke="#fcaf3e" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.8"/>
+<path d="M44,44 L58,58" fill="none" stroke="#2e3436" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M44,44 L58,58" fill="none" stroke="#888a85" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="34" cy="34" r="14" fill="url(#Workshop_Make_PartReview_g3)" stroke="#204a87" stroke-width="2"/>
+<circle cx="34" cy="34" r="12" fill="none" stroke="#729fcf" stroke-width="2" opacity="0.8"/>
+<circle cx="34" cy="34" r="14" fill="none" stroke="#2e3436" stroke-width="4"/>
+<circle cx="34" cy="34" r="14" fill="none" stroke="#babdb6" stroke-width="2"/>
+<path d="M26,30 A9,9 0 0 1 32,25" fill="none" stroke="#eeeeec" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.9"/>
+</svg>

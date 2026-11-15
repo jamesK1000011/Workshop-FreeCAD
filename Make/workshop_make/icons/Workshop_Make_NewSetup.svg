@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<title>Workshop_Make_NewSetup</title>
+<defs><linearGradient id="Workshop_Make_NewSetup_g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eeeeec"/><stop offset="1" stop-color="#babdb6"/></linearGradient><linearGradient id="Workshop_Make_NewSetup_g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fcaf3e"/><stop offset="1" stop-color="#f57900"/></linearGradient><linearGradient id="Workshop_Make_NewSetup_g3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fcaf3e"/><stop offset="1" stop-color="#f57900"/></linearGradient><linearGradient id="Workshop_Make_NewSetup_g4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fcaf3e"/><stop offset="1" stop-color="#f57900"/></linearGradient><linearGradient id="Workshop_Make_NewSetup_g5" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8ae234"/><stop offset="1" stop-color="#73d216"/></linearGradient></defs>
+<rect x="8" y="8" width="38" height="50" rx="3" fill="url(#Workshop_Make_NewSetup_g1)" stroke="#2e3436" stroke-width="2" stroke-linejoin="round"/>
+<rect x="10" y="10" width="34" height="46" rx="1" fill="none" stroke="#888a85" stroke-width="2" opacity="0.8"/>
+<rect x="18" y="4" width="18" height="9" rx="2" fill="#888a85" stroke="#2e3436" stroke-width="2" stroke-linejoin="round"/>
+<rect x="13" y="19" width="6" height="6" rx="1" fill="url(#Workshop_Make_NewSetup_g2)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round"/>
+<path d="M23,22 H40" fill="none" stroke="#555753" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="13" y="29" width="6" height="6" rx="1" fill="url(#Workshop_Make_NewSetup_g3)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round"/>
+<path d="M23,32 H36" fill="none" stroke="#555753" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="13" y="39" width="6" height="6" rx="1" fill="url(#Workshop_Make_NewSetup_g4)" stroke="#ce5c00" stroke-width="2" stroke-linejoin="round"/>
+<path d="M23,42 H40" fill="none" stroke="#555753" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="48" cy="48" r="12" fill="url(#Workshop_Make_NewSetup_g5)" stroke="#4e9a06" stroke-width="2"/>
+<circle cx="48" cy="48" r="10" fill="none" stroke="#8ae234" stroke-width="2" opacity="0.8"/>
+<path d="M42.0,48 H54.0 M48,42.0 V54.0" fill="none" stroke="#eeeeec" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>

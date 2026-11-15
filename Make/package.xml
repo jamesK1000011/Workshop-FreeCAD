@@ -7,6 +7,7 @@
   <maintainer email="jamesK1000011@users.noreply.github.com">jamesK1000011</maintainer>
   <license file="../LICENSE">LGPL-2.1-or-later</license>
   <url type="repository" branch="main">https://github.com/jamesK1000011/Workshop-FreeCAD</url>
+  <icon>workshop_make/icons/Workshop_Make_Workbench.svg</icon>
   <freecadmin>1.0.0</freecadmin>
   <tag>3D printing</tag>
   <tag>threads</tag>
@@ -16,6 +17,7 @@
       <name>Workshop Make</name>
       <classname>WorkshopMakeWorkbench</classname>
       <subdirectory>./</subdirectory>
+      <icon>workshop_make/icons/Workshop_Make_Workbench.svg</icon>
     </workbench>
   </content>
 </package>

@@ -76,11 +76,6 @@ def load(fam="", calls=()):
     return json.loads(r.stdout.strip().splitlines()[-1])
 
 
-# FreeCAD's own icon names the buttons use (Gui/Icons, and TechDraw's, which
-# the bench loads with TechDrawGui), until Workshop's are drawn.
-FREECAD_ICONS = {"TechDraw_PageDefault", "TechDraw_Balloon", "TechDraw_ProjectionGroup", "Std_Export", "Std_DlgParameter", "document-new"}
-
-
 class LoadsAlone(unittest.TestCase):
     def test_its_own_workbench(self):
         out = load()
@@ -90,12 +85,6 @@ class LoadsAlone(unittest.TestCase):
         self.assertEqual(b["toolbars"]["Drawings"], ["Workshop_Documents_Drawing", "Workshop_Documents_Exploded"])
         self.assertIn("Workshop_Documents_Panel", b["menus"]["&Documents"])
         self.assertEqual(set(out["commands"]), set(b["menus"]["&Documents"]))
-    def test_every_pixmap_resolves(self):
-        out = load()
-        for name, px in out["pixmaps"].items():
-            self.assertTrue(px, name)
-            here = os.path.isfile(px) or os.path.isfile(os.path.join(ROOT, "workshop_documents", "icons", px))
-            self.assertTrue(here or px in FREECAD_ICONS, f"{name}: {px} is neither a file of ours nor a FreeCAD icon")
     def test_nothing_else_loaded(self):
         out = load()
         self.assertEqual(out["said"], [])

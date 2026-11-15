@@ -2,8 +2,8 @@
 """Documents' FreeCAD commands: each runs one of Documents' tools through its
 own runner (workshop_documents.runner: the handler the agent's tool calls,
 one undo step when it changes the document), on the parts selected or all of
-them. Forms open as task panels. Icons are FreeCAD's own, by name, until
-Workshop's are drawn. No agent and no Agent Link needed."""
+them. Forms open as task panels. Icons: Documents' own (icons/, by file stem)
+where FreeCAD has none to reuse, else FreeCAD's own by name. No agent and no Agent Link needed."""
 import FreeCAD
 import FreeCADGui
 
@@ -79,7 +79,7 @@ class Form:
 
 class Panel:
     def GetResources(self):
-        return {"MenuText": "Manual panel", "ToolTip": "The Manual tab, an assembly manual step by step: Agent Link's panel when it hosts Documents, else Documents' own dock", "Pixmap": "Std_DlgParameter"}
+        return {"MenuText": "Manual panel", "ToolTip": "The Manual tab, an assembly manual step by step: Agent Link's panel when it hosts Documents, else Documents' own dock", "Pixmap": "Workshop_Documents_Manual"}
 
     def IsActive(self):
         return True
@@ -93,8 +93,8 @@ class Panel:
 # name (after Workshop_Documents_) -> command.
 COMMANDS = {
     "Drawing": Form("drawing", "Drawing", "A dimensioned sheet of standard views: a TechDraw page, and SVG, PDF and DXF files", "TechDraw_PageDefault"),
-    "Exploded": Form("exploded", "Exploded drawing", "An assembly manual: exploded views a step, balloons and a bill of materials", "TechDraw_Balloon"),
-    "LibraryPack": Form("library", "Library pack", "The parts as STEP and STL with a README, a licence and credits, nothing personal in the files", "Std_Export"),
+    "Exploded": Form("exploded", "Exploded drawing", "An assembly manual: exploded views a step, balloons and a bill of materials", "Workshop_Documents_Exploded"),
+    "LibraryPack": Form("library", "Library pack", "The parts as STEP and STL with a README, a licence and credits, nothing personal in the files", "Workshop_Documents_LibraryPack"),
     "PatentFigures": Run("patent_figures", "Patent figures", "Line figures of the parts with reference numerals, for a patent application", "TechDraw_ProjectionGroup"),
     "PatentDraft": Form("patent", "Patent draft", "A draft to start a patent attorney's work from: the figures described, numerals listed", "document-new"),
     "Panel": Panel(),

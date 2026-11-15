@@ -1,5 +1,8 @@
 Init.py
 InitGui.py
+LICENSES/Apache-2.0.txt
+LICENSES/MIT.txt
+REUSE.toml
 package.xml
 tests/_fc.py
 tests/_stubs.py
@@ -8,6 +11,7 @@ tests/test_cut.py
 tests/test_embed.py
 tests/test_frame.py
 tests/test_handlers.py
+tests/test_icons.py
 tests/test_loads_alone.py
 tests/test_mass.py
 tests/test_mill.py
@@ -77,6 +81,17 @@ workshop_make/handlers/mill.py
 workshop_make/handlers/printer.py
 workshop_make/handlers/slicing.py
 workshop_make/handlers/thread.py
+workshop_make/icons/CREDITS.md
+workshop_make/icons/Workshop_Make_Calibrate.svg
+workshop_make/icons/Workshop_Make_DfmCheck.svg
+workshop_make/icons/Workshop_Make_FitSize.svg
+workshop_make/icons/Workshop_Make_MassProperties.svg
+workshop_make/icons/Workshop_Make_NewSetup.svg
+workshop_make/icons/Workshop_Make_PartReview.svg
+workshop_make/icons/Workshop_Make_PrinterStatus.svg
+workshop_make/icons/Workshop_Make_Slice.svg
+workshop_make/icons/Workshop_Make_ThreadLookup.svg
+workshop_make/icons/Workshop_Make_Workbench.svg
 workshop_make/maps.py
 workshop_make/materials.py
 workshop_make/orcalib.py
