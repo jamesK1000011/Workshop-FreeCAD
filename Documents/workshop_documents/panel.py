@@ -273,6 +273,7 @@ def dock():
     tabs = QtWidgets.QTabWidget()
     tabs.addTab(ManualTab(), "Manual")
     d.setWidget(tabs)
+    d._tabs = tabs  # kept: in the Combo View or the slide-out it is not the dock's widget
     # Placed by show() through layout.py (the panel layout setting).
     return d
 
@@ -295,7 +296,7 @@ def show(title="Manual"):
                 return
     d = dock()
     try:
-        d.widget().widget(0).fill()
+        d._tabs.widget(0).fill()
     except Exception:
         pass
     p = layout.placer()
