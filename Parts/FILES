@@ -5,6 +5,7 @@ LICENSES/MIT.txt
 REUSE.toml
 package.xml
 tests/test_api.py
+tests/test_form.py
 tests/test_handlers.py
 tests/test_icons.py
 tests/test_loads_alone.py

@@ -112,6 +112,20 @@ def make(doc, generator, params=None, name=None, measure=False, placement=None):
     return out
 
 
+def check(generator, params=None):
+    """The values for a generator's params, defaults filled in, each checked
+    and nothing built (a task panel's live line). A value out of range:
+    Refused."""
+    if generator not in GENERATORS:
+        raise Refused(f"generator: one of {', '.join(GENERATORS)}.")
+    try:
+        if generator == "gridfinity_bin":
+            return gridfinity.values(params or {})
+        return boxes.check(GENERATORS[generator], params or {})
+    except ValueError as e:
+        raise Refused(str(e))
+
+
 def params(generator):
     """The parameter table for a generator: each one's kind, range, default
     and what it means (what the agent's tool description and the dialog

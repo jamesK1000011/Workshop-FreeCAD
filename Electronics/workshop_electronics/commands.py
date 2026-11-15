@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# Electronics' FreeCAD commands: a KiCad board read into the active document.
+# Electronics' FreeCAD commands: a KiCad board read into the active document,
+# through a task panel (taskpanels.py), not a modal dialog.
 import FreeCAD
 import FreeCADGui
 
-from . import api
 
 
 class ImportBoard:
@@ -14,27 +14,9 @@ class ImportBoard:
         return True
 
     def Activated(self):
-        from PySide import QtGui
+        from workshop_electronics import taskpanels
 
-        from workshop_electronics.refusal import Refused
-
-        path, _ = QtGui.QFileDialog.getOpenFileName(None, "KiCad board", "", "KiCad board (*.kicad_pcb)")
-        if not path:
-            return
-        doc = FreeCAD.ActiveDocument or FreeCAD.newDocument()
-        doc.openTransaction("KiCad board")
-        try:
-            o = api.add_board(doc, api.read_board(path))
-        except (Refused, ValueError) as e:
-            doc.abortTransaction()
-            FreeCAD.Console.PrintError(f"Workshop: {getattr(e, 'message', e)}\n")
-            return
-        doc.commitTransaction()
-        FreeCAD.Console.PrintMessage(f"Workshop: read {o.Label}.\n")
-        try:
-            FreeCADGui.SendMsgToActiveView("ViewFit")
-        except Exception:
-            pass
+        taskpanels.show_import_board(FreeCAD.ActiveDocument or FreeCAD.newDocument())
 
 
 NAMES = ["Workshop_Electronics_ImportBoard"]
