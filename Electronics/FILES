@@ -3,6 +3,7 @@ InitGui.py
 package.xml
 tests/test_api.py
 tests/test_electronics.py
+tests/test_handlers.py
 workshop_electronics/__init__.py
 workshop_electronics/agentlink_families.py
 workshop_electronics/api.py
@@ -17,6 +18,7 @@ workshop_electronics/enclosure.py
 workshop_electronics/fam_electronics.py
 workshop_electronics/geo.py
 workshop_electronics/guides/electronics.md
+workshop_electronics/handlers.py
 workshop_electronics/kicad.py
 workshop_electronics/pcb.py
 workshop_electronics/records.py

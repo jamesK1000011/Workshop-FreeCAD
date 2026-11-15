@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # Agent Link's tools for the Parts add-on: gen_make (Gridfinity bins) and
 # gen_part (baseplates, project boxes, board enclosures), the names they have
-# always had. Loaded by Agent Link only.
+# always had: the handlers in handlers.py (no Agent Link import there) bound
+# to the session, with their descriptions and schemas. Loaded by Agent Link
+# only.
 
-from workshop_parts.refusal import Refused
-
-from . import api
+from . import api, handlers
 
 GROUP = "parts"
 LEAN = True  # listed by default
@@ -15,39 +15,8 @@ INFO = "Standard parts made to size (Workshop for FreeCAD · Parts): Gridfinity 
 def tools(session):
     from agentlink.protocol import Tool, ToolError
 
-    s = session
-
-    def run(generator, a, step):
-        try:
-            out = api.make(s.doc, generator, a.get("params") or {}, a.get("name"), bool(a.get("measure")))
-        except Refused as e:
-            raise ToolError(e.code, e.message)
-        if out.get("made") is False:
-            return out
-        for label in out["bodies"]:
-            s.meta[label] = {"generator": generator, "values": out["values"]}
-        if out.get("encased"):
-            s.meta[out["bodies"][0]]["encased"] = out["encased"]
-        if out.get("magnets"):
-            s.meta[out["bodies"][0]]["fitted"] = out["magnets"]
-        s.snapshot(step)
-        out["step"] = len(s.steps)
-        mags = out.pop("encased", None)
-        if mags:
-            out["encased"] = {"what": f"{mags['count']} {mags['what']}", "pauseAt": mags["top"], "note": "The magnet holes open onto the bed: press the magnets in after printing, or drop them in at the pause and print over them."}
-        return out
-
-    def gen_make(a):
-        gen = a.get("generator", "gridfinity_bin")
-        if gen != "gridfinity_bin":
-            raise ToolError("invalid_input", "generator: gridfinity_bin (gen_part makes baseplates and boxes).")
-        return run(gen, a, "gen_make")
-
-    def gen_part(a):
-        gen = a.get("generator")
-        if gen not in api.GENERATORS or gen == "gridfinity_bin":
-            raise ToolError("invalid_input", f"generator: one of {', '.join(g for g in api.GENERATORS if g != 'gridfinity_bin')} (gridfinity_bin is gen_make's).")
-        return run(gen, a, "gen_part")
+    handlers.lend(ToolError=ToolError)
+    h = handlers.bound(session)
 
     def table(g):
         return ", ".join(f"{k} ({v.get('default')})" for k, v in api.GENERATORS[g].items())
@@ -62,6 +31,6 @@ def tools(session):
         + " (mm and counts; a refused value is answered with its range).")
     body = {"type": "string", "description": "The body's name; a lid gets ' lid' after it."}
     return [
-        Tool("gen_make", make_desc, {"type": "object", "properties": {"generator": {"type": "string", "enum": ["gridfinity_bin"]}, "params": {"type": "object"}, "name": body, "measure": {"type": "boolean"}}, "additionalProperties": False}, gen_make, changes=True),
-        Tool("gen_part", part_desc, {"type": "object", "properties": {"generator": {"type": "string", "enum": [g for g in api.GENERATORS if g != "gridfinity_bin"]}, "params": {"type": "object"}, "name": body, "measure": {"type": "boolean"}}, "required": ["generator"], "additionalProperties": False}, gen_part, changes=True),
+        Tool("gen_make", make_desc, {"type": "object", "properties": {"generator": {"type": "string", "enum": ["gridfinity_bin"]}, "params": {"type": "object"}, "name": body, "measure": {"type": "boolean"}}, "additionalProperties": False}, h["gen_make"], changes=True),
+        Tool("gen_part", part_desc, {"type": "object", "properties": {"generator": {"type": "string", "enum": [g for g in api.GENERATORS if g != "gridfinity_bin"]}, "params": {"type": "object"}, "name": body, "measure": {"type": "boolean"}}, "required": ["generator"], "additionalProperties": False}, h["gen_part"], changes=True),
     ]

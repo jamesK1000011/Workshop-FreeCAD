@@ -2,6 +2,7 @@ Init.py
 InitGui.py
 package.xml
 tests/test_api.py
+tests/test_handlers.py
 tests/test_parts_agent.py
 workshop_parts/__init__.py
 workshop_parts/agentlink_families.py
@@ -17,5 +18,6 @@ workshop_parts/form.py
 workshop_parts/geo.py
 workshop_parts/gridfinity.py
 workshop_parts/guides/parts.md
+workshop_parts/handlers.py
 workshop_parts/records.py
 workshop_parts/refusal.py
