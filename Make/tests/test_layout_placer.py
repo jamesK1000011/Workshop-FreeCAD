@@ -496,6 +496,23 @@ class Docks(unittest.TestCase):
         bar.turn_to(self.p.memory.task(False, "TexturizerWorkbench", bar.tasks))
         self.assertTrue(d.shown)
 
+    def test_workbench_tab_before_agent_link(self):
+        """Model | Tasks | Texturizer | Agent Link: the workbench's own dock
+        right after Tasks, Agent Link's after it, the workbench's in front
+        the first time; Agent Link's stays at a switch."""
+        hub = self.dock("Agent Link")
+        self.p.show("al", hub, layout.EVERYWHERE, "Agent Link")
+        self.assertEqual([x.windowTitle() for x in self.mw.group], ["Model", "Tasks", "Agent Link"])
+        tx = self.dock("Texturizer")
+        self.switch("TexturizerWorkbench")
+        self.p.show("tx", tx, "TexturizerWorkbench")
+        self.assertEqual([x.windowTitle() for x in self.mw.group], ["Model", "Tasks", "Texturizer", "Agent Link"])
+        self.assertTrue(tx.shown)
+        self.switch("PartDesignWorkbench")
+        self.assertEqual([x.windowTitle() for x in self.mw.group], ["Model", "Tasks", "Agent Link"])
+        self.switch("TexturizerWorkbench")
+        self.assertEqual([x.windowTitle() for x in self.mw.group], ["Model", "Tasks", "Texturizer", "Agent Link"])
+
     def test_empty_tasks_dock_gives_way(self):
         self.mw.tasks.raise_()
         self.p.show("sr", self.dock("ScanRuler"), "ScanRulerWorkbench")
