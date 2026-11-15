@@ -42,11 +42,11 @@ Use one way, not two: the same workbench installed twice shows up twice.
 **The Workshop Parts workbench.** Pick it from the workbench list. Its
 **Parts** toolbar and menu have one button for each part:
 
-- **Gridfinity bin…**: a bin made to size: cells, height, lip, magnets,
+- **Gridfinity Bin…**: a bin made to size: cells, height, lip, magnets,
   dividers.
-- **Gridfinity baseplate…**: pockets for bins, open or with magnet holes.
-- **Project box…**: a box with its lid, with optional screw bosses.
-- **Board box…**: an enclosure round a circuit board, with standoffs and a
+- **Gridfinity Baseplate…**: pockets for bins, open or with magnet holes.
+- **Project Box…**: a box with its lid, with optional screw bosses.
+- **Board Box…**: an enclosure round a circuit board, with standoffs and a
   lid.
 
 <!-- screenshot: the Parts toolbar with its four buttons -->

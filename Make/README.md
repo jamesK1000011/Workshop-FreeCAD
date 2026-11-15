@@ -51,19 +51,19 @@ OctoPrint, Moonraker (Klipper) or PrusaLink.
 **The Workshop Make workbench.** Pick it from the workbench list. Its
 toolbars and its **Make** menu have:
 
-- **Setup**: **New setup** (how parts are made: print, cut or mill, and its
-  settings), **Add body**, **Remove setup**.
-- **Check**: **DFM check** (is the part printable: walls, overhangs,
+- **Setup**: **New Setup** (how parts are made: print, cut or mill, and its
+  settings), **Add Body**, **Remove Setup**.
+- **Check**: **DFM Check** (is the part printable: walls, overhangs,
   bridges, holes, bed contact, build volume), **Part review** (one verdict),
-  **Mass properties** (mass as made, centre of mass).
-- **Fits**: **Fit size** (the size to model a hole or peg at),
+  **Mass Properties** (mass as made, centre of mass).
+- **Fits**: **Fit Size** (the size to model a hole or peg at),
   **Calibrate** (how much your printer prints holes small and pegs big),
   **Hole** (clearance, counterbore, countersink, nut trap, insert, magnet).
 - **Hardware**: **Embed** (a pocket for a part dropped in mid-print),
-  **Pauses** (every pause the print needs), **Thread lookup**.
-- **Output**: **Slice**, **Cut export** (DXF and SVG laid out on the sheet),
-  **Mill export** (STEP and a setup sheet).
-- **Printer**: **Printer status**, **Send to printer** (uploads; it does not
+  **Pauses** (every pause the print needs), **Thread Lookup**.
+- **Output**: **Slice**, **Cut Export** (DXF and SVG laid out on the sheet),
+  **Mill Export** (STEP and a setup sheet).
+- **Printer**: **Printer Status**, **Send to Printer** (uploads; it does not
   start the print).
 
 <!-- screenshot: the Make toolbars: Setup, Check, Fits, Hardware, Output, Printer -->
@@ -74,7 +74,7 @@ undo step.
 
 <!-- screenshot: the Hole task panel -->
 
-**The Make panel**, beside the model tree (**Make ▸ Make panel**), with tabs:
+**The Make panel**, beside the model tree (**Make ▸ Make Panel**), with tabs:
 
 - **Setups**: each setup, its process and settings, and the parts in it.
 - **Materials**: what each part is made of, from Make's filaments and shop
@@ -144,7 +144,7 @@ is generated from the tool definitions (`workshop_make/data/tools.json`) by
 
 Make also adds `buildDir` and `printed` to Agent Link's own `fea_setup` and
 `fea_solve`, so a strength study knows the print's layers, walls and infill.
-It never starts a print on its own: **Send to printer** only uploads.
+It never starts a print on its own: **Send to Printer** only uploads.
 
 ## Alone or with Agent Link
 
