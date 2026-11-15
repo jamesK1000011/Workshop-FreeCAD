@@ -40,3 +40,4 @@ workshop_parts/icons/Workshop_Parts_ProjectBox.svg
 workshop_parts/icons/Workshop_Parts_Workbench.svg
 workshop_parts/records.py
 workshop_parts/refusal.py
+workshop_parts/workbench.py

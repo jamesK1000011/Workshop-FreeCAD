@@ -87,9 +87,13 @@ class RootPackage(unittest.TestCase):
                 self.assertIn(d, wbs, d)
                 cls = self.one("classname", wbs[d]).text.strip()
                 self.assertEqual(cls, w.find("p:classname", NS).text.strip(), d)
+                # InitGui.py only calls its package's workbench.add(); the class
+                # lives in that module (FreeCAD's exec() hides InitGui's names).
                 initgui = open(os.path.join(ROOT, d, "InitGui.py"), encoding="utf-8").read()
-                self.assertRegex(initgui, r"(?m)^class %s\(FreeCADGui\.Workbench\)" % re.escape(cls))
-                self.assertRegex(initgui, r"addWorkbench\(%s\(\)\)" % re.escape(cls))
+                pkg = re.search(r"(?m)^from (\w+) import workbench as _\1_workbench$", initgui).group(1)
+                self.assertRegex(initgui, r"(?m)^_%s_workbench\.add\(FreeCADGui\)" % pkg)
+                built = open(os.path.join(ROOT, d, pkg, "workbench.py"), encoding="utf-8").read()
+                self.assertRegex(built, r"(?m)^    class %s\(Gui\.Workbench\)" % re.escape(cls))
                 self.assertTrue(os.path.isfile(os.path.join(ROOT, self.one("icon", wbs[d]).text.strip())), d)
                 self.assertEqual(own.find("p:freecadmin", NS).text, self.one("freecadmin").text)
         self.assertEqual(sorted(wbs), sorted(want))

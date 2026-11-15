@@ -54,7 +54,10 @@ for n in ("Part", "Mesh", "MeshPart", "Sketcher", "TechDraw", "TechDrawGui", "Py
     sys.modules[n] = Stub(n)
 path = sys.argv[1]
 sys.path.insert(0, path)
-exec(compile(open(path + "/InitGui.py", encoding="utf-8").read(), path + "/InitGui.py", "exec"), {"__name__": "__main__"})
+# As FreeCAD runs it: its globals hold only FreeCAD, FreeCADGui and the
+# builtins, and InitGui's own names land in a separate locals dict.
+exec(compile(open(path + "/InitGui.py", encoding="utf-8").read(), path + "/InitGui.py", "exec"),
+     {"__builtins__": __builtins__, "FreeCAD": FreeCAD, "FreeCADGui": Gui}, {})
 print(json.dumps({"said": said, "paths": paths, "icons": [b.Icon for b in benches],
                   "pixmaps": {k: c.GetResources().get("Pixmap") for k, c in commands.items()}}))
 '''

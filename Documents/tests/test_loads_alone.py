@@ -38,6 +38,10 @@ class Workbench:
         self.toolbars[name] = list(cmds)
     def appendMenu(self, name, cmds):
         self.menus[name if isinstance(name, str) else "/".join(name)] = list(cmds)
+    def Activated(self):
+        pass
+    def Deactivated(self):
+        pass
 
 Gui.Workbench = Workbench
 Gui.addCommand = lambda name, c: commands.__setitem__(name, c)
@@ -48,11 +52,15 @@ for n in ("Part", "Mesh", "MeshPart", "Sketcher", "TechDraw", "TechDrawGui", "Py
 
 path = sys.argv[1]
 sys.path.insert(0, path)
-exec(compile(open(path + "/InitGui.py", encoding="utf-8").read(), path + "/InitGui.py", "exec"), {"__name__": "__main__"})
+# As FreeCAD runs it: its globals hold only FreeCAD, FreeCADGui and the
+# builtins, and InitGui's own names land in a separate locals dict.
+exec(compile(open(path + "/InitGui.py", encoding="utf-8").read(), path + "/InitGui.py", "exec"),
+     {"__builtins__": __builtins__, "FreeCAD": FreeCAD, "FreeCADGui": Gui}, {})
 out = {"said": said, "benches": []}
 for b in benches:
     b.Initialize()
-    out["benches"].append({"class": type(b).__name__, "MenuText": b.MenuText, "classname": b.GetClassName(), "toolbars": b.toolbars, "menus": b.menus})
+    b.Activated()
+    out["benches"].append({"class": type(b).__name__, "MenuText": b.MenuText, "Icon": b.Icon, "ToolTip": b.ToolTip, "classname": b.GetClassName(), "toolbars": b.toolbars, "menus": b.menus})
 out["commands"] = {k: c.GetResources().get("MenuText") for k, c in commands.items()}
 out["pixmaps"] = {k: c.GetResources().get("Pixmap") for k, c in commands.items()}
 out["modules"] = sorted(m for m in sys.modules if m.split(".")[0].startswith(("workshop_", "agentlink", "addonkit")))
@@ -77,6 +85,16 @@ def load(fam="", calls=()):
 
 
 class LoadsAlone(unittest.TestCase):
+    def test_initgui_runs_as_freecad_runs_it(self):
+        # exec(code, FreeCAD's globals, {}): the bench's class and method
+        # bodies must not need InitGui's own names (real FreeCAD's
+        # "name '_ICONS' is not defined").
+        [b] = load()["benches"]
+        self.assertEqual(b["classname"], "Gui::PythonWorkbench")
+        self.assertEqual(b["Icon"], os.path.join(ROOT, "workshop_documents", "icons", "Workshop_Documents_Workbench.svg"))
+        self.assertTrue(os.path.isfile(b["Icon"]))
+        self.assertEqual(b["ToolTip"], "Drawings and documents from the bodies: dimensioned sheets, assembly manuals, patent figures, library packs (Workshop for FreeCAD)")
+
     def test_its_own_workbench(self):
         out = load()
         [b] = out["benches"]
