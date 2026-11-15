@@ -46,13 +46,13 @@ Use one way, not two: the same workbench installed twice shows up twice.
 toolbars and its **Documents** menu have:
 
 - **Drawings**: **Drawing** (a dimensioned sheet of standard views: a
-  TechDraw page, and SVG, PDF and DXF files), **Exploded drawing** (an
+  TechDraw page, and SVG, PDF and DXF files), **Exploded Drawing** (an
   assembly manual with exploded views, balloons and a bill of materials).
-- **Share**: **Library pack** (the parts as STEP and STL with a README, a
+- **Share**: **Library Pack** (the parts as STEP and STL with a README, a
   licence and credits).
-- **Patent**: **Patent figures** (line figures with reference numerals),
-  **Patent draft** (a draft to start a patent attorney's work from).
-- **Manual panel**: the Manual tab.
+- **Patent**: **Patent Figures** (line figures with reference numerals),
+  **Patent Draft** (a draft to start a patent attorney's work from).
+- **Manual Panel**: the Manual tab.
 
 <!-- screenshot: the Documents toolbars: Drawings, Share, Patent -->
 
@@ -61,7 +61,7 @@ tab, like FreeCAD's own tools. **OK** makes it as one undo step.
 
 <!-- screenshot: the Drawing task panel -->
 
-**The Manual tab**, beside the model tree (**Documents ▸ Manual panel**).
+**The Manual tab**, beside the model tree (**Documents ▸ Manual Panel**).
 Build an assembly manual a step at a time: tick the parts that go on next,
 name the step, and click **Add step**. When the steps are done, click
 **Make manual**.

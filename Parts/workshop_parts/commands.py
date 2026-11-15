@@ -8,6 +8,22 @@ import FreeCADGui
 
 from . import api
 
+
+_SMALL = {"a", "an", "and", "as", "at", "but", "by", "for", "from", "in", "into", "of", "on", "or", "per", "the", "to", "vs", "via", "with"}
+
+
+def title(text):
+    """Menu text in Title Case, as FreeCAD's design guide asks for command
+    names: each word capitalised but the small ones inside; a word that
+    already has a capital (KiCad, DFM, STL) is left as it is."""
+    words = text.split(" ")
+    out = []
+    for i, w in enumerate(words):
+        if w and w[0].islower() and not any(c.isupper() for c in w) and (i == 0 or w not in _SMALL):
+            w = w[0].upper() + w[1:]
+        out.append(w)
+    return " ".join(out)
+
 TIPS = {
     "gridfinity_bin": "A Gridfinity bin made to size: cells, height, lip, magnets, dividers.",
     "gridfinity_baseplate": "A Gridfinity baseplate: pockets for bins, open or with magnet holes.",
@@ -21,7 +37,7 @@ class Make:
         self.generator = generator
 
     def GetResources(self):
-        return {"MenuText": api.NAMES[self.generator] + "…", "ToolTip": TIPS[self.generator], "Pixmap": command_name(self.generator)}
+        return {"MenuText": title(api.NAMES[self.generator]) + "…", "ToolTip": TIPS[self.generator], "Pixmap": command_name(self.generator)}
 
     def IsActive(self):
         return True

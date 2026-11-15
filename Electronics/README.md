@@ -45,7 +45,7 @@ Use one way, not two: the same workbench installed twice shows up twice.
 **The Workshop Electronics workbench.** Pick it from the workbench list. Its
 **Electronics** toolbar and menu have:
 
-- **KiCad board…**: read a `.kicad_pcb` (KiCad 5 to 9) into the document as a
+- **KiCad Board…**: read a `.kicad_pcb` (KiCad 5 to 9) into the document as a
   solid: its outline, cut-outs and mounting holes.
 
 <!-- screenshot: the Electronics toolbar -->

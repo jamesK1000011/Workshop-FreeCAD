@@ -10,6 +10,22 @@ import FreeCADGui
 from . import runner as R
 from . import taskpanels as T
 
+
+_SMALL = {"a", "an", "and", "as", "at", "but", "by", "for", "from", "in", "into", "of", "on", "or", "per", "the", "to", "vs", "via", "with"}
+
+
+def title(text):
+    """Menu text in Title Case, as FreeCAD's design guide asks for command
+    names: each word capitalised but the small ones inside; a word that
+    already has a capital (KiCad, DFM, STL) is left as it is."""
+    words = text.split(" ")
+    out = []
+    for i, w in enumerate(words):
+        if w and w[0].islower() and not any(c.isupper() for c in w) and (i == 0 or w not in _SMALL):
+            w = w[0].upper() + w[1:]
+        out.append(w)
+    return " ".join(out)
+
 PREFIX = "Workshop_Documents_"
 
 
@@ -39,7 +55,7 @@ class Run:
         self.args = dict(args or {})
 
     def GetResources(self):
-        return {"MenuText": self.text, "ToolTip": self.tip, "Pixmap": self.pixmap}
+        return {"MenuText": title(self.text), "ToolTip": self.tip, "Pixmap": self.pixmap}
 
     def IsActive(self):
         return FreeCAD.ActiveDocument is not None
@@ -68,7 +84,7 @@ class Form:
         self.panel, self.text, self.tip, self.pixmap = panel, text, tip, pixmap
 
     def GetResources(self):
-        return {"MenuText": self.text + "…", "ToolTip": self.tip, "Pixmap": self.pixmap}
+        return {"MenuText": title(self.text) + "…", "ToolTip": self.tip, "Pixmap": self.pixmap}
 
     def IsActive(self):
         return FreeCAD.ActiveDocument is not None
@@ -79,7 +95,7 @@ class Form:
 
 class Panel:
     def GetResources(self):
-        return {"MenuText": "Manual panel", "ToolTip": "The Manual tab, an assembly manual step by step: Agent Link's panel when it hosts Documents, else Documents' own dock", "Pixmap": "Workshop_Documents_Manual"}
+        return {"MenuText": "Manual Panel", "ToolTip": "The Manual tab, an assembly manual step by step: Agent Link's panel when it hosts Documents, else Documents' own dock", "Pixmap": "Workshop_Documents_Manual"}
 
     def IsActive(self):
         return True

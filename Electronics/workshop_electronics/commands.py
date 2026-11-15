@@ -8,7 +8,7 @@ import FreeCADGui
 
 class ImportBoard:
     def GetResources(self):
-        return {"Pixmap": "Workshop_Electronics_ImportBoard", "MenuText": "KiCad board…", "ToolTip": "Read a KiCad board (.kicad_pcb, KiCad 5 to 9; KiCad not needed) into the document as a solid: its outline, cut-outs and mounting holes."}
+        return {"Pixmap": "Workshop_Electronics_ImportBoard", "MenuText": "KiCad Board…", "ToolTip": "Read a KiCad board (.kicad_pcb, KiCad 5 to 9; KiCad not needed) into the document as a solid: its outline, cut-outs and mounting holes."}
 
     def IsActive(self):
         return True
