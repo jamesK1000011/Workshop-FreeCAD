@@ -4,11 +4,13 @@
 # module, with the same API):
 #
 #   User parameter:BaseApp/Preferences/Mod/AgentLink, PanelLayout =
+#     left-tab    (the default) the panel is a tab of the Combo View beside
+#                 Model and Tasks while its workbench is active; a window
+#                 without a Combo View gets right
 #     right       the panel docks on the right (at most 360 px wide); the
 #                 left side stays the model tree
-#     left-tab    the panel is a tab of the Combo View beside Model and
-#                 Tasks while its workbench is active
-#     left-slide  the panel slides out over the left edge of the 3D view,
+#     left-slide  the panel slides out over the left edge of the 3D view
+#                 (at most 300 px; the Combo View narrows while it is open),
 #                 opened and closed from its workbench's toolbar or the
 #                 handle on the view's edge; the tree is never covered
 #
@@ -30,9 +32,16 @@ PARAMS = "User parameter:BaseApp/Preferences/Mod/AgentLink"
 PARAM = "PanelLayout"
 RIGHT, LEFT_TAB, LEFT_SLIDE = "right", "left-tab", "left-slide"
 LAYOUTS = (RIGHT, LEFT_TAB, LEFT_SLIDE)
-DEFAULT = RIGHT
-# Logical pixels: the tree side, and the side a task panel stands on.
+DEFAULT = LEFT_TAB
+# Logical pixels: the tree side, and the side a task panel stands on; the
+# slide-out (it covers the 3D view, so narrower), the Combo View while the
+# slide-out is open, and the most a panel's content may ask as its minimum
+# width (wider rows wrap or stack).
 TREE_MAX, TASK_MAX = 300, 360
+SLIDE_MAX, COMBO_SQUEEZE = 300, 220
+CONTENT_MIN = 240
+# The Combo View dock: its object name in FreeCAD 1.x is Std_ComboView.
+COMBO_NAMES = ("Std_ComboView", "Combo View", "ComboView")
 TASKS = "Tasks"
 SERVICE = "panel_layout"
 EVERYWHERE = "*"
@@ -55,7 +64,7 @@ def _params(params=None):
 
 
 def read(params=None):
-    """The layout the setting asks for now ("right" when unset or unknown)."""
+    """The layout the setting asks for now ("left-tab" when unset or unknown)."""
     try:
         return normalise(_params(params).GetString(PARAM, DEFAULT))
     except Exception:  # noqa: BLE001 — no FreeCAD (tests, FreeCADCmd)
@@ -72,7 +81,28 @@ def is_set(params=None):
 
 def width_cap(layout):
     """The widest a panel may make its side in this layout."""
-    return TASK_MAX if normalise(layout) in (RIGHT, LEFT_SLIDE) else TREE_MAX
+    return {RIGHT: TASK_MAX, LEFT_SLIDE: SLIDE_MAX}.get(normalise(layout), TREE_MAX)
+
+
+def slide_width(area_width):
+    """The slide-out's width over a 3D view area this wide."""
+    return int(min(SLIDE_MAX, max(200, area_width // 2)))
+
+
+def is_combo(name, class_name=""):
+    """Whether a dock (its object name, its class name) is the Combo View."""
+    return name in COMBO_NAMES or "ComboView" in (class_name or "")
+
+
+def unstick(titles, current, running):
+    """The tab to turn the Combo View to when it sits on an empty Tasks with
+    no task running: Model (or the first tab that is not Tasks); None to
+    leave it."""
+    if running or current != TASKS:
+        return None
+    if "Model" in titles:
+        return "Model"
+    return next((t for t in titles if t != TASKS), None)
 
 
 def belongs(workbench, active):
@@ -183,15 +213,35 @@ def task_running():
 def combo_tabs(mw):
     """The Combo View's tab widget (Model, Tasks), or None when this
     FreeCAD shows the tree and the tasks apart."""
+    d = combo_dock(mw)
+    if d is None:
+        return None
     _c, QtWidgets = _qt()
-    for d in mw.findChildren(QtWidgets.QDockWidget):
-        if d.objectName() in ("Combo View", "ComboView"):
-            t = d.findChild(QtWidgets.QTabWidget, "combiTab")
-            if t is None:
-                kids = d.findChildren(QtWidgets.QTabWidget)
-                t = kids[0] if kids else None
-            if t is not None:
-                return t
+    t = d.findChild(QtWidgets.QTabWidget, "combiTab")
+    if t is None:
+        kids = d.findChildren(QtWidgets.QTabWidget)
+        t = kids[0] if kids else None
+    return t
+
+
+def combo_dock(mw):
+    """The Combo View's dock (Std_ComboView in FreeCAD 1.x), by its object
+    name, else by its widget's class (Gui::DockWnd::ComboView)."""
+    _c, QtWidgets = _qt()
+    docks = mw.findChildren(QtWidgets.QDockWidget)
+    for d in docks:
+        if is_combo(d.objectName()):
+            return d
+    for d in docks:
+        try:
+            names = [d.metaObject().className()]
+            w = d.widget()
+            if w is not None:
+                names.append(w.metaObject().className())
+        except Exception:  # noqa: BLE001
+            continue
+        if any(is_combo("", n) for n in names):
+            return d
     return None
 
 
@@ -206,6 +256,10 @@ def frame(content):
     sa.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
     sa.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
     sa.setMinimumWidth(0)
+    # The content follows the viewport's width (never wider: no clipping at
+    # the right edge); its rows wrap or stack to fit.
+    content.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Preferred)
+    content.setMinimumWidth(0)
     sa.setWidget(content)
     return sa
 
@@ -240,8 +294,9 @@ def _classes():
         tabs (the tab bar hides itself with one), and a handle on the edge
         that opens and closes it."""
 
-        def __init__(self, area, on_toggle=None):
+        def __init__(self, area, on_toggle=None, on_open=None):
             super().__init__(area)
+            self.on_open = on_open
             self.setObjectName("PanelLayoutSlide")
             self.area = area
             self.on_toggle = on_toggle
@@ -266,7 +321,7 @@ def _classes():
 
         def place(self):
             r = self.area.rect()
-            w = min(TASK_MAX, max(220, r.width() // 2))
+            w = slide_width(r.width())
             self.setGeometry(0, 0, w, r.height())
             on = self.isVisible()
             self.handle.setText("‹" if on else "›")
@@ -281,6 +336,8 @@ def _classes():
             if on:
                 self.raise_()
             self.place()
+            if self.on_open:
+                self.on_open(on)
 
         def toggle(self):
             self.set_open(not self.isVisible())
@@ -371,6 +428,7 @@ class Placer:
             self._front(active_workbench() or self.active)
         elif fresh and front:
             self._right(e, True)
+        self._unstick()
         self._keep_size(before, maxed)
         return e["where"]
 
@@ -452,6 +510,45 @@ class Placer:
         for e in self.entries.values():
             e.pop("arrived", None)
         self._front(name)
+        self._unstick()
+
+    def _unstick(self):
+        """The Combo View left on an empty Tasks tab (no task running):
+        Model in front (in left-tab, Memory's choice first)."""
+        tabs = self.combo or combo_tabs(self._main())
+        if tabs is None:
+            return
+        titles = [tabs.tabText(i) for i in range(tabs.count())]
+        cur = tabs.tabText(tabs.currentIndex())
+        to = unstick(titles, cur, task_running())
+        if to is None:
+            return
+        wb = active_workbench() or self.active
+        mine = self.memory.last.get(wb) if read() == LEFT_TAB else None
+        to = mine if mine in titles and mine != TASKS else to
+        for i, t in enumerate(titles):
+            if t == to:
+                tabs.setCurrentIndex(i)
+                return
+
+    def _squeeze(self, on):
+        """While the slide-out is open, the Combo View at most
+        COMBO_SQUEEZE px wide (the 3D view keeps some width); its width
+        back after."""
+        QtCore, _w = _qt()
+        mw = self._main()
+        d = combo_dock(mw)
+        if d is None or d.isFloating() or not d.isVisible():
+            return
+        try:
+            if on and d.width() > COMBO_SQUEEZE:
+                self._combo_width = d.width()
+                mw.resizeDocks([d], [COMBO_SQUEEZE], QtCore.Qt.Horizontal)
+            elif not on and getattr(self, "_combo_width", None):
+                mw.resizeDocks([d], [self._combo_width], QtCore.Qt.Horizontal)
+                self._combo_width = None
+        except Exception:  # noqa: BLE001 — an older Qt without resizeDocks
+            pass
 
     # -- placing ---------------------------------------------------------------
 
@@ -492,6 +589,9 @@ class Placer:
         QtCore, _w = _qt()
         mw, dock = self._main(), e["dock"]
         if e["where"] != RIGHT:
+            # In a scroll area that follows the dock's width, as on the left.
+            e["frame"] = frame(self._content(e))
+            dock.setWidget(e["frame"])
             mw.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
             mates = [x["dock"] for x in self.entries.values() if x is not e and x["where"] == RIGHT
                      and x["dock"].isVisible() and not x["dock"].isFloating()]
@@ -531,7 +631,8 @@ class Placer:
         mw = self._main()
         if self.slide is None:
             area = mw.centralWidget()
-            self.slide = _classes()["Slide"](area, on_toggle=lambda on: self.memory.slid(active_workbench() or self.active, on))
+            self.slide = _classes()["Slide"](area, on_toggle=lambda on: self.memory.slid(active_workbench() or self.active, on),
+                                             on_open=self._squeeze)
         if e["where"] != LEFT_SLIDE:
             content = self._content(e)
             e["frame"] = frame(content)
@@ -548,8 +649,8 @@ class Placer:
         """Out of the Combo View or the slide-out, back into its own dock
         (hidden); or off the right side's width cap."""
         where, dock = e["where"], e["dock"]
-        if where in (LEFT_TAB, LEFT_SLIDE) and e.get("frame") is not None:
-            holder = self.combo if where == LEFT_TAB else (self.slide.tabs if self.slide else None)
+        if e.get("frame") is not None:
+            holder = {LEFT_TAB: self.combo, LEFT_SLIDE: self.slide.tabs if self.slide else None}.get(where)
             f = e.pop("frame")
             if holder is not None:
                 i = holder.indexOf(f)
@@ -562,7 +663,7 @@ class Placer:
             f.deleteLater()
             if where == LEFT_SLIDE and self.slide is not None:
                 self.slide.set_open(self.slide.isVisible())
-        elif where == RIGHT:
+        if where == RIGHT:
             dock.setMaximumWidth(16777215)  # QWIDGETSIZE_MAX
         e["where"] = None
 
