@@ -30,6 +30,8 @@ from . import views
 DATA = tooldefs.here(__file__)
 
 GROUP = "drawing"
+WORKBENCHES = {"drawing_": "TechDrawWorkbench"}
+PAGES = ("drawing_",)
 INFO = "Drawings and documents: dimensioned views as a TechDraw page with SVG, PDF and DXF; assembly manuals with exploded steps and a bill of materials; patent figures and a draft."
 
 V = FreeCAD.Vector

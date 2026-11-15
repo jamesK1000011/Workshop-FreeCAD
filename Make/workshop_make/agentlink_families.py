@@ -8,8 +8,6 @@
 # scan-thread readers asked through Agent Link's hooks.
 # Agent Link finds this module by convention and never names it; without
 # Agent Link it is never loaded.
-import os
-
 from . import fam_cut, fam_embed, fam_fits, fam_frame, fam_make, fam_mass, fam_mill, fam_printer, fam_slicing, fam_thread, maps, printability, printed
 
 AGENTLINK_API = ">=1,<2"
@@ -20,9 +18,7 @@ LICENSE = "LGPL-2.1-or-later"
 
 def _register():
     from agentlink import hooks, render
-    from agentlink import tools as al_tools
 
-    al_tools.register_guides(os.path.join(os.path.dirname(os.path.abspath(__file__)), "guides"))
     hooks.provide("print_pauses", fam_embed.pauses_for)
     # One list of wall readers: whatever add-on reads walls better is asked
     # by the printability check here.

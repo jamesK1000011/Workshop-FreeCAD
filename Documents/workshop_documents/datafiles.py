@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# This add-on's own copy; it was AddonKit's addonkit.data, retired 14 Nov 2026.
+# Workshop Documents' own copy of Agent Link for FreeCAD's datafiles.py, trimmed to what Documents uses (check_folder is kept for Documents's data-file tests); 14 Nov 2026.
 """Versioned, schema-checked data files: tables (fits, threads, printers,
 materials, presets) and tool definitions kept out of the code.
 

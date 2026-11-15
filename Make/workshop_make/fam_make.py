@@ -16,6 +16,7 @@ from workshop_make import records as store
 from . import api, orcalib, printability, printmass, tooldefs
 
 GROUP = "make"
+SHOWN = ("dfm_check", "part_review")
 INFO = "How each part is made (setups), its limits and material, the printability check, the verdict, slicing (Workshop for FreeCAD · Make)."
 LEAN = True
 

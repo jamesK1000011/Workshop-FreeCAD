@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# This add-on's own copy; it was AddonKit's addonkit.techdraw, retired 14 Nov 2026.
+# Workshop Documents' own copy of Agent Link for FreeCAD's td_wait.py, trimmed to what Documents uses; 14 Nov 2026.
 """TechDraw helpers FreeCAD add-ons share (moved from Agent Link for FreeCAD
 on 14 Nov 2026). Needs FreeCAD's TechDraw; Qt only when there is no window."""
 

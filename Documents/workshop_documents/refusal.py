@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
+# Workshop Documents' own copy of Agent Link for FreeCAD's refusal.py, trimmed to what Documents uses; 14 Nov 2026.
 # A refusal that says what to do instead, and version ranges (">=1.0,<2").
-# This add-on's own copy; it was AddonKit's, retired 14 Nov 2026.
 
 
 class Refused(ValueError):

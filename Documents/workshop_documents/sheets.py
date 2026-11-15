@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# This add-on's own copy; it was AddonKit's addonkit.sheets, retired 14 Nov 2026.
+# Workshop Documents' own copy of Agent Link for FreeCAD's sheets.py, trimmed to what Documents uses; 14 Nov 2026.
 # A drawing sheet of lines and text, written as SVG, PDF and DXF. Nothing
 # here needs FreeCAD: the views come in as 2D polylines, in millimetres on
 # the paper, origin top left, y down (as SVG has it); PDF and DXF turn y up.
@@ -26,33 +26,6 @@ def best_scale(fit):
         if s <= fit + 1e-9:
             return s
     return None
-
-
-def hatch(polys, spacing=2.5, angle=45.0):
-    """Parallel lines filling polygons (even–odd: holes stay clear): [(p, q)]
-    segments, spacing mm apart at angle degrees."""
-    a = math.radians(angle)
-    ca, sa = math.cos(a), math.sin(a)
-    rot = [[(x * ca + y * sa, -x * sa + y * ca) for x, y in poly] for poly in polys if len(poly) >= 3]
-    if not rot or spacing <= 0:
-        return []
-    ys = [y for poly in rot for _, y in poly]
-    lo, hi = min(ys), max(ys)
-    out = []
-    k = math.floor(lo / spacing) + 1
-    while k * spacing < hi:
-        yv = k * spacing
-        xs = []
-        for poly in rot:
-            for (x0, y0), (x1, y1) in zip(poly, poly[1:] + poly[:1]):
-                if (y0 <= yv < y1) or (y1 <= yv < y0):
-                    xs.append(x0 + (yv - y0) * (x1 - x0) / (y1 - y0))
-        xs.sort()
-        for i in range(0, len(xs) - 1, 2):
-            p, q = (xs[i], yv), (xs[i + 1], yv)
-            out.append(((p[0] * ca - p[1] * sa, p[0] * sa + p[1] * ca), (q[0] * ca - q[1] * sa, q[0] * sa + q[1] * ca)))
-        k += 1
-    return out
 
 
 class Sheet:
@@ -264,16 +237,6 @@ def layout(sizes, paper, projection="first", scale=None, margin=10.0, title_h=18
     return {"scale": scale, "fit": fit, "centres": {v: (cx[c], cy[r]) for v, (c, r) in cells.items()}}
 
 
-def title_block(sheet, lines, margin=10.0, width=110.0, height=18.0):
-    """A box in the bottom-right corner with a line of text per row."""
-    x1, y1 = sheet.w - margin, sheet.h - margin
-    x0, y0 = x1 - width, y1 - height
-    sheet.line([(x0, y0), (x1, y0), (x1, y1), (x0, y1)], "thin", closed=True)
-    step = height / max(1, len(lines))
-    for i, t in enumerate(lines):
-        sheet.text(x0 + 2, y0 + step * (i + 1) - step * 0.3, 3.0 if i == 0 else 2.5, t)
-
-
 def _esc(s):
     return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
@@ -282,22 +245,3 @@ def _pdfstr(s):
     # WinAnsi has Ø, ± and × but no ⌀: the diameter sign is drawn as Ø.
     s = str(s).replace("\u2014", "-").replace("\u2013", "-").replace("\u2300", "\u00d8")
     return s.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-
-
-def read_dxf_lines(text):
-    """The LINE entities of a DXF, [((x0, y0), (x1, y1), layer)]: for checking
-    what was written."""
-    rows = text.splitlines()
-    pairs = list(zip(rows[0::2], rows[1::2]))
-    out, cur = [], None
-    for code, val in pairs:
-        code = code.strip()
-        if code == "0":
-            if cur and cur.get("type") == "LINE":
-                out.append(((cur["10"], cur["20"]), (cur["11"], cur["21"]), cur.get("8")))
-            cur = {"type": val.strip()}
-        elif cur is not None and code in ("10", "20", "11", "21"):
-            cur[code] = float(val)
-        elif cur is not None and code == "8":
-            cur["8"] = val.strip()
-    return out

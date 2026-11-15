@@ -2,7 +2,9 @@ Init.py
 package.xml
 tests/test_api.py
 tests/test_drawing.py
+tests/test_iso286.py
 tests/test_share.py
+tests/test_sheets.py
 workshop_documents/__init__.py
 workshop_documents/agentlink_families.py
 workshop_documents/api.py
