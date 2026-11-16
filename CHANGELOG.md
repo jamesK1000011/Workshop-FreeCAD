@@ -16,8 +16,16 @@ Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
 - A Tutor lesson, Hole for hardware (an M4 countersunk hole through a
   plate), in `workshop/lessons/`, where the Tutor finds an add-on's lessons
   (beside its `agentlink_families` module). From Tutor-FreeCAD's example.
+- `slice` and `slice_with` take `material`, a filament id (pla, petg, abs,
+  asa, pa6-cf, tpu-95a, or the person's own), for that slice only: nothing
+  is recorded and the body keeps its material.
 
 ### Fixed
+
+- `slice` on a part whose material is no printing filament names the exact
+  call that fixes it, `material_set { bodies: ["Bracket"], id: "petg" }`
+  with the body's own name, and the one-off `slice { body, material }`; the
+  person reads only what is wrong. Tests with stand-ins.
 
 - Make panel, Setups ▸ New made a setup with no part when the document's
   one Body was also referred to by an add-on's object (a ScanRuler

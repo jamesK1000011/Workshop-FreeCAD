@@ -260,8 +260,21 @@ def other_tool(s, name):
     return t.fn if t is not None else None
 
 
+def slice_material(a):
+    """The filament given for this slice only (slice's material), lower
+    case, or None; a word that is no filament is refused, naming them."""
+    given = a.get("material")
+    if given in (None, ""):
+        return None
+    key = str(given).strip().lower()
+    if key not in fil.DENSITY:
+        raise ToolError("invalid_input", f"material {given!r}: a filament id, one of {', '.join(fil.DENSITY)} (for this slice only; material_set records a body's own).")
+    return key
+
+
 def slice(s, a):
     o = s.body(a.get("body"))
+    given = slice_material(a)
     setup = store.setup_of(s.doc, o.Label, "print")
     if not setup:
         raise ToolError("invalid_state", f"{o.Label} is in no print setup: slicing prints it — setup add {{ type: \"print\", bodies: [\"{o.Label}\"] }} once the person says it is printed.")
@@ -277,11 +290,11 @@ def slice(s, a):
                 raise
             except Exception as e:  # noqa: BLE001 — PresetError: the bundle cannot be read
                 raise ToolError("invalid_state", f"The setup's presets cannot be read: {e}")
-        return slice_with({k: v for k, v in {**a, "slicer": want}.items() if k in ("body", "slicer", "pauseCommand", "name")})
+        return slice_with({k: v for k, v in {**a, "slicer": want, "material": given}.items() if k in ("body", "slicer", "pauseCommand", "name", "material") and v is not None})
     settings = {**setup, **(a.get("settings") or {})}
-    mat, rho, filament, name = card(s, o.Label)
+    mat, rho, filament, name = card(s, o.Label, given)
     if filament is None:
-        raise ToolError("invalid_state", f"{o.Label} is in {name}, not a printing filament: material_set a filament ({', '.join(fil.DENSITY)}) before slicing.")
+        raise ToolError("invalid_state", f"{o.Label} is in {name}, not a printing filament; record one with material_set {{ bodies: [\"{o.Label}\"], id: \"petg\" }} (a filament id: {', '.join(fil.DENSITY)}), or slice in one this time only with slice {{ body: \"{o.Label}\", material: \"petg\" }}.")
     settings["filament"] = filament
     settings["density"] = rho
     import Mesh  # noqa: F401
@@ -300,7 +313,7 @@ def slice(s, a):
         other = next((n for n, here in orcalib.module("cli").present().items() if here and n != "prusaslicer"), None)
         if not other:
             raise ToolError("unavailable", f"{e} OrcaSlicer and Bambu Studio are not here either.")
-        out = slice_with({k: v for k, v in {**a, "slicer": other}.items() if k in ("body", "slicer", "pauseCommand", "name", "profiles")})
+        out = slice_with({k: v for k, v in {**a, "slicer": other, "material": given}.items() if k in ("body", "slicer", "pauseCommand", "name", "profiles", "material") and v is not None})
         out["note"] = f"PrusaSlicer is not on this computer: sliced with {other} (slice_with). " + out.get("note", "")
         return out
     except RuntimeError as e:
@@ -318,6 +331,7 @@ def slice(s, a):
         **read,
         "setup": f"{setup['name']} ({setup['id']})",
         **({"pauses": pauses} if mags else {}),
+        **({"material": f"{given} for this slice only (not recorded: material_set records it)"} if given else {}),
         "note": "Sliced with the slicer's own defaults for anything the setup leaves unset; the printer's profile in the slicer is the authority. Starting the print is the person's.",
     }
 

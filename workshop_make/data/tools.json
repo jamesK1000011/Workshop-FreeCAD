@@ -523,7 +523,7 @@
   },
   "slice": {
    "group": "make",
-   "description": "Slice a body in a print setup with the slicer on this computer (PrusaSlicer's command line; AGENTLINK_SLICER names another binary): the setup's layers, nozzle, walls and infill, the part's material as the filament. Answers the G-code's path, print time, filament (g, mm) and layers; parts encased at a pause (magnets) get it written into the G-code before the first layer over them. Refused for a part in no print setup.",
+   "description": "Slice a body in a print setup with the slicer on this computer (PrusaSlicer's command line; AGENTLINK_SLICER names another binary): the setup's layers, nozzle, walls and infill, the part's material as the filament. Answers the G-code's path, print time, filament (g, mm) and layers; parts encased at a pause (magnets) get it written into the G-code before the first layer over them. material: a filament id (pla, petg, abs, asa, pa6-cf, tpu-95a) slices in that filament this time only, without recording it (material_set { bodies: [body], id } records a body's own). Refused for a part in no print setup, and for a part whose material is no printing filament (a metal, a wood), naming the material_set call that records one and the material that slices in one once.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -539,6 +539,10 @@
      },
      "pauseCommand": {
       "type": "string"
+     },
+     "material": {
+      "type": "string",
+      "description": "A filament id (pla, petg, abs, asa, pa6-cf, tpu-95a, or one of the person's own filaments) for this slice only (not recorded); left out, the body's own material."
      }
     },
     "required": [],
@@ -748,7 +752,7 @@
   },
   "slice_with": {
    "group": "slice",
-   "description": "Slice a body in a print setup with slicer prusaslicer (default), orcaslicer or bambustudio, by its command line: profiles { machine, process, filament } JSON paths for OrcaSlicer and Bambu Studio (minimal ones written from the setup when left out), { config } an .ini for PrusaSlicer. Gives time, filament and layers, and writes in a pause after the layer over each encased part (hw_embed, gen_make magnets; M601, Bambu M400 U1, or pauseCommand). OrcaSlicer and Bambu Studio also take bodies (several on one plate, arranged), orient and arrange (the slicer's own), and project: true (the sliced plate as a .3mf its window opens). Trap: a slicer not on this computer is refused unavailable, naming those present (AGENTLINK_ORCASLICER, AGENTLINK_BAMBUSTUDIO set their paths).",
+   "description": "Slice a body in a print setup with slicer prusaslicer (default), orcaslicer or bambustudio, by its command line: profiles { machine, process, filament } JSON paths for OrcaSlicer and Bambu Studio (minimal ones written from the setup when left out), { config } an .ini for PrusaSlicer. Gives time, filament and layers, and writes in a pause after the layer over each encased part (hw_embed, gen_make magnets; M601, Bambu M400 U1, or pauseCommand). OrcaSlicer and Bambu Studio also take bodies (several on one plate, arranged), orient and arrange (the slicer's own), and project: true (the sliced plate as a .3mf its window opens). material: a filament id for this slice only, not recorded (the minimal profiles use it; a filament profile or the setup's presets win over it). Trap: a slicer not on this computer is refused unavailable, naming those present (AGENTLINK_ORCASLICER, AGENTLINK_BAMBUSTUDIO set their paths).",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -789,6 +793,10 @@
      },
      "overrides": {
       "type": "object"
+     },
+     "material": {
+      "type": "string",
+      "description": "A filament id for this slice only (not recorded)."
      }
     },
     "required": [],
