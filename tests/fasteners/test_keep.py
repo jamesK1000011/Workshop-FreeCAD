@@ -66,6 +66,116 @@ doc.Objects.append(plate)
 '''
 
 
+class Obj:
+    """A document object that is touched as FreeCAD's is (FreeCAD 1.1
+    source: src/App/DocumentObject.cpp, onChanged): a change of any
+    property that is not an Output one sets the touched flag, NoRecompute
+    or not; one object's own recompute() executes it and leaves the flag
+    (src/App/Document.cpp, recomputeFeature); purgeTouched clears it."""
+
+    def __init__(self, name, output_known=True):
+        object.__setattr__(self, "_p", {})
+        object.__setattr__(self, "_status", {})
+        object.__setattr__(self, "_touched", False)
+        object.__setattr__(self, "_output_known", output_known)
+        object.__setattr__(self, "Name", name)
+        object.__setattr__(self, "Label", name)
+        object.__setattr__(self, "executed", 0)
+
+    PropertiesList = property(lambda self: list(self._p))
+    State = property(lambda self: ["Touched"] if self._touched else [])
+
+    def addProperty(self, kind, name, group="", doc=""):
+        self._p[name] = ""
+        self._status[name] = set()
+
+    def setEditorMode(self, name, mode):
+        pass
+
+    def setPropertyStatus(self, name, status):
+        if status == "Output" and not self._output_known:
+            raise ValueError("unknown status")
+        self._status[name].add(status)
+
+    def getPropertyStatus(self, name):
+        return sorted(self._status[name])
+
+    def purgeTouched(self):
+        object.__setattr__(self, "_touched", False)
+
+    def recompute(self):
+        object.__setattr__(self, "executed", self.executed + 1)
+        return True
+
+    def __getattr__(self, k):
+        try:
+            return object.__getattribute__(self, "_p")[k]
+        except KeyError:
+            raise AttributeError(k)
+
+    def __setattr__(self, k, v):
+        if k in self._p:
+            self._p[k] = v
+            if "Output" not in self._status[k]:
+                object.__setattr__(self, "_touched", True)
+        elif k == "Label":
+            object.__setattr__(self, k, v)   # FreeCAD's Label is an Output property
+        else:
+            object.__setattr__(self, k, v)
+            object.__setattr__(self, "_touched", True)
+
+
+class Quiet(unittest.TestCase):
+    """Found live (16 Nov 2026, FreeCAD 1.1.3): fastener_set { label } left
+    "1 object not recomputed yet" and a hole made beside two kept screws
+    left them so too. The keeper's record was a NoRecompute property, and
+    FreeCAD touches an object on any change that is not an Output one."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, os.path.dirname(os.path.dirname(HERE)))
+        from workshop_fasteners import keep
+
+        cls.keep = keep
+
+    def test_the_record_does_not_touch_the_fastener(self):
+        o = Obj("Screw")
+        self.keep.write(o, {"label": "Spare screw", "auto": False})
+        self.assertEqual(o.State, [])
+        self.assertIn("Output", o.getPropertyStatus(self.keep.PROP))
+        self.keep.write(o, {"label": "Spare screw", "auto": False, "state": "kept"})
+        self.assertEqual(o.State, [])
+        self.assertEqual(self.keep.read(o)["state"], "kept")
+
+    def test_a_record_made_before_or_a_freecad_without_output(self):
+        o = Obj("Screw", output_known=False)   # the status cannot be set: the flag is cleared after the write
+        self.keep.write(o, {"label": "M6x16-Screw"})
+        self.assertNotIn("Output", o.getPropertyStatus(self.keep.PROP))
+        self.assertEqual(o.State, [])
+
+    def test_a_fastener_already_touched_stays_touched(self):
+        o = Obj("Screw", output_known=False)
+        self.keep.write(o, {"label": "M6x16-Screw"})
+        o.Diameter = "M8"   # a real change, waiting for its recompute
+        self.assertEqual(o.State, ["Touched"])
+        self.keep.write(o, {"label": "M8x16-Screw"})
+        self.assertEqual(o.State, ["Touched"])   # the bookkeeping never hides it
+
+
+class Wording(unittest.TestCase):
+    def test_the_nearest_edges_in_words_not_a_python_list(self):
+        # Found live: "the nearest are [{'edge': 'Edge14', 'centre': [10.0, 20.0, 10.0], …}]".
+        sys.path.insert(0, os.path.dirname(os.path.dirname(HERE)))
+        from workshop_fasteners import api
+
+        said = api.nearest_words([{"edge": "Edge14", "centre": [10.0, 20.0, 10.0], "diameter": 6.6, "away": 26.7},
+                                  {"edge": "Edge12", "centre": [10.0, 20.0, 0.0], "diameter": 6.6, "away": 28.51}])
+        self.assertEqual(said, "the nearest are Edge14 (⌀6.6 at [10, 20, 10], 26.7 mm away), Edge12 (⌀6.6 at [10, 20, 0], 28.51 mm away)")
+        self.assertNotIn("{", said)
+        self.assertEqual(api.nearest_words([]), "it has no round edge")
+        self.assertTrue(api.nearest_words([{"edge": "Edge1", "centre": [0, 0, 0], "diameter": 3, "away": 2}]).startswith("the nearest is Edge1"))
+
+
 @unittest.skipUnless(have_fasteners(), "the Fasteners Workbench reference clone is not here")
 class Keep(unittest.TestCase):
     def test_labels_stay_put_across_recomputes(self):

@@ -72,6 +72,46 @@ OUT["of"] = F.of(P())
         self.assertIsNone(out["of"])
 
 
+# FreeCAD 1.1's own manager (src/Mod/Material/App/MaterialManagerPyImp.cpp):
+# getMaterial(uuid), no defaultMaterial(); and its Default card as shipped
+# (Resources/Materials/Standard/Default.FCMat: 1 kg/m^3).
+LIBRARY_11 = LIBRARY + r'''
+REAL = Mat("Default", "7f9fd73b-50c9-41d8-b7b2-575a030c1eeb", Density="1 kg/m^3")
+LIB[REAL.UUID] = REAL
+class Manager11:
+    Materials = LIB
+    def getMaterial(self, uuid):
+        if uuid not in LIB:
+            raise LookupError("Material not found")
+        return LIB[uuid]
+Materials.MaterialManager = Manager11
+'''
+
+
+class DefaultMaterial(unittest.TestCase):
+    """Found live (16 Nov 2026, FreeCAD 1.1.3): part_review weighed a body
+    with no material at FreeCAD's Default card's 1 kg/m^3 (a 30 cm3 bin:
+    0.02 g, so "mass 3.4" was its magnets alone, material "Default"),
+    because the default was asked of a method FreeCAD 1.1 does not have."""
+
+    def test_the_default_card_is_no_material(self):
+        out = run(LIBRARY_11 + r'''
+from workshop_make import fcmaterials as F
+p = Part("Bin"); p.ShapeMaterial = REAL
+OUT["of"] = F.of(p)
+p.ShapeMaterial = LIB["u-steel"]
+OUT["steel"] = F.of(p)
+OUT["cleared"] = F.clear(p)
+OUT["after"] = [p.ShapeMaterial.Name, p.ShapeMaterial.UUID]
+OUT["uuid"] = F._default_uuid()
+''')
+        self.assertIsNone(out["of"])
+        self.assertEqual(out["steel"]["card"], "Steel-Generic")
+        self.assertTrue(out["cleared"])
+        self.assertEqual(out["after"], ["Default", "7f9fd73b-50c9-41d8-b7b2-575a030c1eeb"])
+        self.assertEqual(out["uuid"], "7f9fd73b-50c9-41d8-b7b2-575a030c1eeb")
+
+
 class Tab(unittest.TestCase):
     def test_metals_figures_are_freecads(self):
         out = run(LIBRARY + r'''

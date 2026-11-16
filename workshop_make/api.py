@@ -151,7 +151,9 @@ def hole(doc, body, kind, size="M3", at=None, direction="-z", depth="through", f
                 "depth": depth, **({"through": through} if through else {}), "removed": round(before - pd.Shape.Volume, 2),
                 "route": "PartDesign Hole", "features": names,
                 **pdhole.head_side(kind, list(at) if at and sk is None else None, dvec),
-                "note": ("FreeCAD's own Hole (double-click it to edit). " + (sizes["allowanceOn"] if sizes.get("allowanceOn") else
+                # sizes.allowanceOn says how the allowance is kept: named here, not said twice.
+                "note": ("FreeCAD's own Hole (double-click it to edit). " + (f"Printer allowance {float(cal.get('hole', 0.0)):g} mm added: sizes.allowanceOn says where and how it is kept."
+                                                                             if sizes.get("allowanceOn") else
                          "No printer allowance: FreeCAD's sizes as they are, kept by its size and fit.")),
                 "sound": s["ok"], **({"problems": s["problems"]} if not s["ok"] else {})}
     if sk is not None:
@@ -167,6 +169,11 @@ def hole(doc, body, kind, size="M3", at=None, direction="-z", depth="through", f
         tool, sizes = fits.hole_tool(kind, size, list(at), direction, d, fit, cal)
     except ValueError as e:
         raise Refused(str(e))
+    if depth == "through" and "clearance" in sizes:
+        # The cutter is as long as the body's diagonal (116.658 on a 100 x
+        # 60 x 3 plate, found live as sizes.depth): the hole's depth is
+        # "through", as the PartDesign route says; `through` is the material passed.
+        sizes["depth"] = "through"
     before = o.Shape.Volume
     through = _through(o.Shape, at, fits._dir(direction)) if depth == "through" else None
     cut = geo.clean(o.Shape.cut(tool))

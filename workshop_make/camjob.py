@@ -85,6 +85,7 @@ def make_job(doc, body, stock, tool, label=None):
         if tcs:
             set_tool(tcs[0], tool)
         doc.recompute()
+        settle_new(doc, had)
         return job, None
     except Exception as e:  # noqa: BLE001
         for n in [o.Name for o in doc.Objects if o.Name not in had]:
@@ -93,6 +94,29 @@ def make_job(doc, body, stock, tool, label=None):
             except Exception:  # noqa: BLE001
                 pass
         return None, f"FreeCAD's CAM could not make a Job here ({e})"
+
+
+def settle_new(doc, had):
+    """A second recompute when the first left objects made since `had`
+    touched. CAM's tool bit does not rebuild its model when its Diameter is
+    set: it queues that for the END of the next document recompute (FreeCAD
+    1.1 source: src/Mod/CAM/Path/Tool/toolbit/models/base.py, onChanged ->
+    _queue_visual_update, ToolBitRecomputeObserver.slotRecomputedDocument ->
+    _update_visual_representation), where it removes the bit's body and
+    copies a new one into the document (Path/Tool/shape/models/base.py
+    make_body: doc.copyObject). Those copies (a Body, its Sketch and
+    Revolution) arrive after the recompute and stay "not recomputed yet"
+    until the next one: found live, where the health check listed
+    Sketch001, Revolution and Endmill001 after every later call. True when
+    it recomputed again."""
+    try:
+        left = [o for o in doc.Objects if o.Name not in had and "Touched" in getattr(o, "State", ())]
+    except Exception:  # noqa: BLE001
+        left = []
+    if not left:
+        return False
+    doc.recompute()
+    return True
 
 
 def tool_name(d):

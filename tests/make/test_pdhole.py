@@ -221,6 +221,42 @@ except api.Refused as e:
         self.assertIn("PartDesign Body only", out["plain_sketch"])
 
 
+class Settle(unittest.TestCase):
+    def test_what_the_change_left_touched_is_recomputed_too(self):
+        # Found live (16 Nov 2026): after hw_hole in a Body with two screws
+        # on its holes the health check said "2 objects not recomputed
+        # yet". The document's recompute of a list runs the list and what
+        # it stands on, not what stands on it.
+        out = run(r'''
+from workshop_make import pdhole
+class O:
+    def __init__(self, name, touched=False, on=None):
+        self.Name, self.touched, self.on, self.runs = name, touched, on, 0
+    State = property(lambda self: ["Touched"] if self.touched else [])
+class D:
+    def __init__(self, objs): self.Objects, self.calls = objs, []
+    def recompute(self, objs=None):
+        todo = self.Objects if objs is None else list(objs)
+        self.calls.append([o.Name for o in todo])
+        for o in todo:
+            o.touched, o.runs = False, o.runs + 1
+            for d in self.Objects:   # FreeCAD: a link to a renumbered edge is touched
+                if d.on is o:
+                    d.touched = True
+body, hole = O("Body"), O("Hole", touched=True)
+screw, stale, far = O("Screw", on=body), O("Stale", touched=True), O("Far")
+d = D([body, hole, screw, stale, far])
+pdhole.settle(d, [hole, body])
+OUT["calls"] = d.calls
+OUT["touched"] = [o.Name for o in d.Objects if o.touched]
+OUT["runs"] = {o.Name: o.runs for o in d.Objects}
+''')
+        self.assertEqual(out["calls"], [["Hole", "Body"], ["Screw"]])
+        # What was waiting before the call is not this call's: left as it was.
+        self.assertEqual(out["touched"], ["Stale"])
+        self.assertEqual(out["runs"], {"Body": 1, "Hole": 1, "Screw": 1, "Stale": 0, "Far": 0})
+
+
 class Panel(unittest.TestCase):
     def test_starts_on_the_face_or_sketch_picked(self):
         out = run(r'''

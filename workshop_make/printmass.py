@@ -151,7 +151,17 @@ def solid_of(shape, setup, walls):
     laid down layer by layer on a raster as a slicer would, else sectioned
     with FreeCAD, else from the wall readings, else None."""
     try:
-        pts, tris = shape.tessellate(0.02)
+        # On a copy: tessellate() keeps and reuses the triangles a shape
+        # already carries when they are fine enough (FreeCAD 1.1 source:
+        # src/Mod/Part/App/TopoShapePyImp.cpp tessellate -> getFaces, no
+        # BRepTools::Clean unless asked), so the answer followed whatever
+        # meshed the body before (found live: 17.10 g, then 17.15 g for the
+        # same body). copy() leaves the triangles behind (copyMesh false).
+        try:
+            fresh = shape.copy()
+        except Exception:  # noqa: BLE001 — a stand-in shape
+            fresh = shape
+        pts, tris = fresh.tessellate(0.02)
         if tris:
             cut = raster_sliced([(p.x, p.y, p.z) for p in pts], tris, setup, walls)
             if cut is not None:

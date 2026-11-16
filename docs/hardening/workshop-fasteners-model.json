@@ -114,7 +114,7 @@
     "type": "ISO4762",
     "size": "M6"
    },
-   "expect": "lengths (a list of the lengths M6 comes in, \"16\" among them), hole (pass and tap hole diameters)"
+   "expect": "lengths (a list of the lengths M6 comes in, \"16\" among them), hole { tapHole 5, nominal 6, units \"mm\", note }: the tap drill and the thread's own diameter — no pass hole (hw_hole sizes that, ISO 273)"
   },
   {
    "tool": "fastener_types",
@@ -170,7 +170,7 @@
      }
     ]
    },
-   "expect": "REFUSED invalid_input: no round edge of Bracket within 1 mm of that point, listing the nearest"
+   "expect": "REFUSED not_found: no round edge of Bracket within 1 mm of that point, naming the nearest in words (Edge14 (⌀6.6 at [10, 20, 10], 26.7 mm away) …), never a Python list"
   },
   {
    "tool": "fastener_list",
@@ -195,7 +195,7 @@
     ],
     "label": "Spare screw"
    },
-   "expect": "changed[0].label \"Spare screw\", kept after doc recompute"
+   "expect": "changed[0].label \"Spare screw\", kept after doc recompute; health has no needRecompute (the kept record no longer touches the fastener)"
   },
   {
    "tool": "fastener_set",
@@ -229,7 +229,7 @@
      10
     ]
    },
-   "expect": "a later PartDesign feature: it renumbers the Body's edges, which is what the keeper is for"
+   "expect": "a later PartDesign feature: it renumbers the Body's edges, which is what the keeper is for; health has no needRecompute (the screws on the Body's holes are recomputed with it)"
   },
   {
    "tool": "fastener_list",

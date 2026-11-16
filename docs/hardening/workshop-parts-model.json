@@ -95,7 +95,7 @@
    "arguments": {
     "generator": "project_box"
    },
-   "expect": "REFUSED invalid_input: gen_make makes gridfinity_bin only, gen_part the rest"
+   "expect": "REFUSED invalid_input by the input check, before the generator sees it: input.generator is one of gridfinity_bin, not project_box (gen_part makes the rest: the message does not say so)"
   },
   {
    "tool": "body_check",
@@ -215,7 +215,7 @@
      "x": 2
     }
    },
-   "expect": "REFUSED invalid_input: generator is one of gridfinity_baseplate, project_box, board_box"
+   "expect": "REFUSED invalid_input by the input check: input.generator is required (it does not list gridfinity_baseplate, project_box, board_box: the tool's description does)"
   },
   {
    "tool": "setup",
@@ -250,7 +250,7 @@
    "arguments": {
     "body": "Bin"
    },
-   "expect": "process \"printed\", a verdict, printing.pauses with the magnets' pause"
+   "expect": "process \"printed\", figures.mass about 27.5 g with material \"pla\" (no material set: PLA assumed, as mass_properties; it was 3.4 g, the magnets alone, while FreeCAD's Default card was taken for a material), encasedMass 3.4, printing.pauses with the magnets' pause. verdict \"fix\" with one dfm finding, thin-wall about 0.05 mm at the top of the stacking lip (z 32.4): the lip's profile ends in an edge — see the findings"
   }
  ],
  "notCovered": [

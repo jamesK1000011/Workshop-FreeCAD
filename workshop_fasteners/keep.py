@@ -66,9 +66,35 @@ def read(o):
         return {}
 
 
+def _touched(o):
+    try:
+        return "Touched" in o.State
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def quiet(o, was):
+    """After Workshop's own bookkeeping on o (its record, its label, a
+    reattach it recomputed itself): the touched flag cleared again when o
+    was not touched before (was) — nothing its shape is made from has
+    changed, so it is not "not recomputed yet"."""
+    if was or not _touched(o):
+        return
+    try:
+        o.purgeTouched()
+    except Exception:  # noqa: BLE001 — a stand-in without it
+        pass
+
+
 def write(o, rec):
-    """Stored only when it changed; the property is NoRecompute, so keeping
-    it never leaves the fastener touched (needing a recompute)."""
+    """Stored only when it changed, and never leaving the fastener touched
+    (needing a recompute). The property is an Output one: FreeCAD touches
+    an object on a change of any property that is not (FreeCAD 1.1 source:
+    src/App/DocumentObject.cpp, onChanged — NoRecompute, as this property
+    was first made, only spares the forced execute and still sets the
+    touched flag: found live, where fastener_set { label } and a hole added
+    beside a kept screw left "not recomputed yet" behind). A property made
+    before this, or a FreeCAD without the status, is covered by quiet()."""
     if PROP not in getattr(o, "PropertiesList", ()):
         o.addProperty("App::PropertyString", PROP, "Workshop",
                       "Kept by Workshop: the hole's edge by its geometry (re-found when FreeCAD renumbers edges) and the label this fastener keeps.")
@@ -79,7 +105,14 @@ def write(o, rec):
                 pass
     v = json.dumps(rec, sort_keys=True)
     if getattr(o, PROP, None) != v:
+        try:
+            if "Output" not in o.getPropertyStatus(PROP):
+                o.setPropertyStatus(PROP, "Output")
+        except Exception:  # noqa: BLE001 — an older FreeCAD, a stand-in: quiet() below
+            pass
+        was = _touched(o)
         setattr(o, PROP, v)
+        quiet(o, was)
 
 
 def kept(doc):
@@ -383,11 +416,18 @@ def check(doc, o, fix=True):
                 state = "pending"
             else:
                 was = a.get("edge")
+                clean = not _touched(o)
                 o.BaseObject = (obj, [new])
                 g = geometry(obj, new)
                 rec["anchor"] = {"object": obj.Name, "edge": new, **g}
                 try:
-                    o.recompute()
+                    # One object's own recompute executes it and leaves its
+                    # touched flag set (FreeCAD 1.1 source: src/App/
+                    # Document.cpp, recomputeFeature -> _recomputeFeature;
+                    # only the document's recompute purges it): cleared
+                    # here when it went through.
+                    if o.recompute() is not False:
+                        quiet(o, not clean)
                 except Exception:  # noqa: BLE001
                     pass
                 state = "reattached"

@@ -419,7 +419,7 @@
    "arguments": {
     "body": "Bracket"
    },
-   "expect": "bodies[0]: mass (g, as printed), com near [40, 20, 5], material PETG, materialId \"petg\", density 1.27, as \"printed: 3 walls, 5 top and 4 bottom layers, 20% infill …\", inertia { aboutCom, principal }; printedNote"
+   "expect": "bodies[0]: mass about 17.1 g (as printed; the same on every call now: the estimate reads a fresh copy of the shape), com near [40, 20, 5], material PETG, materialId \"petg\", density 1.27, as \"printed: 3 walls, 5 top and 4 bottom layers, 20% infill …\", inertia { aboutCom, principal }; printedNote"
   },
   {
    "tool": "mass_target",
@@ -449,7 +449,7 @@
     "mass": 45,
     "diameter": 8
    },
-   "expect": "a plan only: pockets [{ at, diameter 8, depth, fill }], before and after { mass, com }, fillMass, massOff, minWall 1.2 (the spec's), printing { pauseAt }, cut false, next"
+   "expect": "a plan only: pockets [{ at, diameter 8, depth, fill }], none within minWall of a hole (the M3 holes at [70, 30] and [50, 20], the M4 at [70, 10], the M6s, the nut trap): each pocket's disc and its 1.2 mm wall is all material; leftOut { places } counts the places a hole runs through; before and after { mass, com }, fillMass, massOff, minWall 1.2 (the spec's), printing { pauseAt }, cut false, next"
   },
   {
    "tool": "mass_ballast",
@@ -567,7 +567,7 @@
     "diameter": 8,
     "cut": true
    },
-   "expect": "cut true, sound true, pockets cut into the plain copy (closed: not visible from outside), after.mass nearer 45 than before.mass, step; mass_properties then lists encased ballast"
+   "expect": "cut true, sound true, pockets cut into the plain copy (closed: none opens into a hole; the volume removed is the pockets' own, π·4²·depth each), after.mass nearer 45 than before.mass, step; mass_properties then lists encased ballast. Heavy: 26 s on the Mac"
   },
   {
    "tool": "mass_properties",
@@ -728,7 +728,7 @@
      3
     ]
    },
-   "expect": "NEW: REFUSED invalid_state when Plate is a parametric Part object (a Part::Cut or Part::Box): names part_transform { copy: true } and pd_clone; Plate's volume is unchanged. (If part_boolean left Plate a plain Part::Feature, the hole is cut instead: route \"Part solid\", removed 101.79 with the 0.2 allowance.)"
+   "expect": "part_boolean leaves Plate a plain Part::Feature, so the hole is cut: route \"Part solid\", sizes { clearance 3.6, depth \"through\" }, through 3, removed 30.54 (π·1.8²·3 with the 0.2 allowance). (A parametric Part object, a Part::Cut or Part::Box, is REFUSED invalid_state instead, naming part_transform { copy: true } and pd_clone.)"
   },
   {
    "tool": "thread_cut",
@@ -743,7 +743,7 @@
     },
     "size": "M10"
    },
-   "expect": "NEW: REFUSED invalid_state the same way for a parametric Plate (else: route \"Part solid\", holeDiameter 8.5)"
+   "expect": "Plate is a plain Part::Feature: route \"Part solid\", thread { size \"M10\", diameter 8, depth 3, holeDiameter 8.5 }, removed 19.44 (π·(4.25² − 4²)·3). (A parametric Plate is REFUSED invalid_state.)"
   },
   {
    "tool": "part_primitive",
@@ -816,7 +816,7 @@
     "body": "Block",
     "name": "block-mill"
    },
-   "expect": "step { path …block-mill.step, volumeDiff under 0.01, solids 1 }, setupSheet { path …-setup.html, by \"FreeCAD CAM's Sanity report, Make's mill check added\" }, camJob { label \"Block mill\", reused false, note }: a CAM Job with a 64 x 44 x 22 stock and a 3 mm tool is now in the document, in THIS document even if another is open (fixed in this pass); health may list the Job's objects"
+   "expect": "step { path …block-mill.step, volumeDiff under 0.01, solids 1 }, setupSheet { path …-setup.html, by \"FreeCAD CAM's Sanity report, Make's mill check added\" }, camJob { label \"Block mill\", reused false, note }: a CAM Job with a 64 x 44 x 22 stock and a 3 mm tool is now in the document, in THIS document even if another is open; health names the Job's new objects and nothing is left \"not recomputed yet\" (the tool bit's rebuilt body is recomputed in the call)"
   },
   {
    "tool": "mill_export",
@@ -824,7 +824,7 @@
     "body": "Block",
     "name": "block-mill-2"
    },
-   "expect": "camJob.reused true: no second Job"
+   "expect": "camJob.reused true: no second Job; health has no needRecompute"
   },
   {
    "tool": "mill_export",

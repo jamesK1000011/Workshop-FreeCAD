@@ -92,6 +92,9 @@ def hole_sizes(size, F=None):
         out["nominal"] = _clean(F.FastenerBase.DiaStr2Num(size))
     except Exception:  # noqa: BLE001
         pass
+    if out:
+        out["units"] = "mm"
+        out["note"] = "tapHole: the drill for a tapped thread; nominal: the thread's own diameter, not a pass hole (hw_hole { kind: \"clearance\" } sizes that, ISO 273)."
     return out
 
 
@@ -210,6 +213,16 @@ def _out(c, shape):
     return abs(c.Center.dot(ax) - mid)
 
 
+def nearest_words(close):
+    """The nearest round edges in words, for a refusal: "the nearest are
+    Edge14 (⌀6.6 at [10, 20, 10], 26.7 mm away), Edge12 (…)"; "it has no
+    round edge" when there is none."""
+    if not close:
+        return "it has no round edge"
+    rows = [f"{c['edge']} (⌀{c['diameter']} at {[_clean(v) for v in c['centre']]}, {c['away']:g} mm away)" for c in close]
+    return ("the nearest is " if len(rows) == 1 else "the nearest are ") + ", ".join(rows)
+
+
 def edge_near(doc, ref, point, within=1.0):
     """(object, "EdgeN"): the round edge of ref with a global point on it,
     or at its centre, within mm (on it first; at a centre, the nearest
@@ -241,7 +254,7 @@ def edge_near(doc, ref, point, within=1.0):
         for d, i, c in found[:4]:
             q = to_global(o, c.Center)
             close.append({"edge": f"Edge{i}", "centre": [round(q.x, 2), round(q.y, 2), round(q.z, 2)], "diameter": _clean(2 * c.Radius), "away": round(d, 2)})
-        raise Missing(f"No round edge of {o.Label} within {within} mm of {list(point)}, on it or at its centre: the nearest are {close or 'none'} — give a point on the edge or the hole's centre on its face.", "not_found")
+        raise Missing(f"No round edge of {o.Label} within {within:g} mm of {list(point)}, on it or at its centre: {nearest_words(close)} — give a point on the edge or the hole's centre on its face.", "not_found")
     return o, f"Edge{found[0][1]}"
 
 
