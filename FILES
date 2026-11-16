@@ -48,6 +48,7 @@ tests/documents/_stubs.py
 tests/documents/test_api.py
 tests/documents/test_drawing.py
 tests/documents/test_drawing_page.py
+tests/documents/test_drawing_page_dims.py
 tests/documents/test_drawing_sheet_fit.py
 tests/documents/test_fc_pages.py
 tests/documents/test_gui_text.py

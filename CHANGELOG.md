@@ -22,6 +22,14 @@ Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
 
 ### Fixed
 
+- `drawing_make` puts every dimension and hole callout on the TechDraw page.
+  A TypeError ("list indices must be integers or slices, not str": each
+  view's fitted frame, kept by view name, was overwritten by the first
+  hole's list of frames) dropped every callout after the first hole, and
+  replaced the overall sizes already under `page.notOnPage`. Each item is now
+  placed on its own; one that fails is named in `page.notOnPage` (`view`,
+  `item`, `why`) and the rest still go on. Description, guide, tests with
+  stand-ins.
 - `slice` on a part whose material is no printing filament names the exact
   call that fixes it, `material_set { bodies: ["Bracket"], id: "petg" }`
   with the body's own name, and the one-off `slice { body, material }`; the
