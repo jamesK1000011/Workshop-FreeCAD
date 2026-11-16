@@ -105,7 +105,7 @@ class StemFindings(unittest.TestCase):
         pd = [h for h in d["holes"] if h.get("from") == "PartDesign Hole" and h.get("cut") == "counterbore"]
         self.assertEqual(len(pd), 1, d["holes"])
         self.assertEqual(pd[0]["count"], 2)
-        self.assertIn("CBORE", pd[0]["label"])
+        self.assertIn("⌴⌀", pd[0]["label"])  # ISO 129: counterbore ⌀, depth ↧
         self.assertIn("THRU", pd[0]["label"])
         # The bores are not called out again from their faces.
         self.assertFalse([h for h in d["holes"] if h.get("from") == "its faces" and abs(h["diameter"] - pd[0]["diameter"]) < 0.05], d["holes"])
