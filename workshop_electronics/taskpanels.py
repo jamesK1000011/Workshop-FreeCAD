@@ -48,15 +48,17 @@ class ImportBoardPanel:
     TITLE = "KiCad Board"
 
     def __init__(self, doc=None, path="", qt=None):
+        from workshop import narrow
+
         Q = qt or _qt()
         self.doc = doc
         self.form = Q.QWidget()
         self.form.setWindowTitle(self.TITLE)
-        lay = Q.QFormLayout(self.form)
+        lay = narrow.form(Q.QFormLayout(self.form))
         row = Q.QWidget()
         h = Q.QHBoxLayout(row)
         h.setContentsMargins(0, 0, 0, 0)
-        self.path = Q.QLineEdit()
+        self.path = narrow.grow(Q.QLineEdit())
         self.path.setText(path)
         self.browse = Q.QPushButton("Browse…")
         h.addWidget(self.path)

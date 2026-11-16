@@ -43,6 +43,7 @@ safetynet/settings.py
 safetynet/startup.py
 safetynet/theme.py
 safetynet/workbench.py
+tests/_narrowqt.py
 tests/documents/_stubs.py
 tests/documents/test_api.py
 tests/documents/test_drawing.py
@@ -112,6 +113,7 @@ tests/safetynet/test_with_agentlink.py
 tests/test_families.py
 tests/test_files.py
 tests/test_loads.py
+tests/test_narrow.py
 tests/test_placement.py
 tests/test_release.py
 tests/test_shared.py
@@ -121,6 +123,7 @@ tools/gen_readme_tools.py
 workshop/__init__.py
 workshop/agentlink_families.py
 workshop/layout.py
+workshop/narrow.py
 workshop/placement.py
 workshop/stale.py
 workshop/tooldata.py

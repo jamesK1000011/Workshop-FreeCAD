@@ -13,6 +13,8 @@ the agent's work), alone Make's own (workshop_make.runner, one undo step a
 call). Under Agent Link the tabs sit in its panel; alone in a "Make" dock
 beside the model tree. No Agent Link import here."""
 
+from workshop import narrow
+
 from . import materials as fil
 from . import records as store
 from . import results
@@ -343,11 +345,13 @@ def _sync(combo, items):
 
 def _narrow_form(form):
     """A form for a narrow dock: a long row puts its label above its box."""
-    try:
-        form.setRowWrapPolicy(QtWidgets.QFormLayout.WrapLongRows)
-        form.setFieldGrowthPolicy(QtWidgets.QFormLayout.AllNonFixedFieldsGrow)
-    except Exception:  # noqa: BLE001 — stand-in Qt
-        pass
+    narrow.form(form)
+
+
+def _combo():
+    """A combo that fits the narrow dock (narrow.combo): a long part name
+    elided rather than widening the tab past it."""
+    return narrow.combo(QtWidgets.QComboBox())
 
 
 class Tab(_Base):
@@ -425,10 +429,10 @@ class SetupsTab(Tab):
         # The two picks on one line, the keys on the next: one row of all
         # five was cut off in a 330 px dock (live on the Mac).
         row = self.pick_row = QtWidgets.QHBoxLayout()
-        self.kind = QtWidgets.QComboBox()
+        self.kind = _combo()
         self.kind.addItems([store.TYPES[k]["label"] for k in store.TYPES])
         self.kind.setToolTip("How the part is made.")
-        self.body = QtWidgets.QComboBox()
+        self.body = _combo()
         self.body.setToolTip("The part.")
         row.addWidget(self.kind, 1)
         row.addWidget(self.body, 1)
@@ -575,9 +579,9 @@ class FitsTab(Tab):
         self.nominal.setDecimals(2)
         self.nominal.setValue(5.0)
         self.nominal.setSuffix(" mm")
-        self.of = QtWidgets.QComboBox()
+        self.of = _combo()
         self.of.addItems(["Hole", "Shaft"])
-        self.body = QtWidgets.QComboBox()
+        self.body = _combo()
         self.nominal.setToolTip("The bought part's size, or the mating part's.")
         self.body.setToolTip("The part, so its print setup's calibration is used (else the document's).")
         form.addRow("Bought part size", self.nominal)
@@ -637,7 +641,7 @@ class ReviewTab(Tab):
 
     def build(self):
         row = QtWidgets.QHBoxLayout()
-        self.body = QtWidgets.QComboBox()
+        self.body = _combo()
         row.addWidget(self.body, 1)
         row.addWidget(self.button("Review", "One verdict on the part: soundness, printability or its process's checks, wall and mass.", self.review))
         self.lay.addLayout(row)

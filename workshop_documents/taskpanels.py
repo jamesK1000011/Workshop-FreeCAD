@@ -88,6 +88,9 @@ def body_items(parts, selected=None):
     part selected, else the only one; a prompt first when there are several
     and none is selected (blank: the tool's own "the one there is")."""
     parts = list(parts)
+    if selected and selected not in parts:
+        # The part the pick belongs to, though the list left it out.
+        parts = [selected] + parts
     if selected in parts:
         return [(p, p) for p in parts], parts.index(selected)
     if len(parts) == 1:
@@ -166,17 +169,43 @@ def picked():
         if not sel:
             return None, None
         s = sel[0]
-        o = s.Object
-        try:
-            body = o.getParentGeoFeatureGroup() or o
-        except Exception:
-            body = o
+        subs = [str(n) for n in (getattr(s, "SubElementNames", None) or [])]
+        body = owner(s.Object, subs[0] if subs else "")
         pts = list(getattr(s, "PickedPoints", None) or [])
         at = [round(pts[0].x, 3), round(pts[0].y, 3), round(pts[0].z, 3)] if pts else None
         label = getattr(body, "Label", None)
         return (label if isinstance(label, str) else None), at
     except Exception:
         return None, None
+
+
+def owner(o, sub=""):
+    """The part a picked object belongs to: the PartDesign Body a feature,
+    sketch or face is in (by the sub-element path too), else the object."""
+    if o is None:
+        return None
+    path = [p for p in str(sub or "").split(".")[:-1] if p]
+    if path:
+        try:
+            deep = o.getSubObject(".".join(path) + ".", 1)
+            if deep is not None and not isinstance(deep, (tuple, list)):
+                o = deep
+        except Exception:  # noqa: BLE001
+            pass
+    seen, cur = set(), o
+    while cur is not None and id(cur) not in seen:
+        seen.add(id(cur))
+        try:
+            if cur.isDerivedFrom("PartDesign::Body"):
+                return cur
+        except Exception:  # noqa: BLE001
+            if getattr(cur, "TypeId", "") == "PartDesign::Body":
+                return cur
+        try:
+            cur = cur.getParentGeoFeatureGroup()
+        except Exception:  # noqa: BLE001
+            cur = None
+    return o
 
 
 def selected_labels():
@@ -199,6 +228,8 @@ class FormPanel:
             from PySide import QtWidgets
         except ImportError:
             QtWidgets = QtGui
+        from workshop import narrow
+
         from . import panel as P
         from . import runner as R
 
@@ -207,9 +238,10 @@ class FormPanel:
         title, _tool, _fixed, fields = PANELS[panel]
         self.form = QtWidgets.QWidget()
         self.form.setWindowTitle(title)
-        lay = QtWidgets.QFormLayout(self.form)
-        intro = QtWidgets.QLabel(INTRO.get(panel, ""))
-        intro.setWordWrap(True)
+        # It fits the Tasks dock (narrow.WIDTH): long labels above their
+        # fields, combos asking for a few characters.
+        lay = narrow.form(QtWidgets.QFormLayout(self.form))
+        intro = narrow.label(QtWidgets.QLabel(INTRO.get(panel, "")))
         lay.addRow(intro)
         body, at = picked()
         self.get = {}
@@ -223,9 +255,10 @@ class FormPanel:
                 if len(extra) > 4:
                     w.setSpecialValueText(extra[4])
                 w.setValue(default)
+                narrow.grow(w)
                 self.get[key] = w.value
             elif kind in ("choice", "body"):
-                w = QtWidgets.QComboBox()
+                w = narrow.combo(QtWidgets.QComboBox())
                 start = 0
                 if kind == "choice":
                     items = options(extra)
@@ -237,11 +270,11 @@ class FormPanel:
                 self.get[key] = lambda w=w, items=items: chosen(w, items)
             elif kind == "point":
                 row = QtWidgets.QWidget()
-                h = QtWidgets.QHBoxLayout(row)
+                h = QtWidgets.QVBoxLayout(row)
                 h.setContentsMargins(0, 0, 0, 0)
                 boxes = []
                 for k in range(3):
-                    sb = QtWidgets.QDoubleSpinBox()
+                    sb = narrow.grow(QtWidgets.QDoubleSpinBox())
                     sb.setRange(-100000, 100000)
                     sb.setDecimals(3)
                     sb.setValue((at or [0, 0, 0])[k])
@@ -250,13 +283,12 @@ class FormPanel:
                 w = row
                 self.get[key] = lambda boxes=boxes: [b.value() for b in boxes]
             else:
-                w = QtWidgets.QLineEdit()
+                w = narrow.grow(QtWidgets.QLineEdit())
                 sel = selected_labels()
                 w.setText(", ".join(sel) if kind == "bodies" else "; ".join(f"Step {k + 1}: {b}" for k, b in enumerate(sel)) if kind == "steps" else str(default or ""))
                 self.get[key] = w.text
             lay.addRow(label, w)
-        self.msg = QtWidgets.QLabel("")
-        self.msg.setWordWrap(True)
+        self.msg = narrow.label(QtWidgets.QLabel(""))
         lay.addRow(self.msg)
 
     def values(self):
