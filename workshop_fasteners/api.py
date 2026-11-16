@@ -312,6 +312,8 @@ MOVED = {}
 
 def describe(o):
     out = {"object": o.Name, "label": o.Label, "type": getattr(o, "Type", None), "kind": _family(o), "size": getattr(o, "Diameter", None)}
+    if not getattr(o, "Visibility", True):
+        out["hidden"] = True  # still counted in the BOM
     ln = _length_of(o)
     if ln is not None:
         out["length"] = ln
@@ -503,15 +505,17 @@ def change(doc, refs, ftype=None, size=None, length=None, thread=None, invert=No
 
 
 def repeats(o):
-    """How many of it the document holds (links, arrays, clones counted),
-    Fasteners' own count where it loads; else 1 when shown."""
+    """How many of it the design holds: the object itself, always once,
+    hidden or not (Fasteners' own count, GetTotalObjectRepeats, counts a
+    hidden screw as none, so a BOM read four M8x20 screws as three), and
+    the links, arrays and clones of it Fasteners counts, where it loads."""
     F = fs.loaded()
     if F is not None:
         try:
-            return int(F.FastenerBase.GetTotalObjectRepeats(o))
+            return max(1, int(F.FastenerBase.GetTotalObjectRepeats(o)))
         except Exception:  # noqa: BLE001
             pass
-    return 1 if getattr(o, "Visibility", True) else 0
+    return 1
 
 
 def listing(doc):
@@ -519,10 +523,8 @@ def listing(doc):
     objs = fasteners_in(doc)
     items = [describe(o) for o in objs]
     bom = {}
-    for o in objs:
-        n = repeats(o)
-        if n:
-            bom[bom_text(o)] = bom.get(bom_text(o), 0) + n
+    for o in objs:  # from the objects themselves, as they are now
+        bom[bom_text(o)] = bom.get(bom_text(o), 0) + repeats(o)
     out = {"fasteners": items, "bom": [{"item": k, "qty": v} for k, v in sorted(bom.items())], "source": SOURCE}
     warnings = [i["lost"] for i in items if i.get("lost")]
     if warnings:
@@ -538,7 +540,9 @@ def bom_sheet(doc):
         import FreeCAD
         import FreeCADGui
 
-        if FreeCAD.GuiUp and "Fasteners_BOM" in FreeCADGui.listCommands():
+        hidden = [o for o in fasteners_in(doc) if not getattr(o, "Visibility", True)]
+        # Fasteners' BOM leaves a hidden screw out: then this one, which counts it.
+        if FreeCAD.GuiUp and not hidden and "Fasteners_BOM" in FreeCADGui.listCommands():
             FreeCAD.setActiveDocument(doc.Name)
             FreeCADGui.runCommand("Fasteners_BOM")
             new = [o for o in doc.Objects if o.Name not in before and o.TypeId == "Spreadsheet::Sheet"]
@@ -554,7 +558,10 @@ def bom_sheet(doc):
         sh.set(f"A{i}", r["item"])
         sh.set(f"B{i}", str(r["qty"]))
     doc.recompute()
-    return {"sheet": sh.Label, "by": "Workshop (Fasteners' BOM layout; its command needs the window)"}
+    hid = [o.Label for o in fasteners_in(doc) if not getattr(o, "Visibility", True)]
+    why = (f"{', '.join(hid[:3])}{' …' if len(hid) > 3 else ''} hidden: Fasteners' own BOM would leave {'it' if len(hid) == 1 else 'them'} out"
+           if hid else "its command needs the window")
+    return {"sheet": sh.Label, "by": f"Workshop (Fasteners' BOM layout; {why})"}
 
 
 def restore(doc):

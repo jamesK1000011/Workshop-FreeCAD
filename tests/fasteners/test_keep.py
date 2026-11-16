@@ -221,3 +221,63 @@ OUT["added"] = api.describe(s)["attachedTo"]
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipUnless(have_fasteners(), "the Fasteners Workbench reference clone is not here")
+class Reopen(unittest.TestCase):
+    # Live (FreeCAD 1.1.3): after a reopen the labels came out once as
+    # "M8x25-Screw 001/002/003" and after the next as "M8x25-Screw 2/3/4".
+    # Here a reopen is the labels as saved, then Fasteners' execute on each
+    # screw in turn, with a uniquifier that also counts up a label set to
+    # the one the object already holds (and with a space, as seen).
+    def test_labels_the_same_after_each_reopen(self):
+        out = run(SETUP + r'''
+def quirky(doc, o, want):
+    if not any(x.Label == want for x in doc.Objects):
+        return want
+    nums = [int(m.group(1)) for x in doc.Objects for m in [re.fullmatch(re.escape(want) + r" (\d+)", x.Label)] if m]
+    return f"{want} {max(nums + [0]) + 1:03d}"
+screws = [api.add(doc, "ISO4762", "M8", 25, edges=[e])[0] for e in ("Body.Edge1", "Body.Edge2", "Body.Edge3", "Body.Edge4")]
+first = [s.Label for s in screws]
+seen, sets = [], []
+real_set = FP.__setattr__
+def spy(self, k, v):
+    if k == "Label":
+        sets.append(v)
+    real_set(self, k, v)
+FP.__setattr__ = spy
+keeper = OBS[0]
+for _ in range(3):  # three reopens
+    for s in screws:  # Fasteners on the restored screws, before the keeper
+        object.__setattr__(s, "Label", quirky(doc, s, f"{s.Diameter}x{s.Length}-Screw"))
+    keeper.slotFinishRestoreDocument(doc)
+    seen.append([s.Label for s in screws])
+    doc.recompute()
+    seen.append([s.Label for s in screws])
+OUT["first"], OUT["seen"] = first, seen
+OUT["kept_sets"] = [v for v in sets if not v.endswith("(relabelling)")]
+''')
+        self.assertEqual(out["first"], ["M8x25-Screw", "M8x25-Screw 2", "M8x25-Screw 3", "M8x25-Screw 4"])
+        for s in out["seen"]:
+            self.assertEqual(s, out["first"])
+        # The keeper only ever set final labels (and temporary ones out of the way).
+        self.assertTrue(set(out["kept_sets"]) <= set(out["first"]), out["kept_sets"])
+
+    def test_bom_counts_every_screw_after_a_change(self):
+        # Live: fastener_set {objects: four screws, length: 20}: fastener_list
+        # listed four M8x20 but its bom said qty 3 (Fasteners' own count
+        # leaves a hidden screw out).
+        out = run(SETUP + r'''
+screws = [api.add(doc, "ISO4762", "M8", 35, edges=[e])[0] for e in ("Body.Edge1", "Body.Edge2", "Body.Edge3", "Body.Edge4")]
+more = [api.add(doc, "ISO4762", "M8", 35, edges=["Body.Edge5"])[0] for _ in range(2)]
+screws[0].Visibility = False
+api.change(doc, [s.Name for s in screws], length=20)
+doc.recompute()
+L = api.listing(doc)
+OUT["bom"] = L["bom"]
+OUT["labels"] = [f["label"] for f in L["fasteners"]]
+OUT["hidden"] = [f.get("hidden") for f in L["fasteners"]]
+''')
+        self.assertEqual(out["bom"], [{"item": "ISO4762 Screw M8x20", "qty": 4}, {"item": "ISO4762 Screw M8x35", "qty": 2}])
+        self.assertEqual(out["labels"][:4], ["M8x20-Screw", "M8x20-Screw 2", "M8x20-Screw 3", "M8x20-Screw 4"])
+        self.assertEqual(out["hidden"][0], True)

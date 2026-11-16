@@ -22,7 +22,7 @@ Screws, bolts, nuts, washers, heat-set inserts, PEM parts, pins and retaining ri
 ## Changing and counting
 - `fastener_set { objects, size | length | type | thread | invert | offset | match | edge | label }`, as Fasteners' Change Parameters, Flip and Move do. `type` takes another type with the same properties (a screw for a screw).
 - `fastener_set { restore: true }`: a file saved where Fasteners wasn't loaded gets its fasteners back.
-- `fastener_list` gives every fastener and the bill of materials, counted as Fasteners counts them (links and arrays too). `sheet: true` writes it to a spreadsheet. `drawing_exploded`'s BOM and `mass_properties` list fasteners as bought hardware, not as parts.
+- `fastener_list` gives every fastener and the bill of materials, counted from the objects as they are now: each fastener once, a hidden one too (`hidden: true`; Fasteners' own BOM leaves it out, so `sheet: true` then writes Workshop's sheet), plus the links and arrays of it Fasteners counts. `sheet: true` writes it to a spreadsheet. `drawing_exploded`'s BOM and `mass_properties` list fasteners as bought hardware, not as parts.
 
 ## Printing threads
 - `fastener_print` reads Fasteners' 3D-print thread settings. `{ mode: "3dprint", nut: [A, B], screw: [A, B] }` sets them: a printed thread's diameter is d × A + B.

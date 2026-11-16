@@ -151,7 +151,7 @@
   },
   "fastener_list": {
    "group": "fasteners",
-   "description": "The Fasteners parts in the document (type, size, length, thread, what each is attached to) and their bill of materials, counted as Fasteners counts them (links and arrays too); sheet: true puts the BOM in a spreadsheet (its Generate BOM in the window). Each attached fastener is checked against its hole first and says hole: kept, reattached (put back on the same circle when FreeCAD renumbered the edges) or lost (its hole moved or was removed; also under warnings — fastener_set { edge } puts it on one). Fasteners from before Workshop kept them (older documents) are taken in as the document opens or recomputes: their hole from the edge they are on, a label Fasteners counted up put back in the per-size scheme; adopted: true says so.",
+   "description": "The Fasteners parts in the document (type, size, length, thread, what each is attached to) and their bill of materials, counted from the objects as they are now: each fastener once, hidden ones too (hidden: true), plus the links and arrays of it Fasteners counts; sheet: true puts the BOM in a spreadsheet (its Generate BOM in the window). Each attached fastener is checked against its hole first and says hole: kept, reattached (put back on the same circle when FreeCAD renumbered the edges) or lost (its hole moved or was removed; also under warnings — fastener_set { edge } puts it on one). Fasteners from before Workshop kept them (older documents) are taken in as the document opens or recomputes: their hole from the edge they are on, a label Fasteners counted up put back in the per-size scheme; adopted: true says so.",
    "inputSchema": {
     "type": "object",
     "properties": {
