@@ -25,6 +25,25 @@ The first tagged release, 0.3.0 (the version in `package.xml`), is being prepare
 
 ### Changed
 
+- Hole for Hardware builds FreeCAD's own PartDesign Hole in a Body, on the
+  face or sketch picked (ISO 273 clearance by fit, the screw standard's
+  counterbore or countersink, sizes from FreeCAD's tables; editable in its
+  task panel), and adds only what it lacks: the printer allowance from the
+  setup's calibration, a nut trap (a Pocket from a hexagon), heat-set insert
+  and magnet pockets. A plain Part solid keeps the shape cut and the answer
+  says so (`route`). `hw_hole` takes `face` and `sketch`.
+- Thread Lookup reads FreeCAD's thread tables (a Hole in a hidden scratch
+  document) instead of a copy; `threads.json` (data version 2) keeps only a
+  Unified size's threads per inch and tap drill name, which FreeCAD lacks.
+  Insert holes join the metric rows. Without PartDesign the thread tools
+  say they cannot read the tables.
+- Materials tab: Give to Part also sets FreeCAD's ShapeMaterial (the
+  filament's FreeCAD card, the person's own of the same name first), Forget
+  puts FreeCAD's default back, so Inspect Material agrees with Make. Metals
+  show E and yield from FreeCAD's material cards only (`freecadCards` in
+  `shop-materials.json`). Library… opens FreeCAD's Material editor and
+  FreeCAD Material… its Material command; a part given a material there is
+  weighed with it.
 - The Make dock as tried live in a 354 px dock: a setup named once ("Print",
   not "Print (Print)") with its printer, nozzle and layer height or its
   defaults; tables fitted to the dock (no horizontal scrollbar, cut cells'

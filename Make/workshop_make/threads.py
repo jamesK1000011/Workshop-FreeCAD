@@ -1,10 +1,21 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# Screw thread sizes from the standards' tables, in millimetres: ISO metric
-# coarse and fine (ISO 261 / ISO 724 basic profile, tap drills after
-# ISO 2306) and Unified UNC / UNF (ASME B1.1 basic sizes, the usual 75 %
-# tap drills). No FreeCAD here, so it is tested anywhere.
+"""Screw thread sizes, in millimetres, from FreeCAD's own thread tables:
+the ones PartDesign Hole sizes its holes from (ISO metric coarse and fine,
+UNC, UNF), read off a Hole in a hidden scratch document once a session.
+Each size's major diameter is FreeCAD's ThreadDiameter and its tap drill
+the Diameter FreeCAD gives a threaded, unmodelled hole of that size.
+
+Workshop's own data (data/threads.json) holds only what FreeCAD lacks:
+a Unified size's threads per inch (FreeCAD's Python gives no Unified
+pitch) and its tap drill's name; heat-set insert holes come from
+data/metric-hardware.json. The person's own sizes that FreeCAD has no row
+for go in ~/.config/workshop_make/threads.json.
+
+The arithmetic below is pure Python: the tests give it a stand-in table
+(use()), as FreeCAD is not needed to check it."""
 
 import os
+import re
 
 from workshop_make import datafiles as data
 
@@ -15,78 +26,193 @@ PITCH_DIA = 0.649519  # d2 = d - 0.649519 P
 MINOR_INT = 1.082532  # D1 = D - 1.082532 P (the nut's minor)
 MINOR_EXT = 1.226869  # d3 = d - 1.226869 P (the bolt's minor)
 
-# The tables are data (data/threads.json: every size with its source); the
-# person's own sizes go in ~/.config/workshop_make/threads.json.
-_HERE = os.path.dirname(os.path.abspath(__file__))
-_ROWS = data.load(os.path.join(_HERE, "data"), "threads", package="workshop_make")["entries"].values()
-# (nominal mm, coarse pitch, tap drill mm)
-METRIC_COARSE = [(r["nominal"], r["pitch"], r["tapDrill"]) for r in _ROWS if r["series"] == "metric"]
-# (nominal mm, fine pitch): tap drill D - P.
-METRIC_FINE = [(r["nominal"], r["pitch"]) for r in _ROWS if r["series"] == "metric-fine"]
-# (name, major inch, threads per inch, series, tap drill inch, the drill's name)
-UNIFIED = [(r["name"], r["majorInch"], r["tpi"], r["series"].upper(), r["tapDrillInch"], r["tapDrillName"]) for r in _ROWS if r["series"] in ("unc", "unf")]
 SERIES = ("metric", "metric-fine", "unc", "unf")
+# FreeCAD's Hole ThreadType for each series.
+HOLE_TYPE = {"metric": "ISOMetricProfile", "metric-fine": "ISOMetricFineProfile", "unc": "UNC", "unf": "UNF"}
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_DATA = os.path.join(_HERE, "data")
+
+
+def _extras():
+    return data.load(_DATA, "threads", accepts=">=2.0,<3", package="workshop_make")["entries"]
+
+
+def _inserts():
+    try:
+        rows = data.load(_DATA, "metric-hardware", package="workshop_make")["entries"]
+    except Exception:  # noqa: BLE001
+        return {}
+    return {k: v["insert"] for k, v in rows.items() if v.get("insert")}
+
+
+# ---- FreeCAD's tables ------------------------------------------------------------------
+
+def read_freecad():
+    """FreeCAD's thread rows: [{series, designation, major, tapDrill}],
+    read off a PartDesign Hole in a hidden scratch document (closed after;
+    the active document is put back). [] when PartDesign is not here."""
+    try:
+        import FreeCAD
+        import PartDesign  # noqa: F401
+    except ImportError:
+        return []
+    was = FreeCAD.ActiveDocument
+    doc = None
+    rows = []
+    try:
+        try:
+            doc = FreeCAD.newDocument("WorkshopThreadTables", hidden=True, temp=True)
+        except TypeError:  # an older signature
+            doc = FreeCAD.newDocument("WorkshopThreadTables")
+        h = doc.addObject("PartDesign::Hole", "Probe")
+        for series, tt in HOLE_TYPE.items():
+            try:
+                h.ThreadType = tt
+            except Exception:  # noqa: BLE001 — a type this release lacks
+                continue
+            for name in list(h.getEnumerationsOfProperty("ThreadSize") or []):
+                try:
+                    h.ThreadSize = name
+                    h.Threaded = True
+                    h.ModelThread = False
+                    major = float(getattr(h, "ThreadDiameter", 0) or 0)
+                    tap = float(h.Diameter)
+                except Exception:  # noqa: BLE001
+                    continue
+                if major > 0 and tap > 0:
+                    rows.append({"series": series, "designation": str(name), "major": round(major, 4), "tapDrill": round(tap, 4)})
+    except Exception:  # noqa: BLE001
+        rows = []
+    finally:
+        if doc is not None:
+            try:
+                FreeCAD.closeDocument(doc.Name)
+            except Exception:  # noqa: BLE001
+                pass
+        if was is not None:
+            try:
+                FreeCAD.setActiveDocument(was.Name)
+            except Exception:  # noqa: BLE001
+                pass
+    return rows
+
+
+_SOURCE = [read_freecad]
+_CACHE = []
+
+
+def use(source):
+    """Where the raw rows come from: FreeCAD's (read_freecad) unless a test
+    gives a stand-in. Clears the cache."""
+    _SOURCE[0] = source or read_freecad
+    _CACHE.clear()
 
 
 def _num(x):
     return f"{x:g}"
 
 
-def _metric(d, p, fine, tap=None):
-    tap = tap if tap is not None else round(d - p, 2)
-    return {
-        "size": f"M{_num(d)}" + (f"x{_num(p)}" if fine else ""),
-        "series": "metric-fine" if fine else "metric",
-        "major": d,
-        "pitch": p,
-        "pitchDia": round(d - PITCH_DIA * p, 3),
-        "minorInt": round(d - MINOR_INT * p, 3),
-        "minorExt": round(d - MINOR_EXT * p, 3),
-        "tapDrill": tap,
-        "freecad": _fc_metric(d, p),
-    }
+def _profile(row, d, p):
+    row.update({"major": round(d, 3), "pitch": None if p is None else round(p, 4)})
+    if p is None:
+        row.update({"pitchDia": None, "minorInt": None, "minorExt": None})
+    else:
+        row.update({"pitchDia": round(d - PITCH_DIA * p, 3), "minorInt": round(d - MINOR_INT * p, 3), "minorExt": round(d - MINOR_EXT * p, 3)})
+    return row
 
 
-def _fc_metric(d, p):
-    """The size as FreeCAD's Hole lists it: M6x1.0, M10x1.25."""
-    ps = f"{p:.2f}".rstrip("0")
-    if ps.endswith("."):
-        ps += "0"
-    return f"M{_num(d)}x{ps}"
+def _metric_name(designation):
+    """(nominal, pitch or None) from FreeCAD's "M6x1.0" or "M6"."""
+    m = re.match(r"^M([\d.]+)(?:\s*x\s*([\d.]+))?", str(designation).strip())
+    if not m:
+        return None, None
+    return float(m.group(1)), (float(m.group(2)) if m.group(2) else None)
 
 
-def _unified(name, maj, tpi, series, tap, drill):
-    p = INCH / tpi
-    d = maj * INCH
-    return {
-        "size": f"{name}-{tpi}",
-        "series": series.lower(),
-        "major": round(d, 3),
-        "pitch": round(p, 4),
-        "tpi": tpi,
-        "pitchDia": round(d - PITCH_DIA * p, 3),
-        "minorInt": round(d - MINOR_INT * p, 3),
-        "minorExt": round(d - MINOR_EXT * p, 3),
-        "tapDrill": round(tap * INCH, 3),
-        "tapDrillName": drill,
-        "majorInch": maj,
-        "freecad": name,
-    }
+def _build():
+    raw = list(_SOURCE[0]() or [])
+    extras = _extras()
+    unified = {(v["series"], v.get("name")): v for v in extras.values() if v.get("series") in ("unc", "unf") and v.get("tpi") and v.get("name")}
+    inserts = _inserts()
+    out, have = [], set()
+    for r in raw:
+        s = r["series"]
+        if s.startswith("metric"):
+            nom, p = _metric_name(r["designation"])
+            if nom is None:
+                continue
+            fine = s == "metric-fine"
+            size = f"M{_num(nom)}" + (f"x{_num(p)}" if fine and p is not None else "")
+            row = {"size": size, "series": s, "freecad": r["designation"], "tapDrill": round(r["tapDrill"], 3), "source": "FreeCAD"}
+            _profile(row, r["major"], p)
+            if not fine and f"M{_num(nom)}" in inserts:
+                ins = inserts[f"M{_num(nom)}"]
+                row["insert"] = {"hole": ins[0], "depth": ins[1], "source": "Workshop Make (typical heat-set insert figures; FreeCAD has none)"}
+        else:
+            ex = unified.get((s, r["designation"]))
+            tpi = ex["tpi"] if ex else None
+            p = INCH / tpi if tpi else None
+            row = {"size": f"{r['designation']}-{tpi}" if tpi else r["designation"], "series": s, "freecad": r["designation"],
+                   "tapDrill": round(r["tapDrill"], 3), "majorInch": round(r["major"] / INCH, 4), "source": "FreeCAD"}
+            _profile(row, r["major"], p)
+            if tpi:
+                row["tpi"] = tpi
+                row["tpiSource"] = "Workshop Make (FreeCAD's Python gives no Unified pitch)"
+            if ex and ex.get("tapDrillName"):
+                row["tapDrillName"] = ex["tapDrillName"]
+        if (row["series"], row["size"]) in have:
+            continue
+        have.add((row["series"], row["size"]))
+        out.append(row)
+    # The person's own sizes, only where FreeCAD has no row for them.
+    for k, v in extras.items():
+        if v.get("source") != "user" and "nominal" not in v and "majorInch" not in v:
+            continue
+        s = v.get("series")
+        if s in ("metric", "metric-fine") and v.get("nominal") and v.get("pitch") and v.get("tapDrill"):
+            d, p = float(v["nominal"]), float(v["pitch"])
+            size = f"M{_num(d)}" + (f"x{_num(p)}" if s == "metric-fine" else "")
+            row = {"size": size, "series": s, "freecad": None, "tapDrill": float(v["tapDrill"]), "source": v.get("source", "user")}
+            _profile(row, d, p)
+        elif s in ("unc", "unf") and v.get("majorInch") and v.get("tpi") and v.get("tapDrillInch"):
+            d, p = float(v["majorInch"]) * INCH, INCH / int(v["tpi"])
+            row = {"size": f"{v.get('name', k)}-{v['tpi']}", "series": s, "freecad": None, "tapDrill": round(float(v["tapDrillInch"]) * INCH, 3),
+                   "majorInch": float(v["majorInch"]), "tpi": int(v["tpi"]), "source": v.get("source", "user")}
+            _profile(row, d, p)
+        else:
+            continue
+        if (row["series"], row["size"]) not in have:
+            have.add((row["series"], row["size"]))
+            out.append(row)
+    return out
 
 
 def table(series=None):
-    out = []
-    if series in (None, "all", "metric"):
-        out += [_metric(d, p, False, t) for d, p, t in METRIC_COARSE]
-    if series in (None, "all", "metric-fine"):
-        out += [_metric(d, p, True) for d, p in METRIC_FINE]
-    if series in (None, "all", "unc", "unf"):
-        out += [_unified(*u) for u in UNIFIED if series in (None, "all") or u[3].lower() == series]
-    return out
+    """Every size of a series (all when None), FreeCAD's first. [] when
+    FreeCAD's tables cannot be read here."""
+    if not _CACHE:
+        _CACHE.append(_build())
+    rows = _CACHE[0]
+    if series in (None, "all"):
+        return list(rows)
+    return [r for r in rows if r["series"] == series]
 
 
 def _norm(s):
     return str(s).strip().lower().replace(" ", "").replace("×", "x").replace("unc", "").replace("unf", "").rstrip("-")
+
+
+def _same_metric(key, r):
+    """M8x1.25 names M8's coarse pitch; FreeCAD's own M6x1.0 its row."""
+    if not r["series"].startswith("metric"):
+        return False
+    names = {_norm(r["size"])}
+    if r.get("freecad"):
+        names.add(_norm(r["freecad"]))
+    if r["pitch"] is not None:
+        names.add(_norm(r["size"]) + "x" + _num(r["pitch"]))
+    return key in names
 
 
 def lookup(size):
@@ -96,12 +222,12 @@ def lookup(size):
     for r in rows:
         if _norm(r["size"]) == key:
             return r
-    # M8x1.25 names the coarse pitch; 1/4 or #10 alone means UNC.
     for r in rows:
-        if r["series"].startswith("metric") and key in (_norm(r["size"]) + "x" + _num(r["pitch"]), _norm(r["freecad"])):
+        if _same_metric(key, r):
             return r
+    # 1/4 or #10 alone means UNC.
     for r in rows:
-        if r["series"] == "unc" and key == _norm(r["freecad"]):
+        if r["series"] == "unc" and key == _norm(r.get("freecad") or ""):
             return r
     return None
 
@@ -117,6 +243,7 @@ def nearest(diameter, inside, count=3):
             cands = [("tapDrill", r["tapDrill"]), ("minorInt", r["minorInt"]), ("major", r["major"])]
         else:
             cands = [("major", r["major"])]
+        cands = [c for c in cands if c[1] is not None]
         as_, ref = min(cands, key=lambda c: abs(diameter - c[1]))
         out.append({"size": r["size"], "series": r["series"], "pitch": r["pitch"], "as": as_, "standard": ref, "off": round(diameter - ref, 3)})
     rank = {"tapDrill": 0, "minorInt": 1, "major": 2}

@@ -28,6 +28,13 @@ The first tagged release, 0.2.0 (the version in `package.xml`), is being prepare
 
 ### Changed
 
+- Drawing… makes a normal TechDraw page: TechDraw's own template (its
+  preference, else ISO 7200) with the title block filled, its views,
+  section and dimensions, all editable in TechDraw. The SVG, PDF and DXF
+  are the page's own TechDraw exports where TechDraw can write them;
+  Workshop's sheet writer writes the rest (PDF and SVG without a window),
+  and `filesFrom` says which. The views keep clear of the template's title
+  block.
 - The Manual tab's steps table fits the dock (no horizontal scrollbar, cut
   cells in tooltips); its instruction reads "…, then press Add Step."
 - Installs alone: its own copies of the sheet writer, ISO 286, materials and

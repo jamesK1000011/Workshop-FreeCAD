@@ -62,7 +62,7 @@
   },
   "hw_hole": {
    "group": "fits",
-   "description": "Cut a hole for hardware into a body: kind clearance, counterbore, countersink, nut_trap (screws M2 to M8, fit close|normal|loose), insert (heat-set, typical sizes), magnet (size \"6x2\"); at [x,y,z] where it enters, on the face; dir into the material (-z by default; +x … or [x,y,z]); depth mm or \"through\". Sizes from the standards, the printer calibration added; answers the sizes used and whether the body is still sound.",
+   "description": "A hole for hardware in a body, FreeCAD's own Hole where it can be: kind clearance, counterbore, countersink, nut_trap (screws M2 to M8, fit close|normal|loose), insert (heat-set, typical sizes), magnet (size \"6x2\"); at [x,y,z] where it enters, on a flat face; dir into the material (-z by default; +x … or [x,y,z]); depth mm or \"through\". In a PartDesign Body it is FreeCAD's own Hole (its ISO 273 clearance, counterbore and countersink), editable in its panel, with the printer allowance added; a nut trap adds a Pocket. face: the entry face (\"Face6\") instead of finding it from at and dir; sketch: a sketch whose circles are the holes. In a plain Part solid it is cut as a shape (route says which). Answers the sizes used, the features made and whether the body is still sound.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -99,11 +99,18 @@
        "normal",
        "loose"
       ]
+     },
+     "face": {
+      "type": "string",
+      "description": "The entry face on the Body's tip, e.g. Face6 (PartDesign Body only)."
+     },
+     "sketch": {
+      "type": "string",
+      "description": "A sketch in the Body whose circles are the holes' centres (PartDesign Body only; at not needed)."
      }
     },
     "required": [
-     "kind",
-     "at"
+     "kind"
     ],
     "additionalProperties": false
    },
@@ -114,7 +121,7 @@
   },
   "thread_lookup": {
    "group": "thread",
-   "description": "Thread sizes from the standards, mm: size (M6, M10x1.25, 1/4-20, #10-32) gives major, pitch, pitch diameter, internal and external minor, tap drill; or a table by series (metric, metric-fine, unc, unf), near: a diameter for the six nearest. Metric M1.6–M24, Unified #4–1/2\".",
+   "description": "Thread sizes from FreeCAD's own tables (PartDesign Hole's), mm: size (M6, M10x1.25, 1/4-20, #10-32) gives major, pitch, pitch diameter, internal and external minor, tap drill, and a heat-set insert's hole where Make has one; or a table by series (metric, metric-fine, unc, unf), near: a diameter for the six nearest. Every size FreeCAD's Hole lists; a size of your own in ~/.config/workshop_make/threads.json.",
    "inputSchema": {
     "type": "object",
     "properties": {

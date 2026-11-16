@@ -11,9 +11,11 @@ REUSE.toml
 package.xml
 tests/_fc.py
 tests/_stubs.py
+tests/_threadtable.py
 tests/test_api.py
 tests/test_cut.py
 tests/test_embed.py
+tests/test_fcmaterials.py
 tests/test_frame.py
 tests/test_gui_text.py
 tests/test_handlers.py
@@ -24,6 +26,7 @@ tests/test_loads_alone.py
 tests/test_mass.py
 tests/test_mill.py
 tests/test_panel.py
+tests/test_pdhole.py
 tests/test_printed.py
 tests/test_printer.py
 tests/test_printmass.py
@@ -68,6 +71,7 @@ workshop_make/fam_mill.py
 workshop_make/fam_printer.py
 workshop_make/fam_slicing.py
 workshop_make/fam_thread.py
+workshop_make/fcmaterials.py
 workshop_make/fits.py
 workshop_make/frame.py
 workshop_make/geo.py
@@ -108,6 +112,7 @@ workshop_make/maps.py
 workshop_make/materials.py
 workshop_make/orcalib.py
 workshop_make/panel.py
+workshop_make/pdhole.py
 workshop_make/printability.py
 workshop_make/printed.py
 workshop_make/printers.py

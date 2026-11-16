@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 """Make's panel tabs: Setups (how each part is made), Materials (what it is
-made of, from Make's own filaments and shop materials), Fits (the size to
+made of: Make's printing filaments and the materials each process assumes;
+FreeCAD's library through its own Material editor and Material command), Fits (the size to
 model a hole or peg at, the printer's calibration) and Review (the verdict,
 in Make's own dock only: under Agent Link its Review tab asks Make's
 reviewer). Inspired by the ScanRuler fork's panels (Stefan Hermann, CNC
@@ -113,7 +114,11 @@ def said(ok, out, good=""):
 
 
 def material_rows(doc):
-    """[(part, material name, density)] — what each part is recorded as."""
+    """[(part, material name, density)] — what each part is recorded as:
+    Make's filament, else the FreeCAD material it was given (Std_SetMaterial),
+    else PLA assumed."""
+    from . import fcmaterials
+
     mats = store.materials(doc) if doc is not None else {}
     out = []
     for b in parts(doc):
@@ -124,7 +129,15 @@ def material_rows(doc):
         elif mid:
             out.append((b, str(mid), ""))
         else:
-            out.append((b, "PLA (assumed)", f"{fil.DENSITY.get('pla', 1.24):.3g}"))
+            try:
+                objs = doc.getObjectsByLabel(b)
+                fc = fcmaterials.of(objs[0]) if objs else None
+            except Exception:  # noqa: BLE001
+                fc = None
+            if fc:
+                out.append((b, f"{fc['card']} (FreeCAD)", f"{fc['density']:.3g}" if fc.get("density") else ""))
+            else:
+                out.append((b, "PLA (assumed)", f"{fil.DENSITY.get('pla', 1.24):.3g}"))
     return out
 
 
@@ -144,12 +157,18 @@ def shop_name(key, entry=None):
     return n if n else str(key).replace("-", " ").title()
 
 
-def material_hits(words="", limit=40):
+def material_hits(words="", limit=40, library=None):
     """Make's materials matching words: its filaments (a part can be given
     one) and its shop materials (what the cut and mill checks take), each
     by its display name. A spelling of another (aluminium beside aluminum)
-    is not listed twice: it finds the one it is the same as.
+    is not listed twice: it finds the one it is the same as. A metal's E and
+    yield are FreeCAD's, from its library card (freecadCards), and blank
+    where FreeCAD has no card; FreeCAD's whole library is its Material
+    editor's (Library…).
     [(id, name, category, density, E, yield, givable, what it is for)]."""
+    from . import fcmaterials
+
+    lib = fcmaterials.cards() if library is None else library
     w = [x for x in str(words or "").lower().split() if x]
     out = []
     for k, f in fil.FILAMENTS.items():
@@ -168,9 +187,36 @@ def material_hits(words="", limit=40):
         cat = "Metal" if v.get("metal") else "Non-metal"
         hay = " ".join([k, shop_name(k, v), cat, "shop", *uses, *also.get(k, [])]).lower()
         if all(x in hay for x in w):
-            out.append((k, shop_name(k, v), cat, None, None, None, False,
-                        f"Shop material for the {' and '.join(uses) or 'shop'} checks" + (f" (also found as {', '.join(also[k])})" if also.get(k) else "") + "."))
+            fc = fcmaterials.metal(v.get("freecadCards"), lib) if v.get("metal") and v.get("freecadCards") else None
+            fc = fc or {}
+            out.append((k, shop_name(k, v), cat, fc.get("density"), fc.get("E"), fc.get("yield"), False,
+                        f"Shop material for the {' and '.join(uses) or 'shop'} checks" + (f" (also found as {', '.join(also[k])})" if also.get(k) else "")
+                        + (f"; figures from FreeCAD's card {fc['card']}" if fc.get("card") else "") + "."))
     return out[:limit]
+
+
+NOT_GIVABLE = ("A shop material is what a cut or mill setup assumes (its Material setting). "
+               "To give the part a material from FreeCAD's library, use FreeCAD Material….")
+
+
+def freecad_command(name, label=None, doc=None):
+    """Run one of FreeCAD's own commands (its Material editor, its Material
+    command on the part labelled label, selected for it). (ok, why not)."""
+    try:
+        import FreeCADGui
+
+        if label is not None:
+            objs = doc.getObjectsByLabel(label) if doc is not None else []
+            if not objs:
+                return False, f"No part called {label}."
+            before = _selected()
+            FreeCADGui.Selection.clearSelection()
+            FreeCADGui.Selection.addSelection(objs[0])
+            lend_selection(before, doc, label)
+        FreeCADGui.runCommand(name)
+        return True, ""
+    except Exception as e:  # noqa: BLE001
+        return False, f"FreeCAD's {name} could not be run here ({e})."
 
 
 def fit_rows(out):
@@ -456,8 +502,15 @@ class MaterialsTab(Tab):
         self.lay.addWidget(self.hits, 1)
         row = QtWidgets.QHBoxLayout()
         row.addStretch(1)
-        row.addWidget(self.button("Give to Part", "The material picked below, for the part picked above.", self.give))
+        row.addWidget(self.button("Give to Part", "The filament picked below, for the part picked above (FreeCAD's material set to match).", self.give))
         row.addWidget(self.button("Forget", "The part picked above goes back to no material (PLA assumed, and said).", self.forget))
+        self.lay.addLayout(row)
+        # FreeCAD's own library: browsed and edited in its Material editor,
+        # given to a part with its own Material command.
+        row = QtWidgets.QHBoxLayout()
+        row.addStretch(1)
+        row.addWidget(self.button("Library…", "FreeCAD's material library, in its Material editor.", self.library))
+        row.addWidget(self.button("FreeCAD Material…", "Give the part picked above a material from FreeCAD's library (FreeCAD's Material command).", self.set_freecad))
         self.lay.addLayout(row)
 
     def fill(self):
@@ -469,9 +522,10 @@ class MaterialsTab(Tab):
 
     def search(self):
         self.hits.clear()
-        for mid, name, cat, d, e, y, _give, what in material_hits(self.find.text().strip()):
+        for mid, name, cat, d, e, y, give, what in material_hits(self.find.text().strip()):
             it = item([str(name), cat] + ["" if v is None else f"{v:g}" for v in (d, e, y)], {0: f"{name}: {what}", 1: f"{cat}: {what}"})
             it.setData(0, QtCore.Qt.UserRole, mid)
+            it.setData(1, QtCore.Qt.UserRole, bool(give))
             self.hits.addTopLevelItem(it)
         self.msg.setText("")
 
@@ -480,9 +534,25 @@ class MaterialsTab(Tab):
         if part is None or hit is None:
             self.msg.setText("Pick a part above and a material below.")
             return
+        if hit.data(1, QtCore.Qt.UserRole) is False:
+            self.msg.setText(NOT_GIVABLE)
+            return
         ok, out = self.runner("part_spec", {"bodies": [part.text(0)], "material": hit.data(0, QtCore.Qt.UserRole)})
         self.fill()
         self.say(ok, out, f"{part.text(0)}: {hit.text(0)}")
+
+    def library(self):
+        ok, why = freecad_command("Material_Edit")
+        self.msg.setText("" if ok else why)
+
+    def set_freecad(self):
+        part = self.parts.currentItem()
+        if part is None:
+            self.msg.setText("Pick a part above.")
+            return
+        ok, why = freecad_command("Std_SetMaterial", part.text(0), self.doc_fn())
+        self.msg.setText("" if ok else why)
+        self.fill()
 
     def forget(self):
         part = self.parts.currentItem()

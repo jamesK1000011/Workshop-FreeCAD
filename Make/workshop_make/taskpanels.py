@@ -88,7 +88,7 @@ INTRO = {
     "setup_remove": "Remove a setup; its parts then have no process.",
     "fit_size": "The size to model a hole or peg at for a bought part, the printer's calibration added.",
     "calibrate": "How much this printer prints holes small and pegs big; every fit sized after takes it.",
-    "hole": "A hole for hardware, cut into the part where it enters.",
+    "hole": "A hole for hardware on the face or sketch picked: FreeCAD's own Hole in a Body, the printer allowance, nut traps, inserts and magnets added.",
     "embed": "A pocket for a bought part encased mid-print, and the pause to put it in.",
     "slice": "Slice the part in its print setup with the slicer on this computer.",
 }
@@ -203,6 +203,52 @@ def picked():
         return None, None
 
 
+def picked_entry():
+    """What the person picked for a hole to start on, as hw_hole takes it:
+    {"face": "Face6"} for a flat face of a PartDesign Body's solid, or
+    {"sketch": label} for a sketch (its circles are the holes); {} else."""
+    try:
+        import FreeCADGui
+
+        sel = list(FreeCADGui.Selection.getSelectionEx())
+    except Exception:
+        return {}
+    if not sel:
+        return {}
+    s = sel[0]
+    o = s.Object
+    try:
+        if o.isDerivedFrom("Sketcher::SketchObject"):
+            return {"sketch": o.Label}
+    except Exception:
+        return {}
+    subs = [str(n) for n in (getattr(s, "SubElementNames", None) or []) if str(n).split(".")[-1].startswith("Face")]
+    if not subs:
+        return {}
+    body = None
+    try:
+        if o.isDerivedFrom("PartDesign::Body"):
+            body = o
+        else:
+            p = o.getParentGeoFeatureGroup()
+            body = p if p is not None and p.isDerivedFrom("PartDesign::Body") else None
+    except Exception:
+        body = None
+    if body is None:
+        return {}
+    # A face's name is the Body's tip's: picked on the tip, or on the Body
+    # by a path through its tip ("Pad.Face3"), only.
+    tip = getattr(body, "Tip", None)
+    path = subs[0].split(".")
+    if o is body:
+        owner = path[-2] if len(path) > 1 else None
+        if tip is None or (owner is not None and owner != getattr(tip, "Name", None)):
+            return {}
+    elif o is not tip:
+        return {}
+    return {"face": path[-1]}
+
+
 def selected_labels():
     try:
         import FreeCADGui
@@ -236,6 +282,9 @@ class FormPanel:
         intro.setWordWrap(True)
         lay.addRow(intro)
         body, at = picked()
+        # Hole for Hardware starts on the face or sketch picked, as
+        # PartDesign's own Hole does.
+        self.entry = picked_entry() if panel == "hole" else {}
         self.get = {}
         self.blocked = ""
         for key, label, kind, default, extra in fields:
@@ -336,6 +385,7 @@ class FormPanel:
             self.msg.setText(self.blocked)
             return False
         tool, args = args_of(self.panel, self.values())
+        args.update(getattr(self, "entry", None) or {})
         ok, out = self.runner(tool, args)
         if not ok:
             from . import theme

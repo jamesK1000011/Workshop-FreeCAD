@@ -16,7 +16,7 @@ from workshop_make import fits
 from workshop_make import geo
 from workshop_make import records
 
-from . import embeds, threads
+from . import embeds, pdhole, threads
 
 
 FIT_KINDS = tuple(fits.FITS)
@@ -82,19 +82,49 @@ def stack(items, target=None):
     return out
 
 
-def hole(doc, body, kind, size="M3", at=None, direction="-z", depth="through", fit="normal"):
-    """Cut a hole for hardware into a body (a Part feature or PartDesign
-    body's shape is replaced): clearance, counterbore, countersink,
-    nut_trap, insert or magnet, sized from the standards plus the printer's
-    fit. Answers the sizes used, what was removed and whether it is sound."""
+def hole(doc, body, kind, size="M3", at=None, direction="-z", depth="through", fit="normal", face=None, sketch=None):
+    """A hole for hardware: clearance, counterbore, countersink, nut_trap,
+    insert or magnet, with the printer's allowance added.
+
+    In a PartDesign Body it is FreeCAD's own PartDesign::Hole (its ISO 273
+    clearance, its counterbore and countersink for the screw standards it
+    knows), editable in its task panel; Make adds only what the Hole lacks:
+    the printer allowance, a nut trap (a Pocket from a hexagon), insert and
+    magnet pockets. face: the entry face ("Face6") when the person picked
+    one; sketch: a sketch whose circles are the holes. In a plain Part solid
+    (no Body) the hole is cut as a shape, and the answer says so."""
     o = doc.getObjectsByLabel(body)[0] if isinstance(body, str) and doc.getObjectsByLabel(body) else body
     if o is None or isinstance(o, str):
         raise Refused(f"body: no body called {body}.", "not_found")
     if kind not in fits.KINDS:
         raise Refused(f"kind: one of {', '.join(fits.KINDS)}.")
-    if not (isinstance(at, (list, tuple)) and len(at) == 3):
+    sk = None
+    if sketch:
+        sk = doc.getObjectsByLabel(sketch)[0] if isinstance(sketch, str) and doc.getObjectsByLabel(sketch) else (sketch if not isinstance(sketch, str) else None)
+        if sk is None:
+            raise Refused(f"sketch: no sketch called {sketch}.", "not_found")
+    if sk is None and not (isinstance(at, (list, tuple)) and len(at) == 3):
         raise Refused("at: [x, y, z], mm — where the hole enters the part, on its face.")
     cal, said = calibration(doc, o.Label)
+    pd = pdhole.body_of(o)
+    if pd is not None:
+        try:
+            dvec = fits._dir(direction)
+        except ValueError as e:
+            raise Refused(str(e))
+        before = pd.Shape.Volume if not pd.Shape.isNull() else 0.0
+        try:
+            names, sizes = pdhole.make(doc, pd, kind, size, list(at) if at else None, dvec, depth, fit, cal, face=face, sketch=sk)
+        except pdhole.Failed as e:
+            raise Refused(str(e), "failed")
+        doc.recompute()
+        s = geo.soundness(pd.Shape)
+        return {"body": pd.Label, "kind": kind, "size": size, "sizes": sizes, "printerFit": said, "removed": round(before - pd.Shape.Volume, 2),
+                "route": "PartDesign Hole", "features": names,
+                "note": "FreeCAD's own Hole (double-click it to edit); the printer allowance is added to its diameter, and a size or fit changed in its panel takes FreeCAD's size again.",
+                "sound": s["ok"], **({"problems": s["problems"]} if not s["ok"] else {})}
+    if sk is not None:
+        raise Refused("sketch: a sketch's circles make holes in a PartDesign Body only; give at for a plain Part solid.")
     bb = o.Shape.BoundBox
     d = bb.DiagonalLength if depth == "through" else float(depth)
     try:
@@ -110,6 +140,8 @@ def hole(doc, body, kind, size="M3", at=None, direction="-z", depth="through", f
     doc.recompute()
     s = geo.soundness(cut)
     return {"body": o.Label, "kind": kind, "size": size, "sizes": sizes, "printerFit": said, "removed": round(removed, 2),
+            "route": "Part solid",
+            "note": "Cut as a shape: the part is a plain Part solid, not a PartDesign Body, so FreeCAD's Hole cannot go on it (put it in a Body for an editable Hole).",
             "sound": s["ok"], **({"problems": s["problems"]} if not s["ok"] else {})}
 
 
@@ -263,6 +295,28 @@ def material_clear(doc, bodies):
         mats.pop(b, None)
     records.write(doc, "materials", mats)
     return mats
+
+
+def freecad_material(doc, bodies, material=None):
+    """FreeCAD's own material (ShapeMaterial) on bodies (labels) to match
+    Make's: the FreeCAD card for the filament material, or FreeCAD's
+    default when material is None (forgotten). So FreeCAD's Inspect
+    Material names what Make weighs the part with. {label: {"card"} or
+    {"note"}}."""
+    from . import fcmaterials, materials
+
+    out = {}
+    for b in bodies:
+        objs = doc.getObjectsByLabel(b) if hasattr(doc, "getObjectsByLabel") else []
+        if not objs:
+            continue
+        if material is None:
+            out[b] = {"card": "FreeCAD's default"} if fcmaterials.clear(objs[0]) else {"note": "FreeCAD's material left as it was"}
+            continue
+        key = str(material).lower()
+        name, why = fcmaterials.give(objs[0], key, (materials.FILAMENTS.get(key) or {}).get("name"))
+        out[b] = {"card": name} if name else {"note": why}
+    return out
 
 
 def rules_of(doc, body):

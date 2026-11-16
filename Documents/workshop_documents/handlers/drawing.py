@@ -2,13 +2,14 @@
 # Workshop Documents: the handlers of drawing_make, drawing_exploded,
 # patent_figures and patent_draft (definitions in data/tools.json; moved from
 # Agent Link for FreeCAD on 14 Nov 2026). No Agent Link import here.
-# Drawings and documents from the bodies: a dimensioned sheet of standard
-# views (a TechDraw page in the document, and SVG, PDF and DXF files), an
+# Drawings and documents from the bodies: a TechDraw page of standard views
+# (TechDraw's template, title block, views and dimensions, editable there;
+# exported as SVG, PDF and DXF by TechDraw where it can), an
 # assembly manual with exploded steps and a bill of materials, and patent
 # figures with reference numerals and a draft to start a patent attorney's
-# work from. The views are Open CASCADE's exact hidden-line removal (what
-# TechDraw itself uses), written by sheets.py, so the files come out the same
-# with or without the GUI.
+# work from. Where TechDraw cannot export (PDF and SVG with no window), the
+# files are written by sheets.py from Open CASCADE's exact hidden-line
+# removal (what TechDraw itself uses).
 
 import glob
 import math
@@ -46,12 +47,74 @@ def _num(v):
     return f"{v:.1f}".rstrip("0").rstrip(".")
 
 
+# TechDraw's own templates, a title block in each (ISO 7200) first; the
+# blank one only when this build has none.
+TITLED = {"A4": ("A4_Landscape_ISO7200TD.svg", "A4_LandscapeTD.svg", "A4_Landscape_ISO7200Pep.svg"),
+          "A3": ("A3_Landscape_ISO7200TD.svg", "A3_LandscapeTD.svg", "A3_Landscape_ISO7200Pep.svg"),
+          "A4P": ("A4_Portrait_ISO7200TD.svg", "A4_PortraitTD.svg")}
+BLANK = {"A4": "A4_Landscape_blank.svg", "A3": "A3_Landscape_blank.svg", "A4P": "A4_Portrait_blank.svg"}
+# Room the views leave at the foot of the sheet: TechDraw's title block,
+# or the files' own smaller one.
+TITLE_H = {True: 45.0, False: 18.0}
+
+
 def _template(paper):
-    """TechDraw's blank template for the paper, where this build keeps it."""
+    """(TechDraw's template for the paper, whether it has a title block):
+    TechDraw's own default template (its preferences) when it is this
+    paper's, else its ISO 7200 one, else the blank one; (None, False) when
+    this build keeps none."""
     base = os.path.join(FreeCAD.getResourceDir(), "Mod", "TechDraw", "Templates")
-    want = {"A4": "A4_Landscape_blank.svg", "A3": "A3_Landscape_blank.svg", "A4P": "A4_Portrait_blank.svg"}[paper]
-    hits = glob.glob(os.path.join(base, "**", want), recursive=True)
-    return hits[0] if hits else None
+    try:
+        pref = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Mod/TechDraw/Files").GetString("TemplateFile", "")
+    except Exception:  # noqa: BLE001
+        pref = ""
+    stem = {"A4": "A4_Landscape", "A3": "A3_Landscape", "A4P": "A4_Portrait"}[paper]
+    if pref and os.path.isfile(pref) and os.path.basename(pref).startswith(stem) and "blank" not in os.path.basename(pref).lower():
+        return pref, True
+    for want in TITLED[paper]:
+        hits = glob.glob(os.path.join(base, "**", want), recursive=True)
+        if hits:
+            return hits[0], True
+    hits = glob.glob(os.path.join(base, "**", BLANK[paper]), recursive=True)
+    return (hits[0], False) if hits else (None, False)
+
+
+# A title block field's name in TechDraw's templates (their EditableTexts
+# keys differ between templates), matched by the words in it.
+TEXT_KEYS = (
+    ("title", ("DRAWING_TITLE", "TITLE")),
+    ("scale", ("SCALE", "FC-SC")),
+    ("material", ("MATERIAL",)),
+    ("partNumber", ("PART_NUMBER", "PARTNUMBER", "PN", "DN")),
+    ("revision", ("REVISION", "REV")),
+    ("drawnBy", ("AUTHOR_NAME", "AUTHOR", "DRAWN", "CREATOR")),
+    ("checkedBy", ("CHECKED", "APPROVED")),
+    ("date", ("DATE",)),
+    ("company", ("COMPANY", "OWNER", "ORGANISATION", "ORGANIZATION")),
+    ("finish", ("FINISH", "SURFACE")),
+    ("generalTolerance", ("TOLERANCE", "GENERAL_TOL")),
+    ("projection", ("PROJECTION",)),
+    ("sheet", ("FC-SH", "SHEET")),
+)
+
+
+def template_texts(keys, fields):
+    """{template key: text} for the title block fields given: each field to
+    the first key that names it (whole name first, then a part of it), each
+    key used once; keys no field names are left as the template has them."""
+    keys = [str(k) for k in keys]
+    out, used = {}, set()
+    for field, words in TEXT_KEYS:
+        v = fields.get(field)
+        if v in (None, ""):
+            continue
+        hit = next((k for w in words for k in keys if k not in used and k.upper() == w), None)
+        if hit is None:
+            hit = next((k for w in words for k in keys if k not in used and len(w) > 3 and w in k.upper() and not (field == "title" and "SUB" in k.upper())), None)
+        if hit is not None:
+            out[hit] = str(v)
+            used.add(hit)
+    return out
 
 
 def _bodies(s, refs):
@@ -77,17 +140,28 @@ def _write(s, base, sheet, kinds):
     return paths
 
 
-def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn=None, section=None):
-    """A TechDraw page holding the same views, for the person to carry on
-    with in the GUI: (page label, what was made) or (None, why not)."""
+def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn=None, section=None, fields=None):
+    """The drawing: a TechDraw page on TechDraw's own template, its title
+    block filled, the views, section and dimensions TechDraw's own, all
+    editable in TechDraw. (page, what was made) or (None, why not)."""
     try:
         page = doc.addObject("TechDraw::DrawPage", "Page")
         page.Label = label
         tpl = doc.addObject("TechDraw::DrawSVGTemplate", "Template")
-        path = _template(paper)
+        path, _titled = _template(paper)
         if path:
             tpl.Template = path
         page.Template = tpl
+        filled = {}
+        if fields:
+            try:
+                texts = dict(tpl.EditableTexts)
+                filled = template_texts(texts, fields)
+                if filled:
+                    texts.update(filled)
+                    tpl.EditableTexts = texts
+            except Exception:  # noqa: BLE001 — a template without fields
+                filled = {}
         H = sheets.PAPER[paper][1]
         made, dimmed = [], 0
         for view, (x, y) in placed:
@@ -142,6 +216,8 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
                             pass
             doc.recompute()
         out = {"views": len(made), "extentDimensions": dimmed, "template": os.path.basename(path) if path else None, **sec_note}
+        if filled:
+            out["titleBlock"] = sorted(filled)
         if specs:
             try:
                 waited = _wait_views([v for _, v in made])
@@ -153,9 +229,46 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
                     out["viewsReadyIn"] = waited
             except Exception as e:  # the page stands without them
                 out["notOnPage"] = [{"why": f"TechDraw could not take dimensions here: {e}"}]
-        return page.Label, out
+        return page, out
     except Exception as e:
         return None, f"the TechDraw page could not be made here ({e}); the files stand on their own"
+
+
+def _export_page(page, out_dir, base):
+    """The page's own exports, as TechDraw's File ▸ Export does them: DXF
+    always (TechDraw.writeDXFPage), PDF and SVG with the GUI up
+    (TechDrawGui). ({kind: path}, {kind: why not})."""
+    paths, why = {}, {}
+    try:
+        _wait_views([v for v in page.Views if hasattr(v, "getVisibleEdges")])
+    except Exception:  # noqa: BLE001
+        pass
+    p = os.path.join(out_dir, f"{base}.dxf")
+    try:
+        TechDraw.writeDXFPage(page, p)
+        if os.path.isfile(p) and os.path.getsize(p) > 0:
+            paths["dxf"] = p
+        else:
+            why["dxf"] = "TechDraw wrote nothing"
+    except Exception as e:  # noqa: BLE001
+        why["dxf"] = f"TechDraw could not write it ({e})"
+    gui = getattr(FreeCAD, "GuiUp", False)
+    for k, fn in (("pdf", "exportPageAsPdf"), ("svg", "exportPageAsSvg")):
+        if not gui:
+            why[k] = "TechDraw exports it with FreeCAD's window only"
+            continue
+        p = os.path.join(out_dir, f"{base}.{k}")
+        try:
+            import TechDrawGui
+
+            getattr(TechDrawGui, fn)(page, p)
+            if os.path.isfile(p) and os.path.getsize(p) > 0:
+                paths[k] = p
+            else:
+                why[k] = "TechDraw wrote nothing"
+        except Exception as e:  # noqa: BLE001
+            why[k] = f"TechDraw could not write it ({e})"
+    return paths, why
 
 
 # ---- dimensions on the TechDraw page ---------------------------------------------------
@@ -477,8 +590,10 @@ def drawing_make(s, a):
     tries = ["A4", "A3"] if paper == "auto" else [paper]
     lay, err = None, None
     for pp in tries:
+        # The views keep clear of the title block TechDraw's template has.
+        titled = bool(a.get("page", True)) and _template(pp)[1]
         try:
-            got = sheets.layout(sizes, sheets.PAPER[pp], projection, sc)
+            got = sheets.layout(sizes, sheets.PAPER[pp], projection, sc, title_h=TITLE_H[titled])
         except ValueError as e:
             err = str(e)
             continue
@@ -638,11 +753,26 @@ def drawing_make(s, a):
             tb["material"] = str(mat).upper()
     tb.setdefault("sheet", f"{paper}  mm")
     title_block_grid(sheet, tb)
-    paths = _write(s, _safe(a.get("file") or name), sheet, ("svg", "pdf", "dxf"))
+    base = _safe(a.get("file") or name)
     page, made = (None, "not asked for")
     if a.get("page", True):
         page, made = _techdraw_page(s.doc, objs, [(v, L["centres"][v]) for v in want], scale, paper, f"{name} drawing", a.get("dimensions", True), specs, drawn,
-                                     {**section_out, "origin": sec_origin} if section_out else None)
+                                     {**section_out, "origin": sec_origin} if section_out else None, tb)
+    # The files are the page's own exports where TechDraw can write them;
+    # Workshop's sheet writer (the same views by Open CASCADE's hidden-line
+    # removal) writes the rest, and the answer says which is which.
+    paths, frm = {}, {}
+    if page is not None:
+        paths, why = _export_page(page, s.out_dir, base)
+        frm = {k: "TechDraw page" for k in paths}
+        frm.update({k: f"Workshop's sheet writer: {w}" for k, w in why.items()})
+    rest = [k for k in ("svg", "pdf", "dxf") if k not in paths]
+    if rest:
+        paths.update(_write(s, base, sheet, rest))
+        for k in rest:
+            frm.setdefault(k, "Workshop's sheet writer: no TechDraw page")
+    paths = {k: paths[k] for k in ("svg", "pdf", "dxf")}
+    page_label = page.Label if page is not None else None
     s.snapshot("drawing_make")
     out = {
         "files": paths,
@@ -654,12 +784,15 @@ def drawing_make(s, a):
         **({"section": section_out} if section_out else {}),
         **({"holes": holes_out} if a.get("holes") else {}),
         "titleBlock": tb,
-        "techdrawPage": page,
+        "techdrawPage": page_label,
+        "filesFrom": frm,
         "step": len(s.steps),
     }
-    out["page" if page else "pageNote"] = made
+    out["page" if page is not None else "pageNote"] = made
     if a.get("dimensions", True):
-        out["note"] = "Overall sizes once each, and the dims and hole callouts asked for. The PDF and DXF are written from the same lines as the SVG, with or without the GUI; the TechDraw page carries them too, as TechDraw dimensions measured on its views (page.dimensions; any it could not place under page.notOnPage)."
+        out["note"] = ("The drawing is the TechDraw page (edit it in TechDraw: its views, section, dimensions and title block are TechDraw's own; "
+                       "page.dimensions, and any it could not place under page.notOnPage). The files are the page's exports where TechDraw can write them "
+                       "(filesFrom); the rest come from Workshop's sheet writer, which also draws the hole callouts and overall sizes the page has as TechDraw dimensions.")
     return out
 
 

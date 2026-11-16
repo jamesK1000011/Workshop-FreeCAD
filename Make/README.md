@@ -58,9 +58,14 @@ toolbars and its **Make** menu have:
   **Mass Properties** (mass as made, centre of mass).
 - **Fits**: **Fit Size** (the size to model a hole or peg at),
   **Calibrate Printer** (how much your printer prints holes small and pegs big),
-  **Hole for Hardware** (clearance, counterbore, countersink, nut trap, insert, magnet).
+  **Hole for Hardware** (FreeCAD's own PartDesign Hole on the face or sketch
+  you pick, with its clearance, counterbore and countersink sizes, editable
+  in its panel after; Make adds only what it lacks: your printer's
+  allowance, nut traps, heat-set insert and magnet pockets. A plain Part
+  solid, not in a Body, gets the hole cut as a shape, and is told so).
 - **Hardware**: **Embed Hardware** (a pocket for a part dropped in mid-print),
-  **Pauses** (every pause the print needs), **Thread Lookup**.
+  **Pauses** (every pause the print needs), **Thread Lookup** (FreeCAD's
+  own thread tables, with insert holes and Unified pitches Make adds).
 - **Output**: **Slice**, **Cut Export** (DXF and SVG laid out on the sheet),
   **Mill Export** (STEP and a setup sheet).
 - **Printer**: **Printer Status**, **Send to Printer** (uploads; it does not
@@ -77,8 +82,13 @@ undo step.
 **The Make panel**, beside the model tree (**Make ▸ Make Panel**), with tabs:
 
 - **Setups**: each setup, its process and settings, and the parts in it.
-- **Materials**: what each part is made of, from Make's filaments and shop
-  materials.
+- **Materials**: what each part is made of: Make's printing filaments and
+  the material each process assumes. **Give to Part** also sets FreeCAD's
+  own material on the part, so FreeCAD's Inspect Material agrees. A metal's
+  E and yield are read from FreeCAD's material card. **Library…** opens
+  FreeCAD's Material editor, and **FreeCAD Material…** runs FreeCAD's
+  Material command on the part; Make weighs a part with the material set
+  there.
 - **Fits**: the size to model at for a bought part, and your printer's
   calibration.
 - **Review**: the verdict on the part (in Make's own dock; with Agent Link,
@@ -108,8 +118,8 @@ is generated from the tool definitions (`workshop_make/data/tools.json`) by
 | Tool | Group | What it does |
 |---|---|---|
 | `fit` | fits | Fits for made parts. |
-| `hw_hole` | fits | Cut a hole for hardware into a body. |
-| `thread_lookup` | thread | Thread sizes from the standards, mm. |
+| `hw_hole` | fits | A hole for hardware in a body, FreeCAD's own Hole where it can be. |
+| `thread_lookup` | thread | Thread sizes from FreeCAD's own tables, mm. |
 | `thread_identify` | thread | What thread a hole or shaft is. |
 | `thread_cut` | thread | Thread a hole with FreeCAD's PartDesign Hole. |
 | `hw_embed` | embed | Encase a bought part mid-print. |
@@ -164,8 +174,9 @@ lines and presets.
 
 ## Data
 
-Threads, fits, bearings, hardware, filaments, shop materials, printers and
-cutting machines are data files in `workshop_make/data/`, each with a schema
+Thread sizes are FreeCAD's own (PartDesign Hole's tables); `threads.json`
+holds only what FreeCAD lacks. Fits, bearings, hardware, filaments, shop
+materials, printers and cutting machines are data files in `workshop_make/data/`, each with a schema
 and each entry with its source and date, under CC BY 4.0 (`LICENSE-DATA`).
 Your own entries go in `~/.config/workshop_make/<name>.json`; updates never
 touch that folder, and your entries win.
