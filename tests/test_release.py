@@ -167,6 +167,29 @@ class PackageXml(unittest.TestCase):
         self.assertIsNotNone(m)
         self.assertEqual(m.group(1), self.one("version").text.strip())
 
+    def test_all_versions_agree(self):
+        # One add-on, one version: package.xml's, every package's VERSION,
+        # and a changelog section for it (a release is never half bumped).
+        want = self.one("version").text.strip()
+        sys.path.insert(0, ROOT)
+        try:
+            import workshop
+
+            parts = ("workshop",) + tuple(workshop.PARTS)
+        finally:
+            sys.path.pop(0)
+        found = {}
+        for pkg in parts:
+            src = open(os.path.join(ROOT, pkg, "__init__.py"), encoding="utf-8").read()
+            m = re.search(r'^VERSION\s*=\s*"([^"]+)"', src, re.M)
+            self.assertIsNotNone(m, f"{pkg}/__init__.py has no VERSION")
+            found[pkg] = m.group(1)
+        self.assertEqual({k: v for k, v in found.items() if v != want}, {}, f"package.xml says {want}")
+        log = open(os.path.join(ROOT, "CHANGELOG.md"), encoding="utf-8").read()
+        self.assertRegex(log, r"(?m)^## \[%s\] - \d{4}-\d{2}-\d{2}$" % re.escape(want), "no changelog section for " + want)
+        m = re.search(r"(?m)^## \[%s\] - (\S+)$" % re.escape(want), log)
+        self.assertEqual(m.group(1), self.one("date").text.strip(), "package.xml's date and the changelog's differ")
+
     def test_maintainer_and_licence(self):
         self.assertTrue(self.one("maintainer").get("email"), "the format needs an email attribute")
         lics = self.root.findall("p:license", NS)

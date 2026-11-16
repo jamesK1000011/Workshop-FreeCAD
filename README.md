@@ -56,8 +56,12 @@ You need FreeCAD 1.0 or newer.
   `Mod/Workshop`. It sets aside the older separate folders (`WorkshopParts`,
   `WorkshopMake`, `WorkshopElectronics`, `WorkshopDocuments`, `SafetyNet`)
   for you.
-- **By hand:** copy this repository into FreeCAD's `Mod` folder as
-  `Workshop`.
+- **By hand:** download a release from
+  [Releases](https://github.com/jamesK1000011/Workshop-FreeCAD/releases)
+  (or the current
+  [main as a zip](https://github.com/jamesK1000011/Workshop-FreeCAD/archive/refs/heads/main.zip)),
+  unzip it into FreeCAD's `Mod` folder and rename the folder to `Workshop`.
+  A `git clone` into `Mod/Workshop` works too.
 
 Use one way, not two. If you had the separate add-ons or SafetyNet
 installed, remove them first: two copies would show every command twice.

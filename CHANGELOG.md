@@ -11,8 +11,11 @@ Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
 
 ## [Unreleased]
 
-The first tagged release, 0.4.0 (the version in `package.xml`), is being
-prepared.
+## [0.4.0] - 2026-11-16
+
+The first tagged release (the version in `package.xml`): Workshop Parts,
+Make, Electronics, Documents and SafetyNet as one add-on, and the Fasteners
+bridge.
 
 ### Added
 
@@ -29,6 +32,55 @@ prepared.
   - Agents get the `fasteners` tools: `fastener_types`, `fastener_add`,
     `fastener_set`, `fastener_list` and `fastener_print`.
   Without Fasteners nothing shows and nothing costs tokens.
+
+- Workshop for FreeCAD: four add-ons for making things, installed together
+  from one Addon Manager entry, each its own workbench that works with no
+  other add-on. Workshop Parts (Gridfinity bins and baseplates, project
+  boxes, board enclosures), Workshop Make (setups, printability, fits and
+  hardware, threads, slicing, printers on the network, output for laser,
+  waterjet and mill), Workshop Electronics (KiCad boards read without KiCad,
+  enclosures round them) and Workshop Documents (drawing sheets, assembly
+  manuals, patent figures, library packs).
+- Tools for agents through Agent Link for FreeCAD when it is installed.
+- Release preparation: Addon Manager metadata for the suite (numpy declared,
+  scipy optional; each workbench's icon relative to its own folder, as
+  FreeCAD reads it), a README with install, uninstall and privacy, and this
+  changelog.
+
+### Changed
+
+- One add-on: Workshop Parts, Make, Electronics and Documents and SafetyNet
+  are combined into one, installed as `Mod/Workshop` with one
+  `package.xml`, `Init.py` and `InitGui.py` (docs/combine-design.md). Each
+  feature sits in its FreeCAD workbench through a workbench manipulator
+  (`workshop/placement.py`): Standard Parts beside the Part and Part Design
+  primitives, Hole for hardware right after PartDesign Hole with Thread
+  lookup after it, Make Checks (DFM check, part review, mass properties)
+  beside Check Geometry, Drawing and the patent figures in TechDraw, KiCad
+  Board after File ▸ Import, Library Pack after File ▸ Export, SafetyNet in
+  Tools ▸ SafetyNet and Recovered Copies in File. One small Make workbench
+  keeps setups, fits, encased hardware, slicing, cut and mill output and
+  printers, with the Make and Manual panels. The Parts, Electronics,
+  Documents and SafetyNet workbenches are gone.
+- Hole for hardware isn't folded into PartDesign Hole's task panel (C++,
+  with no Python API to add a section). It's its own button right after
+  Hole.
+- Agent tools: one `workshop.agentlink_families` joins every part's
+  families. Tool names are unchanged. The echo's workbench follows the
+  buttons (Part Design for the parts, holes, threads and checks).
+- One copy of Agent Link's vendored `layout.py` (and of `tooldata.py`), in
+  `workshop/`. The old module names are aliases of it. `tests/test_shared.py`
+  fails when it drifts from Agent Link's copy.
+- SafetyNet's code is brought in from SafetyNet-FreeCAD (25ca601), same
+  licence. Its settings (`Mod/SafetyNet`) and files (`~/AgentLink`) are
+  unchanged.
+
+- Features that came back from ScanRuler build on FreeCAD's own and keep
+  only the extras: Hole for Hardware is a PartDesign Hole plus the printer
+  allowance, nut traps, inserts and magnets; Thread Lookup reads FreeCAD's
+  thread tables; the Materials tab hands the library to FreeCAD's Material
+  editor and sets FreeCAD's material on the part; Drawing… is a normal
+  TechDraw page exported by TechDraw.
 
 ### Fixed
 
@@ -81,59 +133,6 @@ prepared.
   Report view, and their InitGui files do nothing instead of failing.
   Workshop never touches the Mod folder; Agent Link's update sets the old
   folders aside.
-
-### Changed
-
-- One add-on: Workshop Parts, Make, Electronics and Documents and SafetyNet
-  are combined into one, installed as `Mod/Workshop` with one
-  `package.xml`, `Init.py` and `InitGui.py` (docs/combine-design.md). Each
-  feature sits in its FreeCAD workbench through a workbench manipulator
-  (`workshop/placement.py`): Standard Parts beside the Part and Part Design
-  primitives, Hole for hardware right after PartDesign Hole with Thread
-  lookup after it, Make Checks (DFM check, part review, mass properties)
-  beside Check Geometry, Drawing and the patent figures in TechDraw, KiCad
-  Board after File ▸ Import, Library Pack after File ▸ Export, SafetyNet in
-  Tools ▸ SafetyNet and Recovered Copies in File. One small Make workbench
-  keeps setups, fits, encased hardware, slicing, cut and mill output and
-  printers, with the Make and Manual panels. The Parts, Electronics,
-  Documents and SafetyNet workbenches are gone.
-- Hole for hardware isn't folded into PartDesign Hole's task panel (C++,
-  with no Python API to add a section). It's its own button right after
-  Hole.
-- Agent tools: one `workshop.agentlink_families` joins every part's
-  families. Tool names are unchanged. The echo's workbench follows the
-  buttons (Part Design for the parts, holes, threads and checks).
-- One copy of Agent Link's vendored `layout.py` (and of `tooldata.py`), in
-  `workshop/`. The old module names are aliases of it. `tests/test_shared.py`
-  fails when it drifts from Agent Link's copy.
-- SafetyNet's code is brought in from SafetyNet-FreeCAD (25ca601), same
-  licence. Its settings (`Mod/SafetyNet`) and files (`~/AgentLink`) are
-  unchanged.
-
-### Added
-
-- Workshop for FreeCAD: four add-ons for making things, installed together
-  from one Addon Manager entry, each its own workbench that works with no
-  other add-on. Workshop Parts (Gridfinity bins and baseplates, project
-  boxes, board enclosures), Workshop Make (setups, printability, fits and
-  hardware, threads, slicing, printers on the network, output for laser,
-  waterjet and mill), Workshop Electronics (KiCad boards read without KiCad,
-  enclosures round them) and Workshop Documents (drawing sheets, assembly
-  manuals, patent figures, library packs).
-- Tools for agents through Agent Link for FreeCAD when it is installed.
-- Release preparation: Addon Manager metadata for the suite (numpy declared,
-  scipy optional; each workbench's icon relative to its own folder, as
-  FreeCAD reads it), a README with install, uninstall and privacy, and this
-  changelog.
-
-### Changed
-
-- Features that came back from ScanRuler build on FreeCAD's own and keep
-  only the extras: Hole for Hardware is a PartDesign Hole plus the printer
-  allowance, nut traps, inserts and magnets; Thread Lookup reads FreeCAD's
-  thread tables; the Materials tab hands the library to FreeCAD's Material
-  editor and sets FreeCAD's material on the part; Drawing… is a normal
-  TechDraw page exported by TechDraw.
 
 ## History before the combine
 

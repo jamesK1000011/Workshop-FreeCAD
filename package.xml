@@ -3,7 +3,7 @@
   <name>Workshop</name>
   <description>Making things in FreeCAD, each feature in the workbench it belongs to: standard parts (Gridfinity, project and board boxes) in Part and Part Design, hardware holes, threads and make checks in Part Design, drawings and patent figures in TechDraw, KiCad boards and library packs in the File menu, checkpoints and recovery in Tools ▸ SafetyNet, and one small Make workbench for setups, fits, encased hardware, slicing, cut and mill output and printers. Tools for agents through Agent Link for FreeCAD when it is installed. Not affiliated with or endorsed by the FreeCAD project or the FPA.</description>
   <version>0.4.0</version>
-  <date>2026-11-15</date>
+  <date>2026-11-16</date>
   <maintainer email="jamesK1000011@users.noreply.github.com">jamesK1000011</maintainer>
   <license file="LICENSE">LGPL-2.1-or-later</license>
   <license file="LICENSES/CC-BY-4.0.txt">CC-BY-4.0</license>
