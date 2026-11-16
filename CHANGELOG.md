@@ -22,6 +22,18 @@ Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
 
 ### Fixed
 
+- `drawing_make`: TechDraw's own SVG and PDF exports hold the views. They
+  draw the scene of the page's tab, whose views' lines are put on it only
+  once the tab has been shown and painted, so they held the template and
+  dimensions alone (twice) and the sheet writer made the files. Before
+  exporting, the page is now shown, its tab made the active one and
+  painted, every view asked to repaint and the event loop run
+  (`page.exportScene`); the sheet writer stays the fallback.
+- `drawing_make`: the sheet writer's hole callouts land on the hole. A
+  leader went to the hole's projected place whatever was drawn there
+  (4× ⌀6 on a slot's end, ⌀20 on a ⌀13 bore); it now lands only on a drawn
+  circle of the hole's size (within 2%) where the hole projects, else the
+  callout is left off and listed under `calloutsOff`.
 - `drawing_make`: the exported PDF and SVG hold the views again. A view
   keeps its old lines readable while TechDraw works new ones out on another
   thread, so the wait ("has it edges") passed at once, and the wait then

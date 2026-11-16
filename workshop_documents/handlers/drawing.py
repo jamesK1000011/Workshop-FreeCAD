@@ -410,14 +410,10 @@ def _export_page(page, out_dir, base, kinds=("dxf", "pdf", "svg"), report=None):
             why["dxf"] = f"TechDraw could not write it ({e})"
     gui = getattr(FreeCAD, "GuiUp", False)
     if gui and any(k in kinds for k in ("pdf", "svg")):
-        # TechDraw puts the template (frame, title block) in the page's
-        # scene only when the page is first shown (1.1.3:
-        # ViewProviderPage::showMDIViewPage); a page never opened exported
-        # its views on white. Opened as a tab in FreeCAD's window.
-        try:
-            page.ViewObject.show()
-        except Exception:  # noqa: BLE001
-            pass
+        # TechDrawGui's exports draw the page's scene (the QGraphicsScene of
+        # its tab), not the page object: shown, made the active tab, each
+        # view asked to repaint and the event loop run before exporting.
+        report["exportScene"] = page_scene_ready(page)
     for k, fn in (("svg", "exportPageAsSvg"), ("pdf", "exportPageAsPdf")):
         if k not in kinds:
             continue
@@ -437,6 +433,7 @@ def _export_page(page, out_dir, base, kinds=("dxf", "pdf", "svg"), report=None):
                 # wait for them again (the window redrawn) and export once more.
                 again = _settle(pv)
                 report["viewsReadyIn"] = round(report["viewsReadyIn"] + again["seconds"], 2)
+                report["exportSceneAgain"] = page_scene_ready(page, turns=SCENE_TURNS * 2)
                 getattr(TechDrawGui, fn)(page, p)
             if not (os.path.isfile(p) and os.path.getsize(p) > 0):
                 why[k] = "TechDraw wrote nothing"
@@ -450,6 +447,86 @@ def _export_page(page, out_dir, base, kinds=("dxf", "pdf", "svg"), report=None):
         except Exception as e:  # noqa: BLE001
             why[k] = f"TechDraw could not write it ({e})"
     return paths, why
+
+
+SCENE_TURNS = 4
+
+
+def _pump_gui():
+    """One turn of FreeCAD's event loop (its window redrawn): False when
+    there is none."""
+    from workshop_documents import td_wait
+
+    return td_wait._pump()
+
+
+def _page_tab(page):
+    """The page's tab in FreeCAD's window (its MDIViewPage), or None."""
+    import FreeCADGui
+
+    try:
+        tabs = list(FreeCADGui.getDocument(page.Document.Name).mdiViewsOfType("TechDrawGui::MDIViewPage") or [])
+    except Exception:  # noqa: BLE001
+        tabs = []
+    for m in tabs:
+        try:
+            got = m.getPage()
+        except Exception:  # noqa: BLE001
+            continue
+        if got is page or getattr(got, "Name", None) == getattr(page, "Name", ""):
+            return m
+    return tabs[0] if len(tabs) == 1 else None
+
+
+def page_scene_ready(page, turns=SCENE_TURNS):
+    """Readies the scene TechDrawGui's SVG and PDF exports draw (1.1.3:
+    the QGraphicsScene of the page's tab; a view's lines are put on it as
+    graphics items only when its tab has been shown and the window has
+    painted it, so a page whose tab was never shown, or sat behind
+    another, exported the template and dimensions alone). In order: the
+    page shown as a tab, that tab made the active one, every view and the
+    page asked to repaint (requestPaint, no recompute: that would start
+    the views' lines afresh) after one turn of the event loop has painted
+    the tab, and the loop run `turns` more times. The steps done, in
+    order, for the answer: [show, activate, paint, redraw, process]; a
+    step that could not be done is left out."""
+    done = []
+    try:
+        page.ViewObject.show()
+        done.append("show")
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        tab = _page_tab(page)
+        if tab is not None:
+            import FreeCADGui
+
+            FreeCADGui.getMainWindow().setActiveWindow(tab)
+            done.append("activate")
+    except Exception:  # noqa: BLE001
+        pass
+    if _pump_gui():
+        # The tab's first paint: the views' graphics items made.
+        done.append("paint")
+    asked = 0
+    for v in list(getattr(page, "Views", None) or []) + [page]:
+        fn = getattr(v, "requestPaint", None)
+        if callable(fn):
+            try:
+                fn()
+                asked += 1
+            except Exception:  # noqa: BLE001
+                pass
+    if asked:
+        done.append("redraw")
+    ran = 0
+    for _ in range(max(1, int(turns))):
+        if not _pump_gui():
+            break
+        ran += 1
+    if ran:
+        done.append("process")
+    return done
 
 
 DRAWN = re.compile(r"<(path|polyline|polygon|line|rect|circle|ellipse)\b")
@@ -1299,6 +1376,30 @@ def merge_counterbores(groups, flat):
     return out
 
 
+def hole_circle(circles, points, radius, rtol=0.02, thread=False):
+    """Where a hole callout's leader may land in a drawn view: the first of
+    points (the hole's centres in the view, in the order tried) with a
+    drawn circle of the hole's radius (within rtol, 2%) centred on it
+    (within 0.1 mm plus 5% of the radius). (index of the point, (cx, cy,
+    r)) or None: then the callout is left off, never put on the nearest
+    other round edge (a slot's end, a bore of another size; a hole hidden
+    in this view has no circle drawn). circles: views.project's. A
+    threaded hole (thread) is drawn at its tap drill when its thread is
+    not modelled: a circle from 75% of its nominal radius up to it too."""
+    lo = 0.75 * radius if thread else radius * (1 - rtol)
+    for i, p in enumerate(points):
+        best = None
+        for c in circles or ():
+            if not (lo - 1e-6 <= c[2] <= radius * (1 + rtol) + 1e-6):
+                continue
+            d = math.hypot(c[0] - p[0], c[1] - p[1])
+            if d <= 0.1 + 0.05 * radius and (best is None or d < best[0]):
+                best = (d, c)
+        if best is not None:
+            return i, best[1]
+    return None
+
+
 def callout_leader(at, r, outline, k, left=None, slope=45):
     """A hole callout's leader from the circle (centre at, radius r on the
     paper) out past the view's outline, the k-th in that view turned a
@@ -1586,7 +1687,7 @@ def drawing_make(s, a):
         order = [a["holes"]] if isinstance(a["holes"], str) else HOLE_VIEWS
         groups = hole_groups(objs, order, [v for v in want if v not in ("iso", sec_view)] if not isinstance(a["holes"], str) else [a["holes"]])
         fits = a.get("holeFits") or {}
-        per_view, callouts = {}, []
+        per_view, callouts, off = {}, [], []
         for g in groups:
             dia = g["diameter"]
             fit = fits.get(str(dia)) or fits.get(f"{dia:g}")
@@ -1606,24 +1707,37 @@ def drawing_make(s, a):
             per_view[hv] = k + 1
             box, centre = drawn[hv]["box"], L["centres"][hv]
             sv = scales[hv]
-            c0 = min(g["centres"], key=lambda c: (views.point(c, hv)[0], -views.point(c, hv)[1]))
-            pa = _to_paper(views.point(c0, hv), box, centre, sv)
+            cs = sorted(g["centres"], key=lambda c: (views.point(c, hv)[0], -views.point(c, hv)[1]))
+            c0 = cs[0]
+            # The leader lands on a drawn circle of the hole's size where the
+            # hole projects, else the callout is left off and listed (it once
+            # landed on a slot's end and on a bore of another size).
+            on = hole_circle(drawn[hv].get("circles"), [views.point(c, hv) for c in cs], dia / 2, thread=bool(g.get("thread")))
+            spec_at = {}
+            if on is None:
+                row["calloutOff"] = (f"no circle of ⌀{_num(dia)} drawn where the hole is in the {hv} view "
+                                     "(hidden there, or drawn otherwise): left off the sheet rather than on another round edge")
+                off.append({"view": hv, "label": label, "why": row["calloutOff"]})
+            else:
+                c0 = cs[on[0]]
+                pa = _to_paper(on[1][:2], box, centre, sv)
             # Clear of every view and every text already on the sheet: the
             # callout goes up 6 mm more until it is.
             # and of every callout before it (text boxes tested against each
             # other at the page's font, leaders never crossing).
-            busy = list(L["boxes"].values()) + [sheets.text_box(t) for t in sheet.texts]
-            co = place_callout(pa, dia / 2 * sv, L["boxes"][hv], k, label, busy, callouts)
-            callouts.append(co)
-            tip, elbow, tail, t = co["tip"], co["elbow"], co["tail"], co["text"]
-            sheet.line([tip, elbow, tail], "dim")
-            sheet.arrow(tip, elbow)
-            sheet.text(*t)
+                busy = list(L["boxes"].values()) + [sheets.text_box(t) for t in sheet.texts]
+                co = place_callout(pa, dia / 2 * sv, L["boxes"][hv], k, label, busy, callouts)
+                callouts.append(co)
+                tip, elbow, tail, t = co["tip"], co["elbow"], co["tail"], co["text"]
+                sheet.line([tip, elbow, tail], "dim")
+                sheet.arrow(tip, elbow)
+                sheet.text(*t)
+                spec_at = {"textAt": co["textAt"]}
             holes_out.append(row)
             over, under = _tolerance(dia, {"fit": fit}) if fit else (None, None)
             specs.append({"view": hv, "type": "Diameter", "centre": views.point(c0, hv), "centre3": [c0.x, c0.y, c0.z], "radius": dia / 2, "value": dia,
                           "fit": fit, "over": over, "under": under, "prefix": f"{len(g['centres'])}× " if len(g["centres"]) > 1 else "",
-                          "textAt": co["textAt"],
+                          **spec_at,
                           **({"label": label} if g.get("features") or g.get("cut") else {})})
         if hole_table:
             rows = [("HOLE", "QTY", "AXIS")] + [(r["label"].split("× ", 1)[-1], str(r["count"]), r["axis"]) for r in hole_table]
@@ -1667,7 +1781,7 @@ def drawing_make(s, a):
         if isinstance(made, dict):
             # The wait just before the export, and whether the export holds the views.
             made["exportViewsReadyIn"] = exported.get("viewsReadyIn")
-            for k in ("viewsNotReady", "viewsInExport"):
+            for k in ("viewsNotReady", "viewsInExport", "exportScene", "exportSceneAgain"):
                 if k in exported:
                     made[k if k != "viewsNotReady" else "exportViewsNotReady"] = exported[k]
         frm = {k: "TechDraw page" for k in paths}
@@ -1693,6 +1807,7 @@ def drawing_make(s, a):
         **({"section": section_out} if section_out else {}),
         **({"holes": holes_out} if a.get("holes") else {}),
         **({"holeTable": hole_table} if hole_table else {}),
+        **({"calloutsOff": off} if a.get("holes") and off else {}),
         "titleBlock": tb,
         "techdrawPage": page_label,
         "filesFrom": frm,
