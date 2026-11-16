@@ -255,6 +255,7 @@ workshop_make/geo.py
 workshop_make/guides/cut.md
 workshop_make/guides/embed.md
 workshop_make/guides/frame.md
+workshop_make/guides/hole.md
 workshop_make/guides/mass.md
 workshop_make/guides/mill.md
 workshop_make/guides/printer.md

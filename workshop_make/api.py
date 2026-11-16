@@ -150,7 +150,9 @@ def hole(doc, body, kind, size="M3", at=None, direction="-z", depth="through", f
         return {"body": pd.Label, "kind": kind, "size": size, "sizes": sizes, "printerFit": said, "allowance": float(cal.get("hole", 0.0)),
                 "depth": depth, **({"through": through} if through else {}), "removed": round(before - pd.Shape.Volume, 2),
                 "route": "PartDesign Hole", "features": names,
-                "note": "FreeCAD's own Hole (double-click it to edit); the printer allowance is added to its diameter, and a size or fit changed in its panel takes FreeCAD's size again.",
+                **pdhole.head_side(kind, list(at) if at and sk is None else None, dvec),
+                "note": ("FreeCAD's own Hole (double-click it to edit). " + (sizes["allowanceOn"] if sizes.get("allowanceOn") else
+                         "No printer allowance: FreeCAD's sizes as they are, kept by its size and fit.")),
                 "sound": s["ok"], **({"problems": s["problems"]} if not s["ok"] else {})}
     if sk is not None:
         raise Refused("sketch: a sketch's circles make holes in a PartDesign Body only; give at for a plain Part solid.")
@@ -171,7 +173,7 @@ def hole(doc, body, kind, size="M3", at=None, direction="-z", depth="through", f
     s = geo.soundness(cut)
     return {"body": o.Label, "kind": kind, "size": size, "sizes": sizes, "printerFit": said, "allowance": float(cal.get("hole", 0.0)),
             "depth": depth, **({"through": through} if through else {}), "removed": round(removed, 2),
-            "route": "Part solid",
+            "route": "Part solid", **pdhole.head_side(kind, list(at), fits._dir(direction)),
             "note": "Cut as a shape: the part is a plain Part solid, not a PartDesign Body, so FreeCAD's Hole cannot go on it (put it in a Body for an editable Hole).",
             "sound": s["ok"], **({"problems": s["problems"]} if not s["ok"] else {})}
 

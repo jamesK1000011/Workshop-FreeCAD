@@ -429,6 +429,7 @@ def _configure(h, kind, size, depth, fit, add):
     if fv:
         h.ThreadFit = fv
     out = {"freecadSize": pick, "fit": fv}
+    cut = by_freecad = None
     if kind in ("counterbore", "countersink"):
         cut, by_freecad = pick_cut(_enums(h, "HoleCutType"), kind)
         h.HoleCutType = cut
@@ -438,26 +439,93 @@ def _configure(h, kind, size, depth, fit, add):
                 h.HoleCutDiameter = m["head"][0] + 0.5
                 h.HoleCutDepth = m["head"][1] + 0.3
             elif kind == "countersink" and m.get("csk"):
-                h.HoleCutDiameter = m["csk"] + 0.3
                 h.HoleCutCountersinkAngle = 90
+                h.HoleCutDiameter = m["csk"] + 0.3
         out["cut"] = cut
         out["cutSizedBy"] = "FreeCAD" if by_freecad else "Workshop Make (this FreeCAD has no table for it)"
     else:
         h.HoleCutType = "None"
-    # The printer allowance on top of FreeCAD's sizes (set last: FreeCAD
-    # sets Diameter again when the size or fit changes).
     if add:
-        h.Diameter = float(h.Diameter) + add
-        if kind in ("counterbore", "countersink"):
-            try:
-                h.HoleCutCustomValues = True
-            except Exception:  # noqa: BLE001
-                pass
-            h.HoleCutDiameter = float(h.HoleCutDiameter) + add
+        out.update(_keep_allowance(h, kind, size, fv, add))
     out["clearance"] = round(float(h.Diameter), 3)
     if kind in ("counterbore", "countersink"):
         out["cutDiameter"] = round(float(h.HoleCutDiameter), 3)
         if kind == "counterbore":
             out["cutDepth"] = round(float(h.HoleCutDepth), 3)
     out["depth"] = "through" if depth == "through" else round(float(depth), 3)
+    return out
+
+
+def _keep_allowance(h, kind, size, fv, add):
+    """The printer allowance put where FreeCAD keeps it. A sized hole
+    (Profile ISO metric) has its Diameter set again from size and fit by
+    FreeCAD whenever the file is opened (Hole::Restore), and a screw
+    standard's cut (ISO 4762, ISO 10642) its cut diameter: an allowance
+    added on top was lost (4.7 answered, 4.5 in the feature). So, with an
+    allowance, the Hole becomes FreeCAD's plain hole (Profile None), whose
+    Diameter is its own, at FreeCAD's ISO 273 size plus the allowance; the
+    cut the plain Counterbore or Countersink, at FreeCAD's sizes plus the
+    allowance (FreeCAD resets those only at or under the hole's diameter).
+    The size it stands for goes in Label2 (the tree's description)."""
+    iso = float(h.Diameter)
+    was = {}
+    if kind in ("counterbore", "countersink"):
+        was = {"d": float(h.HoleCutDiameter), "depth": float(h.HoleCutDepth),
+               "angle": float(getattr(h, "HoleCutCountersinkAngle", 90) or 90)}
+        h.HoleCutType = "None"
+    h.ThreadType = "None"
+    h.Diameter = iso + add
+    out = {"clearanceBeforeAllowance": round(iso, 3)}
+    said = f"{size} clearance, ISO 273 {str(fv or 'medium').lower()} {_n(iso)} mm + {_n(add)} mm printer allowance"
+    if was:
+        h.HoleCutType = CUT_PLAIN[kind]
+        if kind == "countersink":
+            h.HoleCutCountersinkAngle = was["angle"]
+            h.HoleCutDiameter = was["d"] + add  # FreeCAD works the depth out from the angle
+        else:
+            h.HoleCutDiameter = was["d"] + add
+            h.HoleCutDepth = was["depth"]
+        out["cutBeforeAllowance"] = round(was["d"], 3)
+        said += f"; {kind} {_n(was['d'])} + {_n(add)} mm"
+    try:
+        h.Label2 = said
+    except Exception:  # noqa: BLE001
+        pass
+    props = "Diameter" + (" and HoleCutDiameter" if was else "")
+    out["allowanceOn"] = (f"the Hole's {props} (FreeCAD's size + {_n(add)} mm): a plain hole (Profile None) so FreeCAD keeps it on "
+                          f"recompute and reopen; {size} and the fit are in its description (Label2). Double-click it to change "
+                          f"the diameters; for another size run hw_hole again (a size picked in its panel takes FreeCAD's size without the allowance).")
+    return out
+
+
+def _n(x):
+    """A number in mm as words: 4.5, 0.2, 9 (no trailing zeros)."""
+    return f"{round(float(x), 3):g}"
+
+
+def head_side(kind, at, d):
+    """Which face the hole's head side is on, in words, for the answer:
+    dir runs into the material, so the screw head, counterbore,
+    countersink or nut trap is on the face at enters by, facing against
+    dir ("countersink on the face at x=0, facing -x"). A wall-mount
+    bracket drilled from the wall side has its countersink on the wall."""
+    what = {"clearance": "screw head", "counterbore": "counterbore", "countersink": "countersink", "nut_trap": "nut trap",
+            "insert": "insert pocket's opening", "magnet": "magnet pocket's opening"}.get(kind, "hole's entry")
+    if at is None:
+        return {"headSide": f"{what} on the face the sketch is on (FreeCAD's Hole goes into the material from the sketch)."}
+    v = [float(getattr(d, k)) for k in "xyz"] if hasattr(d, "x") else [float(x) for x in d]
+    n = sum(x * x for x in v) ** 0.5 or 1.0
+    v = [x / n for x in v]
+    big = max(range(3), key=lambda i: abs(v[i]))
+    if abs(abs(v[big]) - 1) < 1e-6:
+        ax = "xyz"[big]
+        facing = ("-" if v[big] > 0 else "+") + ax
+        face = f"{ax}={_n(at[big])}"
+        out = {"face": face, "facing": facing}
+        s = f"{what} on the face at {face}, facing {facing}"
+    else:
+        facing = [round(-x, 4) for x in v]
+        out = {"facing": facing}
+        s = f"{what} on the face through {[round(float(x), 3) for x in at]}, facing {facing}"
+    out["headSide"] = s + " (dir runs into the material from there; for it on the opposite face, enter from that face with dir reversed)."
     return out
