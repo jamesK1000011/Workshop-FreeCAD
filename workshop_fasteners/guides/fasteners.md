@@ -8,14 +8,15 @@ Screws, bolts, nuts, washers, heat-set inserts, PEM parts, pins and retaining ri
 
 ## Putting one in
 - On holes: `fastener_add { type, edges: ["Plate.Edge7", …] }` puts one on each round edge. Leave `size` out and it matches the hole: `match: "outer"` for a pass hole (the screw goes through), `"inner"` for a tap hole (the thread bites). `invert` flips it, `offset` (mm) lifts it off the face.
-- Pick an edge by a point on it: `edges: [{ body: "Stem", near: [x, y, z] }]` takes the round edge nearest that point (within 1 mm).
+- Pick an edge by a point: `edges: [{ body: "Stem", near: [x, y, z] }]`. Both work: a point on the round edge, or the hole's centre on its face (within 1 mm). At a centre the nearest centre wins, then the hole's outer rim, where the screw seats.
 - A `size` given wins over the hole. Given on a counterbore's wall, the screw goes on the bore's edge at the counterbore's floor, where its head sits. The answer says so (`attachNote`) and gives the edge's diameter.
 - Loose: `fastener_add { type, size, length, at: [x, y, z] }`.
 - `length` takes the nearest length Fasteners has. `thread: "real"` models the thread. That's slow: use it for a render or a printed thread, not for fit checks.
 - From a hole Workshop makes: `hw_hole { …, screw: true }` or `screw: { type, length }`. The screw goes in the hole, its length taken from the plate (less a counterbore). A nut trap's screw comes from the far side. An insert's screw is as long as the insert is deep, so add the thickness of what it clamps. `hw_hole` again on the same hole changes the screw already in it, never a second one.
 
 ## Kept on the hole, under one label
-- Each fastener Workshop puts in keeps its hole by the edge's geometry as well as its name. When a later feature renumbers the Body's edges, it is put back on the same circle (`reattached` says from which edge to which). When no edge of that size is left near, it stays where it is and says so: `lost` on it, `warnings` in `fastener_list`, a warning in the Report view. Then `fastener_set { objects, edge }` puts it on a hole again.
+- Each fastener Workshop puts in keeps its hole by the edge's geometry as well as its name. When a later feature renumbers the Body's edges, it is put back on the same circle (`reattached` says from which edge to which). When no edge of that size is left near, it stays where it is and says so: `lost` on it, `warnings` in `fastener_list`, a warning in the Report view. Then `fastener_set { objects, edge }` puts it on a hole again. `fastener_list` gives each one's `hole`: kept, reattached or lost.
+- Screws from an older document (made before Workshop kept them) are taken in as it opens or recomputes: their hole from the edge they are on now, and a label Fasteners counted up (`M8x25-Screw221`) put back in the scheme (`M8x25-Screw`). A name someone gave stays. `adopted: true` says so. If one was already on the wrong edge before, put it right with `fastener_set { edge }`.
 - Labels read `M8x25-Screw`, then `M8x25-Screw 2` for the next of that size, and keep that through recomputes. Fasteners relabels at every recompute, and Workshop puts the label back. `fastener_set { objects: [one], label }` sets a name of your own, kept as given. Edits always change the object in place: its name and label stay.
 
 ## Changing and counting

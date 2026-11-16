@@ -35,7 +35,7 @@
   },
   "fastener_add": {
    "group": "fasteners",
-   "description": "A Fasteners Workbench part (screw, nut, washer, insert …): type (ISO4762 …), size (M3, which wins over the hole; left out on edges: matched to the hole), length (mm, the nearest it has), thread simple|real; edges [\"Plate.Edge7\" or { body, near: [x,y,z] }] attach one to each round edge (match outer: pass hole, inner: tap hole; invert, offset mm) — a size given on a counterbore's wall goes on the bore's edge at its floor, and says so — else loose at [x,y,z]. Answers each one made: type, size, length, where, attached to (and that edge's diameter). Fasteners Workbench: Shai Seger; screw_maker: Ulrich Brammer. Each attached fastener is kept on its hole by the edge's geometry too (centre, axis, radius): when a later PartDesign feature renumbers the Body's edges it is put back on the same round edge (reattached); when no edge of that size is left within reach it stays put and says so (lost, and a Report-view warning). Labels read \"M8x25-Screw\", \"M8x25-Screw 2\" …, numbered per size and kept.",
+   "description": "A Fasteners Workbench part (screw, nut, washer, insert …): type (ISO4762 …), size (M3, which wins over the hole; left out on edges: matched to the hole), length (mm, the nearest it has), thread simple|real; edges [\"Plate.Edge7\" or { body, near: [x,y,z] } — a point on the edge or the hole's centre] attach one to each round edge (match outer: pass hole, inner: tap hole; invert, offset mm) — a size given on a counterbore's wall goes on the bore's edge at its floor, and says so — else loose at [x,y,z]. Answers each one made: type, size, length, where, attached to (and that edge's diameter). Fasteners Workbench: Shai Seger; screw_maker: Ulrich Brammer. Each attached fastener is kept on its hole by the edge's geometry too (centre, axis, radius): when a later PartDesign feature renumbers the Body's edges it is put back on the same round edge (reattached); when no edge of that size is left within reach it stays put and says so (lost, and a Report-view warning). Labels read \"M8x25-Screw\", \"M8x25-Screw 2\" …, numbered per size and kept.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -58,7 +58,7 @@
      "edges": {
       "type": "array",
       "items": {},
-      "description": "Round edges: \"Plate.Edge7\", or { body, near: [x, y, z] } the round edge nearest a point (within 1 mm)."
+      "description": "Round edges: \"Plate.Edge7\", or { body, near: [x, y, z] }: a point on the round edge, or the hole's centre (within 1 mm of either; at a centre, the nearest centre, then the hole's outer rim)."
      },
      "at": {
       "type": "array",
@@ -151,7 +151,7 @@
   },
   "fastener_list": {
    "group": "fasteners",
-   "description": "The Fasteners parts in the document (type, size, length, thread, what each is attached to) and their bill of materials, counted as Fasteners counts them (links and arrays too); sheet: true puts the BOM in a spreadsheet (its Generate BOM in the window). Each fastener Workshop put in is checked against its hole first: put back when FreeCAD renumbered the edges (reattached), else listed under warnings (lost: its hole moved or was removed — fastener_set { edge } puts it on one).",
+   "description": "The Fasteners parts in the document (type, size, length, thread, what each is attached to) and their bill of materials, counted as Fasteners counts them (links and arrays too); sheet: true puts the BOM in a spreadsheet (its Generate BOM in the window). Each attached fastener is checked against its hole first and says hole: kept, reattached (put back on the same circle when FreeCAD renumbered the edges) or lost (its hole moved or was removed; also under warnings — fastener_set { edge } puts it on one). Fasteners from before Workshop kept them (older documents) are taken in as the document opens or recomputes: their hole from the edge they are on, a label Fasteners counted up put back in the per-size scheme; adopted: true says so.",
    "inputSchema": {
     "type": "object",
     "properties": {

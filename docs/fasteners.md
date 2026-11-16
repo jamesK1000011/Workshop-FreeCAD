@@ -71,6 +71,12 @@ against its `WorkshopKeep` property:
   just after the document's recompute, never inside it. If there is none,
   the fastener is left where it is and a warning goes to the Report view,
   to `lost` on it and to `warnings` in `fastener_list`.
+- **Adopted.** Fasteners without the property (older documents, or made by
+  Fasteners' own buttons) and attached to an edge are taken in as the
+  document opens and at each recompute. The hole comes from the edge they
+  are on then; a label Fasteners counted up is put back in the scheme; a
+  name someone gave stays. `fastener_list` says `adopted: true`, and `hole:
+  kept | reattached | lost` for each.
 - **Label.** `M8x25-Screw`, then `M8x25-Screw 2` and so on, numbered per
   size once and put back after each recompute. A label given with
   `fastener_set { label }` is kept as given.

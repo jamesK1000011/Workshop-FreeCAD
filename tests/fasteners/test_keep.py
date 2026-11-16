@@ -165,6 +165,59 @@ OUT["count"] = len(api.fasteners_in(doc))
         self.assertEqual(out["r"][2], "M8x16-Screw")
         self.assertEqual(out["count"], 1)
 
+    def test_older_screws_are_adopted(self):
+        # StemV2, made before the keeper: screws with no kept hole whose
+        # labels Fasteners had counted up, and one someone named.
+        out = run(SETUP + r"""
+from workshop_fasteners import fs
+F = fs.load()
+keeper = OBS.pop()  # the file as it was saved: made with no keeper about
+def old(edge, length, label):
+    o = doc.addObject("Part::FeaturePython", "Screw")
+    F.FastenersCmd.FSScrewObject(o, "ISO4762", (plate, [edge]))
+    o.Diameter = "M8"
+    doc.recompute()
+    o.Length = str(length)
+    object.__setattr__(o, "Label", label)
+    return o
+a, b, c, d = old("Edge1", 25, "M8x25-Screw221"), old("Edge3", 25, "M8x25-Screw225"), old("Edge2", 35, "M8x35-Screw002"), old("Edge4", 25, "Clamp bolt")
+OBS.append(keeper)
+keeper.slotFinishRestoreDocument(doc)  # as the file opens
+OUT["opened"] = [x.Label for x in (a, b, c, d)]
+for _ in range(3):
+    doc.recompute()
+OUT["after"] = [x.Label for x in (a, b, c, d)]
+L = api.listing(doc)
+OUT["states"] = [(f["label"], f.get("hole"), f.get("adopted")) for f in L["fasteners"]]
+plate.Shape.Edges[:0] = [Edge(Vec(0, 50, 0), Vec(1, 0, 0), 2.0)]
+doc.recompute()
+OUT["moved"] = [(f["label"], f.get("hole"), f["attachedTo"]) for f in api.listing(doc)["fasteners"]]
+""")
+        self.assertEqual(out["opened"], ["M8x25-Screw", "M8x25-Screw 2", "M8x35-Screw", "Clamp bolt"])
+        self.assertEqual(out["after"], out["opened"])  # no more counting up
+        self.assertEqual([s[1:] for s in out["states"]], [["kept", True]] * 4)
+        self.assertEqual([m[1] for m in out["moved"]], ["reattached"] * 4)
+        self.assertEqual([m[2] for m in out["moved"]], ["Body.Edge2", "Body.Edge4", "Body.Edge3", "Body.Edge5"])
+
+    def test_near_a_holes_centre(self):
+        out = run(SETUP + r"""
+from workshop_fasteners import fs
+OUT["on_rim"] = api.element(doc, {"body": "Body", "near": [44.2, 0, 10]})[1]
+OUT["centre_top"] = api.element(doc, {"body": "Body", "near": [40, 0, 10]})[1]
+OUT["centre_bottom"] = api.element(doc, {"body": "Body", "near": [40, 0, 0.5]})[1]
+try:
+    api.element(doc, {"body": "Body", "near": [40, 0, 5]})  # inside the hole, 5 mm from either rim's centre
+except fs.Missing as e:
+    OUT["refused"] = e.message
+s = api.add(doc, "ISO4762", "M8", 20, edges=[{"body": "Body", "near": [10, 0, 10]}])[0]
+OUT["added"] = api.describe(s)["attachedTo"]
+""")
+        self.assertEqual(out["on_rim"], "Edge3")
+        self.assertEqual(out["centre_top"], "Edge3")
+        self.assertEqual(out["centre_bottom"], "Edge4")
+        self.assertIn("centre", out["refused"])
+        self.assertEqual(out["added"], "Body.Edge1")
+
 
 if __name__ == "__main__":
     unittest.main()
