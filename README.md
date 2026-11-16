@@ -12,9 +12,9 @@ installed, the same functions are also tools an AI agent can call.
 
 It brings together what used to be five add-ons: Workshop Parts, Make,
 Electronics and Documents, and SafetyNet. Each part's own notes (its Python
-API, data files and agent tools) are in [docs/](docs/): [Parts](docs/parts.md),
-[Make](docs/make.md), [Electronics](docs/electronics.md),
-[Documents](docs/documents.md), [SafetyNet](docs/safetynet.md).
+API, data files and agent tools) are in [docs/](https://github.com/jamesK1000011/Workshop-FreeCAD/tree/main/docs/): [Parts](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/parts.md),
+[Make](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/make.md), [Electronics](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/electronics.md),
+[Documents](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/documents.md), [SafetyNet](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/safetynet.md).
 
 **With Fasteners Workbench.** If you also have
 [Fasteners Workbench](https://github.com/shaise/FreeCAD_FastenersWB) (Shai
@@ -25,7 +25,9 @@ heat-set insert table and 3D-print thread settings are used before
 Workshop's own typical figures. Agents get its fasteners as tools too (the
 `fasteners` group below). Workshop calls Fasteners where it is installed
 and copies none of it. Without Fasteners none of this shows. Notes:
-[docs/fasteners.md](docs/fasteners.md).
+[docs/fasteners.md](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/fasteners.md).
+
+<!-- screenshot: Part Design with the Standard Parts dropdown open and a Gridfinity bin made -->
 
 ## Where things are
 
@@ -59,6 +61,9 @@ You need FreeCAD 1.0 or newer.
 
 Use one way, not two. If you had the separate add-ons or SafetyNet
 installed, remove them first: two copies would show every command twice.
+
+<!-- screenshot: the Make workbench with the Make panel's Setups tab -->
+<!-- screenshot: Tools ▸ SafetyNet menu -->
 
 ## Uninstall
 
@@ -160,7 +165,7 @@ Each part is its own Python package with its own API: `workshop_parts.api`,
 without Fasteners Workbench). `workshop/` is the add-on's own layer: the placement table
 (`workshop/placement.py`), the one `agentlink_families` module, and the
 helper files Agent Link vendors. The design is in
-[docs/combine-design.md](docs/combine-design.md). Tests, with no FreeCAD
+[docs/combine-design.md](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/combine-design.md). Tests, with no FreeCAD
 needed:
 
 ```
