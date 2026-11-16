@@ -116,6 +116,7 @@ tests/safetynet/test_store.py
 tests/safetynet/test_with_agentlink.py
 tests/test_families.py
 tests/test_files.py
+tests/test_lessons.py
 tests/test_loads.py
 tests/test_matname.py
 tests/test_narrow.py
@@ -128,6 +129,7 @@ tools/gen_readme_tools.py
 workshop/__init__.py
 workshop/agentlink_families.py
 workshop/layout.py
+workshop/lessons/hole-for-hardware.lesson.json
 workshop/matname.py
 workshop/narrow.py
 workshop/placement.py
