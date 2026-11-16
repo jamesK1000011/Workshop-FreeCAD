@@ -13,6 +13,12 @@ changelog and version: [Parts](Parts/CHANGELOG.md), [Make](Make/CHANGELOG.md),
 
 The first tagged release is being prepared.
 
+### Planned
+
+- docs/combine-design.md: Workshop's four add-ons and SafetyNet become one
+  add-on, each feature placed in its FreeCAD workbench by a workbench
+  manipulator, one small Make workbench for what has no FreeCAD home.
+
 ### Added
 
 - Workshop for FreeCAD: four add-ons for making things, installed together
