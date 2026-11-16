@@ -4,7 +4,7 @@
 # with a recompute pending; its screw searched [75, 11.5, 4] for an edge at
 # [67, 11.5, 12] (the Part's offset); mass_properties and the drawing's
 # title block showed the material's UUID; drawing_make wrote an absolute
-# file as "Users_jamesk_…pdf.pdf" and called out none of two counterbored
+# file as one flattened name ending ".pdf.pdf" and called out none of two counterbored
 # PartDesign Holes. On FreeCAD with Agent Link beside it.
 import os
 import tempfile
