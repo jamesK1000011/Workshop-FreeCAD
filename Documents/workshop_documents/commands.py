@@ -67,8 +67,13 @@ def _drawing(out):
 
 
 def _exploded(out):
-    return (f"Assembly manual in {_n(len(out.get('steps') or []), 'step')}, {_n(len(out.get('bom') or []), 'line')} in the bill of materials: "
-            f"{_file(out.get('manual'))}.")
+    s = (f"Assembly manual in {_n(len(out.get('steps') or []), 'step')}, {_n(len(out.get('bom') or []), 'line')} in the bill of materials: "
+         f"{_file(out.get('manual'))}.")
+    if out.get("explodedView"):
+        s += f" The Exploded View {out['explodedView']} is in the Assembly {out.get('assembly')}, editable there" + (f", and on the TechDraw page {out['page']}." if out.get("page") else ".")
+    elif out.get("route"):
+        s += " The parts are in no Assembly, so the steps use Workshop's own exploded shapes."
+    return s
 
 
 def _pack(out):
@@ -82,7 +87,9 @@ def _pack(out):
 
 def _figures(out):
     figs = out.get("figures") or []
-    return f"{_n(len(figs), 'patent figure')} with {_n(len(out.get('numerals') or {}), 'reference numeral')}, as SVG and PDF."
+    pages = sum(1 for f in figs if f.get("page"))
+    return (f"{_n(len(figs), 'patent figure')} with {_n(len(out.get('numerals') or {}), 'reference numeral')}, as SVG and PDF"
+            + (f"; {_n(pages, 'TechDraw page')} to edit in TechDraw." if pages else "."))
 
 
 def _draft(out):

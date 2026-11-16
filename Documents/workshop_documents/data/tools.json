@@ -114,7 +114,7 @@
   },
   "drawing_exploded": {
    "group": "drawing",
-   "description": "An assembly manual: steps [{ title, add: [bodies], note }] in the order the parts go together; each step an isometric view (SVG) with the parts already in place and the new ones moved off by explode mm (up over their places, or out from the middle), a trail to where each goes and a balloon with its item number. Writes the steps and <name>_assembly.md with a bill of materials (bodies the same shape are one item, with the material and mass where part_spec recorded one, and how each is made from its setup). A body goes in once.",
+   "description": "An assembly manual: steps [{ title, add: [bodies], note }] in the order the parts go together; each step an isometric view (SVG) with the parts already in place and the new ones moved off by explode mm (up over their places, or out from the middle), a trail to where each goes and a balloon with its item number. Writes the steps and <name>_assembly.md with a bill of materials (bodies the same shape are one item, with the material and mass where part_spec recorded one, and how each is made from its setup). A body goes in once. Where the parts are in a FreeCAD Assembly, the moves also become the Assembly's own Exploded View (step k's parts k − 1 explode lengths up, or out from step 2 on), editable there, and an ordinary TechDraw page of it with a balloon per item and the bill of materials (page: false leaves the page out); outside an Assembly route says the steps use Workshop's own exploded shapes.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -139,6 +139,10 @@
      },
      "title": {
       "type": "string"
+     },
+     "page": {
+      "type": "boolean",
+      "description": "A TechDraw page of the Assembly's Exploded View (true by default; in an Assembly only)."
      }
     },
     "required": [
@@ -152,7 +156,7 @@
   },
   "patent_figures": {
    "group": "drawing",
-   "description": "Patent-style figures FIG. 1 … (iso, front, top, right by default): black line art on A4 within the USPTO's margins, no hidden lines or shading, each part's reference numeral (10, 20, 30 … or numerals { body: n }) with a lead line to a face of it the viewer sees. Writes an SVG and PDF per figure and a list of the numerals. A part hidden behind others in a view gets no numeral there (notSeenIn).",
+   "description": "Patent-style figures FIG. 1 … (iso, front, top, right by default): black line art on A4 within the USPTO's margins, no hidden lines or shading, each part's reference numeral (10, 20, 30 … or numerals { body: n }) with a lead line to a face of it the viewer sees. Writes an SVG and PDF per figure and a list of the numerals. A part hidden behind others in a view gets no numeral there (notSeenIn). Each figure is also an ordinary TechDraw page in that style (blank template, visible lines only, numerals as TechDraw balloons without a bubble), editable in TechDraw; its PDF and SVG are the page's exports where TechDraw can write them (filesFrom), else Workshop's sheet writer. page: false writes the files only.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -183,6 +187,10 @@
      },
      "name": {
       "type": "string"
+     },
+     "page": {
+      "type": "boolean",
+      "description": "Each figure as a TechDraw page too (true by default)."
      }
     },
     "required": [],

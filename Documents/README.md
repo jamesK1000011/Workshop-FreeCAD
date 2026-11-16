@@ -50,10 +50,13 @@ toolbars and its **Documents** menu have:
   click: TechDraw's own template, title block, views and dimensions, editable
   in TechDraw; exported as SVG, PDF and DXF by TechDraw, or by Workshop where
   TechDraw cannot, such as PDF and SVG with no window), **Exploded Drawing** (an
-  assembly manual with exploded views, balloons and a bill of materials).
+  assembly manual with exploded views, balloons and a bill of materials;
+  with the parts in a FreeCAD Assembly, its own Exploded View and a TechDraw
+  page of it).
 - **Share**: **Library Pack** (the parts as STEP and STL with a README, a
   licence and credits).
-- **Patent**: **Patent Figures** (line figures with reference numerals),
+- **Patent**: **Patent Figures** (line figures with reference numerals, each
+  a TechDraw page you can edit),
   **Patent Draft** (a draft to start a patent attorney's work from).
 - **Manual Panel**: the Manual tab.
 

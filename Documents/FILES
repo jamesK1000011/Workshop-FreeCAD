@@ -13,6 +13,7 @@ tests/_stubs.py
 tests/test_api.py
 tests/test_drawing.py
 tests/test_drawing_page.py
+tests/test_fc_pages.py
 tests/test_gui_text.py
 tests/test_handlers.py
 tests/test_icons.py
@@ -36,6 +37,7 @@ workshop_documents/data/tools.json
 workshop_documents/datafiles.py
 workshop_documents/fam_drawing.py
 workshop_documents/fam_share.py
+workshop_documents/fcexplode.py
 workshop_documents/geo.py
 workshop_documents/guides/drawing.md
 workshop_documents/guides/share.md
