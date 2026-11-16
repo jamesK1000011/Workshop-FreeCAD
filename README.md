@@ -152,7 +152,7 @@ separate add-ons):
 | `pref_rollback` | safety | Put FreeCAD's settings back as they were before a change. |
 | `fastener_types` | fasteners (with Fasteners Workbench installed) | Fasteners Workbench's types, sizes and lengths, from its own tables. |
 | `fastener_add` | fasteners (with Fasteners Workbench installed) | A Fasteners Workbench screw, nut, washer or insert, attached to round edges or loose. |
-| `fastener_set` | fasteners (with Fasteners Workbench installed) | Change Fasteners parts as its Change Parameters, Flip and Move do. |
+| `fastener_set` | fasteners (with Fasteners Workbench installed) | Change Fasteners parts in place as its Change Parameters, Flip and Move do. |
 | `fastener_list` | fasteners (with Fasteners Workbench installed) | The Fasteners parts in the document and their bill of materials. |
 | `fastener_print` | fasteners (with Fasteners Workbench installed) | Fasteners' 3D-print thread settings, read; or set. |
 <!-- tools:end -->
