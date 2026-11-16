@@ -47,9 +47,11 @@ tests/_narrowqt.py
 tests/documents/_stubs.py
 tests/documents/test_api.py
 tests/documents/test_drawing.py
+tests/documents/test_drawing_export_scene.py
 tests/documents/test_drawing_page.py
 tests/documents/test_drawing_page_dims.py
 tests/documents/test_drawing_sheet_fit.py
+tests/documents/test_drawing_views_grouped.py
 tests/documents/test_drawing_views_ready.py
 tests/documents/test_fc_pages.py
 tests/documents/test_gui_text.py

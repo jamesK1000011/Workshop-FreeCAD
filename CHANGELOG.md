@@ -22,6 +22,15 @@ Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
 
 ### Fixed
 
+- `drawing_make`: the check that TechDraw's SVG export holds the views'
+  lines no longer refuses one that does. TechDraw writes a view's lines of
+  one style as a few paths of many subpaths each, so counting elements (72
+  drawn, 48 the template's, 8 dimensions, 280 view edges) failed every
+  time and the sheet writer made the files while TechDraw's own PDF held
+  all four views. The check now also counts the points drawn (path data's
+  coordinate pairs) beyond the template's and an allowance per dimension,
+  at least one per view edge (`page.viewsInExport.points`, `byPoints`); an
+  export of the template and dimensions alone still fails.
 - `drawing_make`: TechDraw's own SVG and PDF exports hold the views. They
   draw the scene of the page's tab, whose views' lines are put on it only
   once the tab has been shown and painted, so they held the template and

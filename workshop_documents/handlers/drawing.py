@@ -530,6 +530,33 @@ def page_scene_ready(page, turns=SCENE_TURNS):
 
 
 DRAWN = re.compile(r"<(path|polyline|polygon|line|rect|circle|ellipse)\b")
+_MARK = re.compile(r"<(path|polyline|polygon|line|rect|circle|ellipse)\b([^>]*)>", re.S)
+_ATTR = re.compile(r"""\b(d|points)\s*=\s*("[^"]*"|'[^']*')""", re.S)
+_NUM = re.compile(r"[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?")
+# Points a shape element stands for once Qt draws it as a path: a rect's
+# corners and close, a circle's or ellipse's four cubic quarters.
+_SHAPE_POINTS = {"line": 2, "rect": 5, "circle": 13, "ellipse": 13}
+# Points a dimension may draw: dimension line, two extension lines, two
+# filled arrows, a little more for a diameter's or radius's leader.
+DIM_POINTS = 40
+
+
+def _svg_points(text):
+    """The points an SVG draws: coordinate pairs in its paths' path data
+    and its polylines' points, and a fixed count for each rect, line,
+    circle and ellipse. TechDraw's SVG writes a view's lines of one style
+    as a few <path> elements of many subpaths each, so the elements alone
+    say little about how much is drawn; the points do, whatever the
+    grouping."""
+    pts = 0
+    for m in _MARK.finditer(text):
+        tag, attrs = m.group(1), m.group(2)
+        a = _ATTR.search(attrs)
+        if tag in ("path", "polyline", "polygon") and a:
+            pts += len(_NUM.findall(a.group(2))) // 2
+        else:
+            pts += _SHAPE_POINTS.get(tag, 0)
+    return pts
 
 
 def _template_marks(page):
@@ -540,17 +567,32 @@ def _template_marks(page):
         return 0
 
 
+def _template_points(page):
+    try:
+        with open(page.Template.Template, encoding="utf-8", errors="replace") as f:
+            return _svg_points(f.read())
+    except Exception:  # noqa: BLE001
+        return 0
+
+
 def views_in_svg(path, page, part_views, report=None):
-    """Whether TechDraw's SVG export holds the views' lines: its drawn
-    elements beyond the template's own and an allowance for each dimension
-    (8) number at least a quarter of the views' visible edges. A page
-    exported before its views were drawn holds only the frame, title block
-    and dimensions. report["viewsInExport"] gets the counts."""
+    """Whether TechDraw's SVG export holds the views' lines. TechDraw writes
+    a view's visible and hidden lines as a few <path> elements of many
+    subpaths each, so counting elements missed views that were there. Two
+    tests, either enough: the points drawn (path data's coordinate pairs,
+    polyline points, a fixed count per rect, line, circle, ellipse) beyond
+    the template's own and an allowance per dimension (DIM_POINTS) number at
+    least the views' visible edges (each edge draws two points or more); or
+    the drawn elements beyond the template's and 8 per dimension number a
+    quarter of the edges. A page exported before its views were drawn holds
+    only the frame, title block and dimensions and fails both.
+    report["viewsInExport"] gets the counts."""
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
-            n = len(DRAWN.findall(f.read()))
+            text = f.read()
     except OSError:
         return False
+    n = len(DRAWN.findall(text))
     edges = 0
     for v in part_views:
         try:
@@ -561,10 +603,13 @@ def views_in_svg(path, page, part_views, report=None):
         return True
     dims = sum(1 for v in (getattr(page, "Views", None) or []) if "Dimension" in str(getattr(v, "TypeId", "")) or "Dimension" in str(getattr(v, "Name", "")))
     tpl = _template_marks(page)
-    beyond = n - tpl - 8 * dims
-    ok = beyond >= max(1, edges // 4)
+    by_elements = n - tpl - 8 * dims >= max(1, edges // 4)
+    pts, tpl_pts = _svg_points(text), _template_points(page)
+    by_points = pts - tpl_pts - DIM_POINTS * dims >= max(24, edges)
+    ok = by_elements or by_points
     if report is not None:
-        report["viewsInExport"] = {"ok": ok, "drawn": n, "template": tpl, "dimensions": dims, "viewEdges": edges}
+        report["viewsInExport"] = {"ok": ok, "drawn": n, "template": tpl, "dimensions": dims, "viewEdges": edges,
+                                   "points": pts, "templatePoints": tpl_pts, "byPoints": by_points, "byElements": by_elements}
     return ok
 
 
