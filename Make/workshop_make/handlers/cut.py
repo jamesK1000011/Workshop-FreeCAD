@@ -327,7 +327,7 @@ def cut_check(s, a):
             find("inside-corner", "warning", f"An inside corner of radius {c['radius']:.2f} mm, tighter than the cutter's {kerf / 2:.2f} mm: it comes out rounded — round it to {kerf / 2:.2f} mm or more, or add a dogbone.", c["radius"], round(kerf / 2, 3), c["at"])
     bb = flat.BoundBox
     size = [round(bb.XLength, 2), round(bb.YLength, 2)]
-    sheet = a.get("sheet")
+    sheet = a.get("sheet") or setup.get("sheet")  # the cut setup's sheet when none is given
     if sheet:
         sw, sh = float(sheet[0]), float(sheet[1])
         if not ((size[0] <= sw and size[1] <= sh) or (size[0] <= sh and size[1] <= sw)):
@@ -343,7 +343,7 @@ def cut_check(s, a):
         "setup": f"{setup['name']} ({setup['id']})",
     }
     if not sheet:
-        out["unjudged"] = ["sheet size: give sheet [w, h] mm to check it fits"]
+        out["unjudged"] = ["sheet size: give sheet [w, h] mm (or set the cut setup's sheet) to check it fits"]
     if assumed:
         out["assumed"] = assumed
     out["note"] = "Least features are rules of thumb for the machine, material and thickness; the shop's own figures win."
@@ -359,7 +359,7 @@ def cut_export(s, a):
     kerf = float(first.get("kerf") if first.get("kerf") is not None else KERF.get((first.get("machine") or "laser").lower(), 0.2))
     comp = bool(a.get("compensate", False))
     gap = float(a.get("gap", max(3.0, 2 * kerf)))
-    sheet = a.get("sheet")
+    sheet = a.get("sheet") or first.get("sheet")  # the cut setup's sheet when none is given
     parts = []
     thick = None
     for o in objs:
@@ -389,7 +389,8 @@ def cut_export(s, a):
         except Exception:  # noqa: BLE001 — no face for BIM Nest: the rows take it
             face = None
         for _ in range(n):
-            parts.append((o.Label, prims, bb, face))
+            # A face of its own a copy: BIM Nest keys pieces by hashCode.
+            parts.append((o.Label, prims, bb, face.copy() if face is not None else None))
     sw, sh = (float(sheet[0]), float(sheet[1])) if sheet else (None, None)
     # Laid out by FreeCAD's BIM Nest where it is here and there is a sheet
     # to nest in; else in rows, and the answer says which.
@@ -397,7 +398,7 @@ def cut_export(s, a):
     if not a.get("nest", True):
         layout = "rows (nest: false)"
     elif not sheet:
-        layout = "rows: give sheet [w, h] for BIM Nest to nest in"
+        layout = "rows: give sheet [w, h], or set the cut setup's sheet, for BIM Nest to nest in"
     elif any(p[3] is None for p in parts):
         layout = "rows: a profile could not be made a face for BIM Nest"
     else:

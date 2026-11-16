@@ -27,6 +27,7 @@ tests/test_layout.py
 tests/test_layout_placer.py
 tests/test_loads_alone.py
 tests/test_mass.py
+tests/test_mass_words.py
 tests/test_mill.py
 tests/test_panel.py
 tests/test_pdhole.py

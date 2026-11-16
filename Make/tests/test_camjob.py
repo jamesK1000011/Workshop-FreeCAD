@@ -69,11 +69,13 @@ part = O("Bracket", Shape=types.SimpleNamespace(BoundBox=bb))
 d = D([part])
 job, why = C.make_job(d, part, [24, 14, 7], 3.0, "Bracket mill")
 OUT["job"] = [job.Label, job.Stock.ext, job.Stock.plc[1], bit.Diameter, d.removed, why]
+OUT["labels"] = [tc.Label, bit.Label]
 jm.Create = lambda *a: (_ for _ in ()).throw(RuntimeError("no CAM here"))
 OUT["fail"] = C.make_job(D([part]), part, [24, 14, 7], 3.0)[1]
 ''')
         self.assertEqual(out["job"], ["Bracket mill", [24, 14, 7], [-2.0, -2.0, -1.0], 3.0, ["Stock000"], None])
         self.assertIn("no CAM here", out["fail"])
+        self.assertEqual(out["labels"], ["TC: 3 mm End Mill", "3 mm End Mill"])
 
 
 if __name__ == "__main__":
