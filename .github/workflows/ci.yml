@@ -41,6 +41,12 @@ jobs:
         with:
           repository: jamesK1000011/AgentLink-OrcaSlicer
           path: orcalink-addon
+      - uses: actions/checkout@v5
+        # Fasteners Workbench (Shai Seger), for the Fasteners bridge's tests
+        # only: called at run time, never bundled.
+        with:
+          repository: shaise/FreeCAD_FastenersWB
+          path: fasteners-ref
       - uses: mamba-org/setup-micromamba@v2
         with:
           environment-name: fc-${{ matrix.series }}
@@ -56,6 +62,7 @@ jobs:
         run: |
           echo "FREECAD_LIB=$CONDA_PREFIX/lib" >> "$GITHUB_ENV"
           echo "ORCALINK_DIR=$GITHUB_WORKSPACE/orcalink-addon" >> "$GITHUB_ENV"
+          echo "FASTENERS_SRC=$GITHUB_WORKSPACE/fasteners-ref" >> "$GITHUB_ENV"
           python -c "import sys; sys.path.append('$CONDA_PREFIX/lib'); import FreeCAD, Part; print('FreeCAD', FreeCAD.Version()[:3])"
       - name: PrusaSlicer and a virtual screen
         # The apt mirror sometimes hangs: the slicing tests skip without it.
@@ -68,7 +75,7 @@ jobs:
         run: |
           code=0
           python -m unittest discover -s tests -v > "$RUNNER_TEMP/alone.log" 2>&1 || code=$?
-          for d in parts make electronics documents safetynet; do PYTHONPATH="$GITHUB_WORKSPACE" AGENTLINK_HOME="$(mktemp -d)" python -X faulthandler -m unittest discover -s tests/$d -v >> "$RUNNER_TEMP/alone.log" 2>&1 || code=$?; done
+          for d in parts make electronics documents safetynet fasteners; do PYTHONPATH="$GITHUB_WORKSPACE" AGENTLINK_HOME="$(mktemp -d)" python -X faulthandler -m unittest discover -s tests/$d -v >> "$RUNNER_TEMP/alone.log" 2>&1 || code=$?; done
           grep -E "^(Ran|OK|FAILED)" "$RUNNER_TEMP/alone.log"
           grep -E -A40 "^(FAIL|ERROR):|Fatal Python error" "$RUNNER_TEMP/alone.log" | head -n 300
           echo "exit code: $code"
@@ -78,7 +85,7 @@ jobs:
           code=0
           export PYTHONPATH="$GITHUB_WORKSPACE/agentlink-addon:$GITHUB_WORKSPACE" AGENTLINK_DIR="$GITHUB_WORKSPACE/agentlink-addon" AGENTLINK_SRC="$GITHUB_WORKSPACE/agentlink-addon"
           python -X faulthandler -m unittest discover -s tests -v > "$RUNNER_TEMP/with.log" 2>&1 || code=$?
-          for d in parts make electronics documents safetynet; do AGENTLINK_HOME="$(mktemp -d)" python -X faulthandler -m unittest discover -s tests/$d -v >> "$RUNNER_TEMP/with.log" 2>&1 || code=$?; done
+          for d in parts make electronics documents safetynet fasteners; do AGENTLINK_HOME="$(mktemp -d)" python -X faulthandler -m unittest discover -s tests/$d -v >> "$RUNNER_TEMP/with.log" 2>&1 || code=$?; done
           grep -E "^(Ran|OK|FAILED)" "$RUNNER_TEMP/with.log"
           grep -E -A40 "^(FAIL|ERROR):|Fatal Python error" "$RUNNER_TEMP/with.log" | head -n 300
           echo "exit code: $code"

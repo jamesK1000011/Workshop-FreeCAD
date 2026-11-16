@@ -1,0 +1,82 @@
+{
+ "about": "Every command Fasteners Workbench registers (Gui.addCommand in its source), judged: tool (an agent does it headless through the Fasteners bridge or Agent Link), window (only in its window), n/a (nothing to do). Like Agent Link's coverage audit.",
+ "fasteners": {
+  "version": "0.6.00",
+  "commit": "375a73d",
+  "date": "2026-11-12",
+  "repository": "https://github.com/shaise/FreeCAD_FastenersWB"
+ },
+ "commands": {
+  "Fasteners_3dPrintSettings": {
+   "judged": "tool",
+   "by": "fastener_print",
+   "why": "Reads and sets its 3D-print thread settings (FSParam) and redoes threaded fasteners, as its panel's Update does."
+  },
+  "Fasteners_ChangeParameters": {
+   "judged": "tool",
+   "by": "fastener_set",
+   "why": "Type, size (Auto), length (nearest standard, FindClosest), match, as its Change Parameters panel's OK does."
+  },
+  "Fasteners_Search": {
+   "judged": "tool",
+   "by": "fastener_types {query}",
+   "why": "Searches its type table (FSScrewCommandTable) by words, standard and kind."
+  },
+  "Fasteners_Flip": {
+   "judged": "tool",
+   "by": "fastener_set {invert}",
+   "why": "Invert, per fastener."
+  },
+  "Fasteners_Move": {
+   "judged": "tool",
+   "by": "fastener_set {edge}",
+   "why": "BaseObject set to another round edge."
+  },
+  "Fasteners_Simplify": {
+   "judged": "tool",
+   "by": "part_extract {refs, build: copy} (Agent Link)",
+   "why": "A plain non-parametric copy of the shape; Agent Link's element copy does the same for any object."
+  },
+  "Fasteners_RestoreProperties": {
+   "judged": "tool",
+   "by": "fastener_set {restore: true}",
+   "why": "Its proxy given back to fasteners saved where it was not loaded (FSScrewObject)."
+  },
+  "Fasteners_MatchTypeInner": {
+   "judged": "tool",
+   "by": "fastener_add/fastener_set {match: inner}",
+   "why": "Its toolbar toggle sets a default; the tools take match per call."
+  },
+  "Fasteners_MatchTypeOuter": {
+   "judged": "tool",
+   "by": "fastener_add/fastener_set {match: outer}",
+   "why": "As above, pass holes."
+  },
+  "Fasteners_BOM": {
+   "judged": "tool",
+   "by": "fastener_list {sheet: true}",
+   "why": "Its own Generate BOM runs in the window; headless the same Type/Qty sheet is written."
+  },
+  "Fasteners_ScrewCalculator": {
+   "judged": "tool",
+   "by": "fastener_types {type, size} → hole",
+   "why": "Metric, inch and BSP tap holes from ScrewMaker's charts (headless). Its PEM press-nut, stand-off, stud and EJOT charts live in FSScrewCalc.py, which imports Qt at its top: those stay in its window."
+  }
+ },
+ "patterns": {
+  "FS<type>": {
+   "judged": "tool",
+   "by": "fastener_add {type}",
+   "why": "One Add command per type in FastenersCmd.FSScrewCommandTable (FSAddScrewCommand: 'FS' + type); fastener_add makes the same FSScrewObject, on edges or loose. The live echo lights FS<type> (command_for)."
+  },
+  "<group dropdown>": {
+   "judged": "n/a",
+   "by": null,
+   "why": "With ScrewToolbarGroupMode 2 its toolbar groups the FS<type> commands under dropdowns named by group (FSGroupCommand); each holds commands judged above."
+  }
+ },
+ "notWindowCommands": {
+  "CountersunkHoles": "No command any more: its countersunk-hole objects are deprecated by Fasteners itself (use PartDesign Hole, or Workshop's hw_hole countersink); old files still recompute.",
+  "Preferences page (FSprefs.ui)": "Toolbar and default-colour preferences: window only, nothing an agent needs."
+ }
+}

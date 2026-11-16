@@ -249,12 +249,39 @@ def _pocket_runs(shape, x, y, r_out, zlo, zhi, dz):
     return runs
 
 
+def _split_hardware(objs):
+    """(made parts, Fasteners Workbench parts): bought hardware is listed
+    apart, in steel, not taken as a printed PLA body."""
+    try:
+        from workshop_fasteners import detect
+    except Exception:  # noqa: BLE001
+        return list(objs), []
+    made, hw = [], []
+    for o in objs:
+        (hw if detect.is_fastener(o) else made).append(o)
+    return made, hw
+
+
+def _hardware_rows(hw):
+    from workshop_fasteners import api as fasteners
+
+    rows = []
+    for o in hw:
+        com = o.Shape.CenterOfMass if hasattr(o.Shape, "CenterOfMass") else None
+        rows.append({"object": o.Label, "item": fasteners.bom_text(o), "massG": fasteners.mass_g(o), **({"com": _vl(com)} if com is not None else {})})
+    return rows
+
+
 def mass_properties(s, a):
     bodies = [s.body(a["body"])] if a.get("body") else s.bodies()
-    if not bodies:
+    bodies, hw = _split_hardware(bodies)
+    if not bodies and not hw:
         raise ToolError("not_found", "No body in the document: gen_make makes one.")
     out = [report(o, properties(s, o)) for o in bodies]
     res = {"bodies": out, "units": "mm, g, g·mm²"}
+    if hw:
+        res["hardware"] = _hardware_rows(hw)
+        res["hardwareNote"] = "Bought hardware from Fasteners Workbench, in steel (7.85 g/cm³; it keeps no material), listed apart from the parts made."
     if any("assumed" in b["material"] for b in out):
         res["note"] = "A body with no material is taken as PLA: set its material to change that."
     if any(b["as"].startswith("printed") for b in out):

@@ -903,6 +903,19 @@ def drawing_make(s, a):
     return out
 
 
+def _hardware(o):
+    """A Fasteners Workbench part's BOM line ("ISO4762 Screw M3x12"), or
+    None for a part that is made (workshop_fasteners: no Fasteners code
+    needed to tell)."""
+    try:
+        from workshop_fasteners import api as fasteners
+        from workshop_fasteners import detect
+
+        return fasteners.bom_text(o) if detect.is_fastener(o) else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 # ---- drawing_exploded ------------------------------------------------------------------
 
 def drawing_exploded(s, a):
@@ -935,7 +948,14 @@ def drawing_exploded(s, a):
     for o in order:
         st = geo.stats(o.Shape)
         key = (st["volume"], tuple(sorted(st["box"])), st["faces"])
+        hw = _hardware(o)
+        if hw:  # a Fasteners Workbench part: bought hardware, one item per kind and size
+            key = ("hardware", hw)
         hit = next((it for it in items if it["key"] == key), None)
+        if hit is None and hw:
+            hit = {"key": key, "item": len(items) + 1, "part": hw, "bodies": [], "size": [round(v, 1) for v in st["box"]],
+                   "material": "", "massG": None, "madeBy": "bought", "hardware": True, "source": "Fasteners Workbench"}
+            items.append(hit)
         if hit is None:
             m = mats.get(o.Label)
             setup = store.setup_of(s.doc, o.Label)

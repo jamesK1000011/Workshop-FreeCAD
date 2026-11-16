@@ -46,6 +46,24 @@ def _inserts():
     return {k: v["insert"] for k, v in rows.items() if v.get("insert")}
 
 
+def _insert(size, inserts):
+    """A heat-set insert's hole: Fasteners Workbench's IUT table when it is
+    installed and has the size, else Workshop's typical figures (FreeCAD
+    has none)."""
+    try:
+        from workshop_fasteners import api as _fasteners
+
+        f = _fasteners.insert_figures(size)
+    except Exception:  # noqa: BLE001
+        f = None
+    if f:
+        return {"hole": f["hole"], "depth": f["depth"], "source": f["source"]}
+    if size in inserts:
+        ins = inserts[size]
+        return {"hole": ins[0], "depth": ins[1], "source": "Workshop Make (typical heat-set insert figures; FreeCAD has none)"}
+    return None
+
+
 # ---- FreeCAD's tables ------------------------------------------------------------------
 
 def read_freecad():
@@ -146,9 +164,10 @@ def _build():
             size = f"M{_num(nom)}" + (f"x{_num(p)}" if fine and p is not None else "")
             row = {"size": size, "series": s, "freecad": r["designation"], "tapDrill": round(r["tapDrill"], 3), "source": "FreeCAD"}
             _profile(row, r["major"], p)
-            if not fine and f"M{_num(nom)}" in inserts:
-                ins = inserts[f"M{_num(nom)}"]
-                row["insert"] = {"hole": ins[0], "depth": ins[1], "source": "Workshop Make (typical heat-set insert figures; FreeCAD has none)"}
+            if not fine:
+                ins = _insert(f"M{_num(nom)}", inserts)
+                if ins:
+                    row["insert"] = ins
         else:
             ex = unified.get((s, r["designation"]))
             tpi = ex["tpi"] if ex else None

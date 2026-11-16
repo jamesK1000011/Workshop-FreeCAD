@@ -277,13 +277,15 @@ def _configure(h, kind, size, depth, fit, add):
         else:
             if size not in fits.M:
                 raise Failed(f"size: one of {', '.join(fits.M)}.")
-            hd, hdep = fits.M[size]["insert"][0] + add, fits.M[size]["insert"][1] + 0.5
+            ins_d, ins_l, src, note = fits.insert_figures(size)
+            hd, hdep = ins_d + add, ins_l + 0.5
         h.DepthType = "Dimension"
         h.Diameter = hd
         h.Depth = hdep
         out = {"hole": round(hd, 3), "depth": round(hdep, 3)}
         if kind == "insert":
-            out["note"] = "Typical insert figures; check the insert's sheet."
+            out["insertSource"] = src
+            out["note"] = note
         return out
     h.ThreadType = "ISOMetricProfile"
     pick = pick_size(_enums(h, "ThreadSize"), size)

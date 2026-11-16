@@ -4,7 +4,8 @@
 # agentlink_families) and never names it; without Agent Link it is never
 # loaded. Each part's own families module (workshop_parts.families,
 # workshop_make.families, workshop_electronics.families,
-# workshop_documents.families, safetynet.families) is joined here, with its
+# workshop_documents.families, safetynet.families, and
+# workshop_fasteners.families, empty without Fasteners Workbench) is joined here, with its
 # services, hooks, hosted tabs and guides as before; tool names are the ones
 # they have always had. A part that fails to load is said and left out; the
 # others still load.
@@ -52,7 +53,8 @@ def _load():
             continue
         FAMILIES.extend(fams)
         LOADED.append(part)
-        _guides(mod)
+        if fams:  # a dormant part (the Fasteners bridge without Fasteners): no guide either
+            _guides(mod)
 
 
 _load()

@@ -11,7 +11,7 @@ SPDX-License-Identifier = "LGPL-2.1-or-later"
 # icons/CREDITS.md; no source paths were copied. Licence texts: LICENSES/.
 
 [[annotations]]
-path = ["workshop_parts/data/**", "workshop_make/data/**", "workshop_electronics/data/**", "workshop_documents/data/**"]
+path = ["workshop_parts/data/**", "workshop_make/data/**", "workshop_electronics/data/**", "workshop_documents/data/**", "workshop_fasteners/data/**"]
 SPDX-FileCopyrightText = "Workshop for FreeCAD contributors"
 SPDX-License-Identifier = "CC-BY-4.0"
 # Data files and their schemas (LICENSE-DATA). Each entry names its source and date.

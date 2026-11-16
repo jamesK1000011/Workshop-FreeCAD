@@ -154,6 +154,20 @@ material services, library_pack, checkpoints, reopen, the panels) register
 as before, from the same code. No new token cost: nothing is added to any
 tool's description.
 
+### 4.1 The Fasteners bridge
+
+`workshop_fasteners`, a seventh package in `PARTS`, bridges to Fasteners
+Workbench (Shai Seger's separate add-on, LGPL-2.1-or-later). It calls
+Fasteners at run time and copies none of it. Without Fasteners its
+`families.FAMILIES` is empty, so there are no tools, no group, no guide (the
+joiner registers a part's guides only when it has families), no `hw_hole`
+extension and no panel checkbox: zero token cost and one debug line. With
+Fasteners: the `fasteners` group (not lean), the `screw` argument on
+`hw_hole` as an Agent Link tool extension, the echo into Fasteners' own
+workbench and buttons, and hardware in the BOM and mass properties.
+Detection, the API, the coverage map and what Workshop defers to Fasteners
+are in [fasteners.md](fasteners.md).
+
 ## 5. Settings
 
 The only parameter group of the five is `Mod/SafetyNet` (the clean-up

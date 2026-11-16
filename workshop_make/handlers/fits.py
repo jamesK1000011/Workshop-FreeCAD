@@ -34,9 +34,28 @@ def hw_hole(s, a):
                        face=a.get("face"), sketch=a.get("sketch"))
     except Refused as e:
         raise ToolError(e.code, e.message)
+    if a.get("screw"):
+        out.update(_screw(s, a, out))
     s.snapshot("hw_hole")
     out["step"] = len(s.steps)
     return out
+
+
+def _screw(s, a, out):
+    """The matching screw from Fasteners Workbench in the hole (Make's own
+    runner: the panel's checkbox). Under Agent Link the bridge's extension
+    of hw_hole does this and the handler never sees screw."""
+    try:
+        from workshop_fasteners import api as fasteners
+        from workshop_fasteners import detect
+    except Exception as e:  # noqa: BLE001
+        return {"screwNote": f"The Fasteners bridge did not load ({e})."}
+    if not detect.present():
+        return {"screwNote": "Fasteners Workbench is not installed: the Addon Manager has it (Fasteners)."}
+    try:
+        return fasteners.hole_screw(s.doc, a, out, a["screw"])
+    except Exception as e:  # noqa: BLE001 — the hole stands; the screw is said
+        return {"screwNote": getattr(e, "message", None) or f"{type(e).__name__}: {e}"}
 
 
 HANDLERS = {

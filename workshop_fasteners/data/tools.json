@@ -1,0 +1,206 @@
+{
+ "dataVersion": "1.0.0",
+ "licence": "CC-BY-4.0",
+ "about": "The Fasteners bridge's tools for agents (through Agent Link), listed only when Fasteners Workbench is installed: name, what it does, its arguments as JSON Schema, its group, whether it changes the document.",
+ "entries": {
+  "fastener_types": {
+   "group": "fasteners",
+   "description": "Fasteners Workbench's types, sizes and lengths, from its own tables: query (words, e.g. \"socket cap\"), standard (ISO, DIN, ASME …), kind (screw, nut, washer, insert, pin …) list types; type gives its sizes; type and size give its lengths and holes (tap hole from its calculator; an IUT insert's hole). Fasteners Workbench: Shai Seger; screw_maker: Ulrich Brammer.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "query": {
+      "type": "string"
+     },
+     "standard": {
+      "type": "string"
+     },
+     "kind": {
+      "type": "string"
+     },
+     "type": {
+      "type": "string"
+     },
+     "size": {
+      "type": "string",
+      "description": "M3, #10, 1/4in …"
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Workshop for FreeCAD (Fasteners bridge), calling Fasteners Workbench at run time",
+   "date": "2026-11-15"
+  },
+  "fastener_add": {
+   "group": "fasteners",
+   "description": "A Fasteners Workbench part (screw, nut, washer, insert …): type (ISO4762 …), size (M3; left out on edges: matched to the hole), length (mm, the nearest it has), thread simple|real; edges [\"Plate.Edge7\"] attach one to each round edge (match outer: pass hole, inner: tap hole; invert, offset mm), else loose at [x,y,z]. Answers each one made: type, size, length, where, attached to. Fasteners Workbench: Shai Seger; screw_maker: Ulrich Brammer.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "type": {
+      "type": "string"
+     },
+     "size": {
+      "type": "string"
+     },
+     "length": {
+      "type": "number"
+     },
+     "thread": {
+      "type": "string",
+      "enum": [
+       "simple",
+       "real"
+      ]
+     },
+     "edges": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "at": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      }
+     },
+     "match": {
+      "type": "string",
+      "enum": [
+       "inner",
+       "outer"
+      ]
+     },
+     "invert": {
+      "type": "boolean"
+     },
+     "offset": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "type"
+    ],
+    "additionalProperties": false
+   },
+   "changes": true,
+   "source": "Workshop for FreeCAD (Fasteners bridge), calling Fasteners Workbench at run time",
+   "date": "2026-11-15",
+   "activity": "Added {type} {size}"
+  },
+  "fastener_set": {
+   "group": "fasteners",
+   "description": "Change Fasteners parts as its Change Parameters, Flip and Move do: objects, and type (one with the same properties), size (\"Auto\": matched to its hole), length (nearest it has), thread, invert, offset, match, edge (move it to another round edge). restore: true gives its objects back their behaviour in a file saved without Fasteners loaded.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "objects": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "type": {
+      "type": "string"
+     },
+     "size": {
+      "type": "string"
+     },
+     "length": {
+      "type": "number"
+     },
+     "thread": {
+      "type": "string",
+      "enum": [
+       "simple",
+       "real"
+      ]
+     },
+     "invert": {
+      "type": "boolean"
+     },
+     "offset": {
+      "type": "number"
+     },
+     "match": {
+      "type": "string",
+      "enum": [
+       "inner",
+       "outer"
+      ]
+     },
+     "edge": {
+      "type": "string"
+     },
+     "restore": {
+      "type": "boolean"
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": true,
+   "source": "Workshop for FreeCAD (Fasteners bridge), calling Fasteners Workbench at run time",
+   "date": "2026-11-15"
+  },
+  "fastener_list": {
+   "group": "fasteners",
+   "description": "The Fasteners parts in the document (type, size, length, thread, what each is attached to) and their bill of materials, counted as Fasteners counts them (links and arrays too); sheet: true puts the BOM in a spreadsheet (its Generate BOM in the window).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "sheet": {
+      "type": "boolean",
+      "default": false
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": true,
+   "reads": {
+    "sheet": [
+     false
+    ]
+   },
+   "source": "Workshop for FreeCAD (Fasteners bridge), calling Fasteners Workbench at run time",
+   "date": "2026-11-15"
+  },
+  "fastener_print": {
+   "group": "fasteners",
+   "description": "Fasteners' 3D-print thread settings, read; or set: mode standard|3dprint, nut [A, B] and screw [A, B] (a printed thread's diameter is d x A + B). Threaded fasteners are redone.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "mode": {
+      "type": "string",
+      "enum": [
+       "standard",
+       "3dprint"
+      ]
+     },
+     "nut": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      }
+     },
+     "screw": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      }
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": true,
+   "source": "Workshop for FreeCAD (Fasteners bridge), calling Fasteners Workbench at run time",
+   "date": "2026-11-15"
+  }
+ }
+}
