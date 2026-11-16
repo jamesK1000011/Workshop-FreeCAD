@@ -254,6 +254,21 @@ def _pocket_runs(shape, x, y, r_out, zlo, zhi, dz):
     return runs
 
 
+def _all_material(shape, x, y, r_out, z0, z1):
+    """Whether the whole upright cylinder of radius r_out at (x, y) from z0
+    to z1 is material. _pocket_runs tries nine points a level, so a hole
+    narrower than the gaps between them (a screw hole beside the centre)
+    passes it: this asks FreeCAD for the solid in common, which misses
+    nothing."""
+    if z1 - z0 <= 1e-6:
+        return False
+    try:
+        cyl = Part.makeCylinder(r_out, z1 - z0, V(x, y, z0))
+        return shape.common(cyl).Volume >= cyl.Volume * (1.0 - 1e-4)
+    except Exception:  # noqa: BLE001 — a boolean FreeCAD could not make: not proven solid, so not used
+        return False
+
+
 def _split_hardware(objs):
     """(made parts, Fasteners Workbench parts): bought hardware is listed
     apart, in steel, not taken as a printed PLA body."""
@@ -377,15 +392,24 @@ def mass_ballast(s, a):
     if len(xs) * len(ys) > 600:
         raise ToolError("invalid_input", f"{len(xs) * len(ys)} places to try: a larger diameter tries fewer.")
     dz = max(0.25, min(1.0, bb.ZLength / 60))
-    cands = []
+    cands, holed = [], 0
     for x in xs:
         for y in ys:
             for z0, z1 in _pocket_runs(shape, x, y, r + wall, bb.ZMin, bb.ZMax, dz):
                 lo, hi = z0 + wall, z1 - wall
                 if hi - lo >= min(2.0, r):
-                    cands.append({"x": x, "y": y, "lo": lo, "hi": hi})
+                    # The nine points a level miss a hole between them (found
+                    # live: a pocket laid through an M3 screw hole 2.8 mm
+                    # from its centre, answered as closed): the place is
+                    # kept only when the pocket and its wall are all material.
+                    if _all_material(shape, x, y, r + wall, z0, z1):
+                        cands.append({"x": x, "y": y, "lo": lo, "hi": hi})
+                    else:
+                        holed += 1
     if not cands:
-        raise ToolError("invalid_state", f"No room for a {d:g} mm pocket with {wall:g} mm of wall anywhere in {o.Label}: a smaller diameter or thinner wall, or thicken the part.")
+        raise ToolError("invalid_state", f"No room for a {d:g} mm pocket with {wall:g} mm of wall anywhere in {o.Label}"
+                        + (f" ({holed} place{'s' if holed != 1 else ''} left out: a hole or pocket of the part runs through the pocket or its wall there)" if holed else "")
+                        + ": a smaller diameter or thinner wall, or thicken the part.")
 
     L = max(bb.DiagonalLength, 1.0)
 
@@ -456,6 +480,8 @@ def mass_ballast(s, a):
         "fillMass": _r(sum(pk["fill"] for pk in pockets), 2),
         "minWall": wall,
     }
+    if holed:
+        out["leftOut"] = {"places": holed, "why": "a hole or pocket of the part runs through the pocket or its wall there"}
     if Mt is not None:
         out["massOff"] = _r(p1["mass"] - Mt, 2)
     if Ct is not None:

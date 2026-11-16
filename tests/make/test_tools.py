@@ -103,6 +103,9 @@ class Tools(unittest.TestCase):
         print("\nhole:", json.dumps(h))
         self.assertTrue(h["sound"])
         self.assertAlmostEqual(h["sizes"]["clearance"], 3.6, places=3)
+        # A through hole's depth is "through", not the cutter's length (the
+        # body's diagonal: 116.658 on a 100 x 60 x 3 plate, found live).
+        self.assertEqual((h["route"], h["sizes"]["depth"], h["depth"]), ("Part solid", "through", "through"))
         self.assertAlmostEqual(h["removed"], 3.14159 * 1.8 ** 2 * 5.75, delta=2.0)
         self.assertLess(self.call("session_state")[1]["bodies"][0]["volume"], before)
         err, miss = self.call("hw_hole", {"body": "Bin", "kind": "clearance", "size": "M3", "at": [0, 0, 200]})

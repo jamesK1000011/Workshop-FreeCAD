@@ -141,12 +141,53 @@ def filament_card(key, display=None, library=None):
     return match(lib, FILAMENT_CARDS.get(str(key).lower(), ()))
 
 
+# FreeCAD's own default material ("Default", 1 kg/m³: FreeCAD 1.1 source,
+# src/Mod/Material/Resources/Materials/Standard/Default.FCMat), the one
+# every new part carries until a person or Make gives it another.
+DEFAULT_UUID = "7f9fd73b-50c9-41d8-b7b2-575a030c1eeb"
+
+
 def _default_uuid():
+    """The UUID of FreeCAD's default material. FreeCAD 1.1's Python
+    MaterialManager has no defaultMaterial() (src/Mod/Material/App/
+    MaterialManagerPyImp.cpp lists getMaterial, getMaterialByPath,
+    inheritMaterial …), so it is read as FreeCAD's own C++ does
+    (MaterialManager::defaultMaterialUUID): the preference
+    Mod/Material/DefaultMaterial, else DEFAULT_UUID. A manager that does
+    have defaultMaterial() is asked first."""
     mm = _manager()
-    try:
-        return mm.defaultMaterial().UUID if mm is not None else None
-    except Exception:  # noqa: BLE001
+    if mm is None:
         return None
+    try:
+        return mm.defaultMaterial().UUID
+    except Exception:  # noqa: BLE001 — FreeCAD 1.1: no such method
+        pass
+    try:
+        import FreeCAD
+
+        v = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Mod/Material").GetString("DefaultMaterial", DEFAULT_UUID)
+        return v if isinstance(v, str) and v else DEFAULT_UUID
+    except Exception:  # noqa: BLE001
+        return DEFAULT_UUID
+
+
+def _default_material():
+    """FreeCAD's default material itself, or None."""
+    mm = _manager()
+    if mm is None:
+        return None
+    try:
+        return mm.defaultMaterial()
+    except Exception:  # noqa: BLE001 — FreeCAD 1.1: by its UUID
+        pass
+    for uuid in dict.fromkeys((_default_uuid(), DEFAULT_UUID)):
+        try:
+            m = mm.getMaterial(uuid)
+            if m is not None:
+                return m
+        except Exception:  # noqa: BLE001
+            continue
+    return None
 
 
 def give(obj, key, display=None):
@@ -167,11 +208,11 @@ def give(obj, key, display=None):
 
 def clear(obj):
     """obj back to FreeCAD's default material. True when done."""
-    mm = _manager()
-    if mm is None or not hasattr(obj, "ShapeMaterial"):
+    m = _default_material() if hasattr(obj, "ShapeMaterial") else None
+    if m is None:
         return False
     try:
-        obj.ShapeMaterial = mm.defaultMaterial()
+        obj.ShapeMaterial = m
         return True
     except Exception:  # noqa: BLE001
         return False
@@ -185,7 +226,7 @@ def of(obj):
         return None
     try:
         uuid = getattr(m, "UUID", None)
-        if not uuid or uuid == _default_uuid():
+        if not uuid or uuid in (_default_uuid(), DEFAULT_UUID):
             return None
     except Exception:  # noqa: BLE001
         return None

@@ -279,13 +279,23 @@ def why_not(o, doc=None):
     return said or "it gave no solid"
 
 
+def _touched_names(doc):
+    try:
+        return {o.Name for o in doc.Objects if "Touched" in getattr(o, "State", ())}
+    except Exception:  # noqa: BLE001
+        return set()
+
+
 def settle(doc, objs):
-    """Recompute objs and what they stand on (not the rest of the document),
-    recomputes switched on for it when the document has them frozen (Skip
-    recompute). True when they were frozen."""
+    """Recompute objs and what they stand on, then what the change left
+    touched that was not before (what stands ON them: a screw attached to
+    the Body's edge, a drawing view of it) — not the rest of the document.
+    Recomputes are switched on for it when the document has them frozen
+    (Skip recompute). True when they were frozen."""
     frozen = bool(getattr(doc, "RecomputesFrozen", False))
     if frozen:
         doc.RecomputesFrozen = False
+    before = _touched_names(doc)
     try:
         try:
             doc.recompute([o for o in objs if o is not None])
@@ -305,6 +315,19 @@ def settle(doc, objs):
                     o.recompute()
                 except Exception:  # noqa: BLE001
                     pass
+        # doc.recompute([objs]) runs objs and what they depend on, never
+        # what depends on them (FreeCAD 1.1 source: src/App/Document.cpp,
+        # recompute -> getDependencyList of the objects given). An object
+        # the new feature left touched (found live: two screws on the
+        # Body's holes, "not recomputed yet" after hw_hole) is recomputed
+        # here, as the document's own recompute after a feature would.
+        try:
+            mine = {o.Name for o in objs if o is not None}
+            late = [o for o in doc.Objects if o.Name not in before and o.Name not in mine and "Touched" in getattr(o, "State", ())]
+            if late:
+                doc.recompute(late)
+        except Exception:  # noqa: BLE001 — an older FreeCAD, or one of them failing: said by the health check
+            pass
     finally:
         if frozen:
             doc.RecomputesFrozen = True

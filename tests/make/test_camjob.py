@@ -87,6 +87,45 @@ OUT["fail"] = C.make_job(D([part]), part, [24, 14, 7], 3.0)[1]
         self.assertIn("no CAM here", out["fail"])
         self.assertEqual(out["labels"], ["TC: 3 mm End Mill", "3 mm End Mill"])
 
+    def test_the_tool_bits_new_body_is_recomputed(self):
+        # Found live (16 Nov 2026, FreeCAD 1.1.3): after mill_export made a
+        # Job, every later call's health said "3 objects not recomputed
+        # yet" (Sketch001, Revolution, Endmill001). CAM's tool bit rebuilds
+        # its body at the END of the recompute that follows a Diameter
+        # change, copying new objects in; a second recompute takes them.
+        out = run(FAKES + r'''
+class Doc2(D):
+    """A document whose first recompute ends with CAM's tool bit copying
+    its new body in (objects that arrive touched), as FreeCAD does."""
+    def __init__(self, objs, late):
+        D.__init__(self, objs); self.late, self.runs = late, 0
+    def recompute(self):
+        self.runs += 1
+        for o in self.Objects:
+            o.State = []
+        if self.runs == 1:
+            for n in self.late:
+                self.Objects.append(O(n, State=["Touched"]))
+part = O("Block", State=[])
+d = Doc2([part], ["Endmill001", "Sketch001", "Revolution"])
+had = {o.Name for o in d.Objects}
+d.recompute()
+OUT["again"] = C.settle_new(d, had)
+OUT["runs"] = d.runs
+OUT["touched"] = [o.Name for o in d.Objects if "Touched" in o.State]
+# Nothing new left touched: no second recompute. An object that was there
+# before and is touched is not this call's to recompute.
+old = O("Old", State=["Touched"])
+d = Doc2([part, old], [])
+had = {o.Name for o in d.Objects}
+d.runs = 1
+OUT["quiet"] = [C.settle_new(d, had), d.runs]
+''')
+        self.assertTrue(out["again"])
+        self.assertEqual(out["runs"], 2)
+        self.assertEqual(out["touched"], [])
+        self.assertEqual(out["quiet"], [False, 1])
+
 
 if __name__ == "__main__":
     unittest.main()
