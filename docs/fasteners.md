@@ -54,6 +54,27 @@ Every Fasteners command is judged (tool / window / n/a) in
 `workshop_fasteners/data/coverage.json`, and a test fails when its source
 gains a command the map doesn't judge.
 
+## Kept on the hole, under one label (`keep.py`)
+
+Fasteners attaches by edge name, and FreeCAD renumbers edges after a later
+PartDesign feature (topological naming). Its `execute()` also sets the label
+on every recompute, and FreeCAD then makes the label unique by a growing
+suffix (`M8x25-Screw218`, `219`, `222`). Workshop does not change Fasteners.
+An App document observer (registered in `Init.py`, only when Fasteners is
+installed) and every `fastener_*` call check each fastener Workshop put in
+against its `WorkshopKeep` property:
+
+- **Anchor.** The edge's object, name, centre, axis and radius. When the
+  edge named is no longer that circle, the round edge with the same radius
+  and a parallel axis nearest the stored centre, within its radius (at least
+  1 mm), is taken and the fastener recomputed. With a window this happens
+  just after the document's recompute, never inside it. If there is none,
+  the fastener is left where it is and a warning goes to the Report view,
+  to `lost` on it and to `warnings` in `fastener_list`.
+- **Label.** `M8x25-Screw`, then `M8x25-Screw 2` and so on, numbered per
+  size once and put back after each recompute. A label given with
+  `fastener_set { label }` is kept as given.
+
 ## Where Workshop uses it
 
 - **Hole for hardware**: `screw: true | {type, length, thread}`, or the

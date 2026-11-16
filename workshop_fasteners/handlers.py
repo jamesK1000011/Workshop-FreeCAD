@@ -59,7 +59,7 @@ def fastener_set(s, a):
     m = a.get("match")
     if m not in (None, "inner", "outer"):
         raise ToolError("invalid_input", "match: inner (tap hole) or outer (pass hole).")
-    objs = _run(lambda: api.change(s.doc, refs, a.get("type"), a.get("size"), a.get("length"), _thread(a), a.get("invert"), a.get("offset"), m, a.get("edge")))
+    objs = _run(lambda: api.change(s.doc, refs, a.get("type"), a.get("size"), a.get("length"), _thread(a), a.get("invert"), a.get("offset"), m, a.get("edge"), a.get("label")))
     s.snapshot("fastener_set")
     return {"changed": [api.describe(o) for o in objs]}
 
