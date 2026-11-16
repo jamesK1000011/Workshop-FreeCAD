@@ -55,6 +55,14 @@ them would be rewriting, and that's for later.
 `tests/test_shared.py` fails when a vendored file differs from Agent Link's
 copy (skipped when Agent Link isn't checked out beside this repo).
 
+**Old folders beside it.** An install made by an older launcher can leave
+`Mod/SafetyNet` or `Mod/Workshop*`, which hold packages of the same names.
+At start, `workshop/stale.py` puts this add-on's folder first on the path,
+drops any of those packages already imported from elsewhere, and logs one
+line naming the old folders. It never touches the Mod folder. Each old
+folder's InitGui calls `<package>.workbench.add()`, which is now a no-op, so
+those folders do nothing at start instead of failing.
+
 ## 2. What moves where
 
 Anchors are FreeCAD 1.1 command names. A manipulator can only *insert before*
@@ -65,8 +73,8 @@ there, and that is how each entry stays in its own workbench.
 | Current command | New home | How |
 |---|---|---|
 | Workshop_Parts_GridfinityBin, …GridfinityBaseplate, …ProjectBox, …BoardBox | Part and Part Design | One dropdown, *Standard parts* (`Workshop_Parts_Group`): own icon before Part_Primitives (Part) and before PartDesign_CompPrimitiveAdditive (Part Design); menu items before Part_Primitives |
-| Workshop_Make_Hole (Hole for hardware) | Part Design | Own icon after PartDesign_Hole (before PartDesign_Groove), toolbar and menu. **Not folded** (see 2.1) |
-| Workshop_Make_ThreadLookup | Part Design | Menu only, after Hole for hardware |
+| Workshop_Make_Hole (Hole for hardware) | Part Design | Own icon after PartDesign_Hole (before PartDesign_Groove) in the toolbar; in the Part Design menu before PartDesign_Boolean (see 2.2). **Not folded** (see 2.1) |
+| Workshop_Make_ThreadLookup | Part Design | Menu only, after Hole for hardware (before PartDesign_Boolean) |
 | Workshop_Make_DfmCheck, …PartReview, …MassProperties | Part Design / beside Measure | One dropdown, *Checks* (`Workshop_Make_Checks`), own icon before Part_CheckGeometry; Mass properties also in the menu before Std_Measure |
 | Workshop_Electronics_ImportBoard (KiCad Board…) | File ▸ Import area | Menu only, before Std_Export, so it sits after Import |
 | Workshop_Documents_Drawing | TechDraw | Own icon before TechDraw_RedrawPage (after the page commands); menu too |
@@ -74,7 +82,7 @@ there, and that is how each entry stays in its own workbench.
 | Workshop_Documents_LibraryPack | File ▸ Export area | Menu only, before Std_MergeProjects (after Export). Behaviour unchanged: ScanRuler's pack first |
 | Workshop_Documents_Panel (Manual) | Make workbench | Toolbar *Panels* and menu |
 | Materials | Make workbench | Not a command: the Materials tab stays in the Make panel; mass and material services unchanged |
-| SafetyNet_Checkpoint, _Restore, _Recover, _SettingsHistory, _Rollback, _Macros, _CleanUp, _Panel | Tools ▸ SafetyNet | The submenu `SafetyNet_Menu` appended to &Tools in every workbench, as before. Recovered Copies also before Std_Import (File) |
+| SafetyNet_Checkpoint, _Restore, _Recover, _SettingsHistory, _Rollback, _Macros, _CleanUp, _Panel | Tools ▸ SafetyNet | The submenu `SafetyNet_Menu` inserted before Std_DlgCustomize in every workbench, with the Qt backstop (2.2). Recovered Copies also before Std_Import (File) |
 | Workshop_Make_NewSetup, _AddBody, _RemoveSetup, _FitSize, _Calibrate, _Embed, _Pauses, _Slice, _CutExport, _MillExport, _PrinterStatus, _PrinterSend, _Panel | Make workbench | Toolbars Setup, Fits, Hardware, Output, Printer, Panels |
 
 Workbenches removed: Workshop Parts, Workshop Electronics, Workshop Documents,
@@ -92,6 +100,17 @@ buttons: `gen_`, `hw_hole`, `thread_lookup`, `dfm_check`, `part_review`,
 `mass_properties`, `board_`, `printed_channel` → PartDesignWorkbench;
 `drawing_` → TechDrawWorkbench (unchanged); the rest of Make → Make; `kicad_`
 has none, because the File menu is in every workbench.
+
+### 2.2 Seen live on 1.1.3
+
+On 1.1.3 a menu `insert` found only the items directly in a top-level menu.
+Items inside a submenu, such as Part Design ▸ Subtractive Features ▸ Hole,
+were never found, so nothing was added there. An `append` into `&Tools` didn't
+land either. So every menu anchor is now an item at a top-level menu's own
+level. Tools ▸ SafetyNet goes before Customize, and SafetyNet's Qt slot adds
+the submenu after each workbench switch wherever it's still missing. The slot
+skips menus that already have it. Toolbar inserts and top-level menu inserts
+(File, Tools) landed as planned.
 
 ### 2.1 Hole for hardware and PartDesign Hole's task panel
 

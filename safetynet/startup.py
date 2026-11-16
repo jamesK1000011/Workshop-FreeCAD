@@ -75,9 +75,10 @@ def _daily():
 
 
 def qt_tools_menu(Gui):
-    """For a FreeCAD without workbench manipulators: a slot that puts the
-    submenu into the Tools menu by Qt after each workbench switch (which
-    rebuilds it)."""
+    """A slot that puts the submenu into the Tools menu by Qt after each
+    workbench switch (which rebuilds it): for a FreeCAD without workbench
+    manipulators, and as the backstop where the manipulator's entry does not
+    land (it is skipped when Tools already has a SafetyNet entry)."""
 
     def slot(*_):
         try:
@@ -95,6 +96,9 @@ def qt_tools_menu(Gui):
                 mw = Gui.getMainWindow()
                 tools = next((a.menu() for a in mw.menuBar().actions() if a.menu() is not None and a.menu().objectName() == "&Tools"), None)
                 if tools is None or tools.findChild(QtWidgets.QMenu, "SafetyNetToolsMenu") is not None:
+                    return
+                # The manipulator's entry (the SafetyNet_Menu command) already there.
+                if any(a.text().replace("&", "") == "SafetyNet" for a in tools.actions()):
                     return
                 tools.addSeparator()
                 sub = tools.addMenu("SafetyNet")

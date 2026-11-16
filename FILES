@@ -41,6 +41,7 @@ safetynet/refusal.py
 safetynet/settings.py
 safetynet/startup.py
 safetynet/theme.py
+safetynet/workbench.py
 tests/documents/_stubs.py
 tests/documents/test_api.py
 tests/documents/test_drawing.py
@@ -111,11 +112,13 @@ tests/test_loads.py
 tests/test_placement.py
 tests/test_release.py
 tests/test_shared.py
+tests/test_stale.py
 tools/gen_readme_tools.py
 workshop/__init__.py
 workshop/agentlink_families.py
 workshop/layout.py
 workshop/placement.py
+workshop/stale.py
 workshop/tooldata.py
 workshop/workbench.py
 workshop_documents/__init__.py
@@ -158,6 +161,7 @@ workshop_documents/td_wait.py
 workshop_documents/theme.py
 workshop_documents/tooldata.py
 workshop_documents/views.py
+workshop_documents/workbench.py
 workshop_electronics/__init__.py
 workshop_electronics/api.py
 workshop_electronics/archive.py
@@ -182,6 +186,7 @@ workshop_electronics/records.py
 workshop_electronics/refusal.py
 workshop_electronics/taskpanels.py
 workshop_electronics/tooldata.py
+workshop_electronics/workbench.py
 workshop_make/__init__.py
 workshop_make/api.py
 workshop_make/bimnest.py
@@ -301,3 +306,4 @@ workshop_parts/icons/Workshop_Parts_Workbench.svg
 workshop_parts/placing.py
 workshop_parts/records.py
 workshop_parts/refusal.py
+workshop_parts/workbench.py

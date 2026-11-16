@@ -36,6 +36,12 @@ def _guides(mod):
 
 
 def _load():
+    try:  # this add-on's packages ahead of old copies beside it (said once)
+        from . import stale
+
+        stale.prefer_own()
+    except Exception as e:  # noqa: BLE001
+        sys.stderr.write(f"Workshop: start-up check skipped ({e})\n")
     for part in PARTS:
         try:
             mod = importlib.import_module(part + ".families")
