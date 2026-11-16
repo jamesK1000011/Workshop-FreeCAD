@@ -26,6 +26,9 @@ Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
   call that fixes it, `material_set { bodies: ["Bracket"], id: "petg" }`
   with the body's own name, and the one-off `slice { body, material }`; the
   person reads only what is wrong. Tests with stand-ins.
+- SafetyNet declares its recovery tool `PINNED_FREE` (`app_recover`), so
+  Agent Link's window link answers it after the person closed the document
+  the agent worked in without naming it in Agent Link's own list.
 
 - Make panel, Setups ▸ New made a setup with no part when the document's
   one Body was also referred to by an add-on's object (a ScanRuler

@@ -17,6 +17,10 @@ INFO = "SafetyNet: documents back after a crash or a hang (app_recover), FreeCAD
 # For Agent Link's echo: the Activity list's names; no WORKBENCHES — a
 # safety call never moves the person's bench.
 AREAS = {"app_recover": "Recovery", "pref_": "Settings", "macro_": "Macros"}
+# Answered even after the person closed the document the agent worked in (as
+# Agent Link's doc_open and session_state are): recovery is for exactly then.
+# Agent Link's window link learns it from here (families.PINNED_FREE).
+PINNED_FREE = {"app_recover"}
 
 
 def tools(s):
