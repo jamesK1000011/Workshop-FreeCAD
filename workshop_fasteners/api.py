@@ -140,6 +140,8 @@ def types(query=None, standard=None, kind=None, ftype=None, size=None, limit=40)
 # ---- objects --------------------------------------------------------------------------
 
 def _obj(doc, ref):
+    if ref is None or (isinstance(ref, str) and not ref.strip()):
+        raise Missing("Name the object: its name or label (fastener_list and session_state list them).", "invalid_input")
     if not isinstance(ref, str):
         return ref
     for o in doc.Objects:
@@ -151,10 +153,82 @@ def _obj(doc, ref):
     raise Missing(f"{ref!r}: no such object.", "not_found")
 
 
+def frame(o):
+    """The placement o.Shape's coordinates are in, from the document's (an
+    App::Part holding o: its placement; o's own is in its Shape already)."""
+    try:
+        g = o.getGlobalPlacement().multiply(o.Placement.inverse())
+        return None if g.isIdentity() else g
+    except Exception:  # noqa: BLE001 — no placement to read: the document's frame
+        return None
+
+
+def to_shape(o, p, d=None):
+    """A global point (and direction) in o.Shape's coordinates."""
+    g = frame(o)
+    if g is None:
+        return (p, d) if d is not None else p
+    inv = g.inverse()
+    return (inv.multVec(p), inv.Rotation.multVec(d)) if d is not None else inv.multVec(p)
+
+
+def to_global(o, p):
+    g = frame(o)
+    return p if g is None else g.multVec(p)
+
+
+def _round_edges(shape):
+    for i, e in enumerate(shape.Edges, start=1):
+        c = getattr(e, "Curve", None)
+        if c is not None and hasattr(c, "Radius") and hasattr(c, "Center") and hasattr(c, "Axis"):
+            yield i, e, c
+
+
+def _to_circle(p, c):
+    """The distance from point p to the circle of curve c (its centre, axis
+    and radius)."""
+    v = p - c.Center
+    ax = c.Axis * (1.0 / c.Axis.Length)
+    h = v.dot(ax)
+    r = (v - ax * h).Length
+    return (h * h + (r - c.Radius) ** 2) ** 0.5
+
+
+def edge_near(doc, ref, point, within=1.0):
+    """(object, "EdgeN"): the round edge of ref nearest a global point,
+    within mm; refused with the nearest round edges' centres when none."""
+    import FreeCAD
+
+    o = _obj(doc, ref)
+    sh = getattr(o, "Shape", None)
+    if sh is None or getattr(sh, "isNull", lambda: False)():
+        raise Missing(f"{o.Label} has no shape to take an edge from.", "invalid_input")
+    try:
+        p = to_shape(o, FreeCAD.Vector(*[float(v) for v in point]))
+    except (TypeError, ValueError):
+        raise Missing("near: [x, y, z], mm — a point on the round edge.", "invalid_input")
+    found = sorted(((_to_circle(p, c), i, c) for i, e, c in _round_edges(sh)), key=lambda t: (t[0], t[1]))
+    if not found or found[0][0] > within:
+        close = []
+        for d, i, c in found[:4]:
+            q = to_global(o, c.Center)
+            close.append({"edge": f"Edge{i}", "centre": [round(q.x, 2), round(q.y, 2), round(q.z, 2)], "diameter": _clean(2 * c.Radius), "away": round(d, 2)})
+        raise Missing(f"No round edge of {o.Label} within {within} mm of {list(point)}: the nearest are {close or 'none'} — give a point on the edge.", "not_found")
+    return o, f"Edge{found[0][1]}"
+
+
 def element(doc, ref):
-    """(object, "EdgeN") from "Plate.Edge7", "Plate:Edge7" or {object, element}."""
+    """(object, "EdgeN") from "Plate.Edge7", "Plate:Edge7", {object, element},
+    or {body|object, near: [x, y, z]} (the round edge nearest that point)."""
     if isinstance(ref, dict):
-        o, sub = ref.get("object"), ref.get("element") or ref.get("edge")
+        o = ref.get("object") or ref.get("body")
+        if o is None:
+            raise Missing(f"edges: {ref} — name the body ({{ body: \"Plate\", near: [x, y, z] }} or {{ object, element }}).", "invalid_input")
+        if ref.get("near") is not None:
+            return edge_near(doc, o, ref["near"], float(ref.get("within", 1.0)))
+        sub = ref.get("element") or ref.get("edge")
+        if not sub:
+            raise Missing(f"edges: {ref} — give near: [x, y, z] (a point on the round edge) or element: \"Edge7\".", "invalid_input")
     else:
         m = re.match(r"^(.*?)[.:]((?:Edge|Face)\d+)$", str(ref).strip())
         if not m:
@@ -203,6 +277,11 @@ def bom_text(o):
     return f"{t} {fam} {d}" + (f"x{ln}" if ln not in (None, "") else "")
 
 
+# Where add() put a fastener on another edge than the one picked: said once
+# in its answer. {(doc, object): sentence}.
+MOVED = {}
+
+
 def describe(o):
     out = {"object": o.Name, "label": o.Label, "type": getattr(o, "Type", None), "kind": _family(o), "size": getattr(o, "Diameter", None)}
     ln = _length_of(o)
@@ -220,8 +299,17 @@ def describe(o):
         b = o.BaseObject
         if b and b[0] is not None:
             out["attachedTo"] = f"{b[0].Label}.{b[1][0]}" if b[1] else b[0].Label
+            if b[1]:
+                c = b[0].getSubObject(b[1][0]).Curve
+                out["edgeDiameter"] = _clean(2 * c.Radius)
     except Exception:  # noqa: BLE001
         pass
+    try:
+        said = MOVED.pop((o.Document.Name, o.Name), None)
+    except Exception:  # noqa: BLE001 — an object that does not say its document
+        said = next((MOVED.pop(k) for k in list(MOVED) if k[1] == o.Name), None)
+    if said:
+        out["attachNote"] = said
     try:
         p = o.Placement.Base
         out["at"] = [_clean(p.x), _clean(p.y), _clean(p.z)]
@@ -270,9 +358,21 @@ def add(doc, ftype, size=None, length=None, thread="simple", edges=(), at=None, 
     if size is not None and size not in sizes and size != "Auto":
         raise Missing(f"size {size!r}: {k} comes in {', '.join(sizes)}.", "not_found")
     targets = [element(doc, e) for e in (edges or [])] or [None]
+    moved = {}
+    if size and size != "Auto" and match == "outer":
+        # A size given and a wider round edge picked (a counterbore's wall):
+        # the screw goes on the bore's edge at the counterbore's floor,
+        # where its head sits, not on the wall's.
+        nominal = _nominal(F, size)
+        for k_, tgt in enumerate(targets):
+            if tgt is not None and nominal:
+                better = bore_edge(tgt[0], tgt[1], nominal)
+                if better is not None and better != tgt[1]:
+                    moved[k_] = (tgt[1], better)
+                    targets[k_] = (tgt[0], better)
     family = F.screwMaker.GetTypeName(k)
     made = []
-    for tgt in targets:
+    for k_, tgt in enumerate(targets):
         o = doc.addObject("Part::FeaturePython", family)
         if container is not None:
             try:
@@ -283,13 +383,26 @@ def add(doc, ftype, size=None, length=None, thread="simple", edges=(), at=None, 
         _view(F, o)
         if hasattr(o, "MatchOuter"):
             o.MatchOuter = match == "outer"
+        if size and size != "Auto":
+            # Fasteners sizes the screw from the edge again whenever
+            # MatchOuter changed since it last ran (FSScrewObject.execute):
+            # one recompute takes that in, then the size given is set, so it
+            # wins (an M6 on a 15.2 mm counterbore came out M14).
+            doc.recompute()
         o.Diameter = size if size else ("Auto" if tgt else o.Diameter)
         if hasattr(o, "Thread"):
             o.Thread = thread in ("real", True)
         o.Invert = bool(invert)
         o.Offset = float(offset or 0.0)
         doc.recompute()
+        if size and size != "Auto" and str(o.Diameter) != str(size):
+            o.Diameter = size
+            doc.recompute()
         _set_length(F, o, length)
+        if k_ in moved:
+            was = tgt[0].getSubObject(moved[k_][0])
+            MOVED[(doc.Name, o.Name)] = (f"The edge picked, {tgt[0].Label}.{moved[k_][0]} (⌀{_clean(2 * was.Curve.Radius)}), is wider than a pass hole for {size}: "
+                                        f"a counterbore's wall. Attached to the bore's edge at its floor instead, where the head sits.")
         if tgt is None and at is not None:
             import FreeCAD
 
@@ -318,8 +431,10 @@ def change(doc, refs, ftype=None, size=None, length=None, thread=None, invert=No
             if k not in ok:
                 raise Missing(f"type {k}: {o.Label} can become {', '.join(ok)} (the types with its properties); add a new one for another kind.", "invalid_input")
             o.Type = k
-        if match is not None and hasattr(o, "MatchOuter"):
+        if match is not None and hasattr(o, "MatchOuter") and o.MatchOuter != (match == "outer"):
             o.MatchOuter = match == "outer"
+            if size and size != "Auto":
+                doc.recompute()  # Fasteners re-sizes from the edge when MatchOuter changes: then the size given
         if size:
             o.Diameter = size
         if thread is not None and hasattr(o, "Thread"):
@@ -516,24 +631,63 @@ def insert_figures(size):
 def _vec(d):
     import FreeCAD
 
-    table = {"+x": (1, 0, 0), "-x": (-1, 0, 0), "+y": (0, 1, 0), "-y": (0, -1, 0), "+z": (0, 0, 1), "-z": (0, 0, -1)}
+    table = {"+x": (1, 0, 0), "-x": (-1, 0, 0), "+y": (0, 1, 0), "-y": (0, -1, 0), "+z": (0, 0, 1), "-z": (0, 0, -1), "x": (1, 0, 0), "y": (0, 1, 0), "z": (0, 0, 1)}
     v = FreeCAD.Vector(*(table[d] if isinstance(d, str) else d))
     v.normalize()
     return v
 
 
-def _circle_at(shape, p, d, biggest=False):
-    """The circular edge centred on the hole's axis nearest p (within 0.1 mm
-    of it), axis along d: (index, edge)."""
+def _nominal(F, size):
+    try:
+        return float(F.FastenerBase.DiaStr2Num(size))
+    except Exception:  # noqa: BLE001
+        try:
+            return float(str(size).upper().lstrip("M").split("X")[0])
+        except ValueError:
+            return None
+
+
+def bore_edge(o, sub, nominal):
+    """For a screw of nominal diameter on the round edge sub of o: when that
+    edge is much wider than a pass hole for it (a counterbore's wall), the
+    coaxial round edge that fits (a pass hole, 0.95 to 1.4 x nominal)
+    nearest it — the bore at the counterbore's floor. None when sub already
+    fits or nothing on its axis does."""
+    sh = o.Shape
+    e0 = o.getSubObject(sub)
+    c0 = e0.Curve
+    if 2 * c0.Radius <= 1.4 * nominal:
+        return None
+    ax = c0.Axis
     best = None
-    for i, e in enumerate(shape.Edges, start=1):
-        c = getattr(e, "Curve", None)
-        if c is None or not hasattr(c, "Radius") or not hasattr(c, "Center"):
+    for i, e, c in _round_edges(sh):
+        if abs(abs(c.Axis.dot(ax)) - 1) > 1e-6:
             continue
-        ax = c.Axis
-        if ax.cross(d).Length > 1e-3 or (c.Center - p).Length > 0.1:
+        off = c.Center - c0.Center
+        if (off - ax * off.dot(ax)).Length > 0.05:
             continue
-        key = c.Radius if not biggest else -c.Radius
+        if not 0.95 * nominal <= 2 * c.Radius <= 1.4 * nominal:
+            continue
+        key = abs(off.dot(ax))
+        if best is None or key < best[0]:
+            best = (key, i)
+    return f"Edge{best[1]}" if best else None
+
+
+def _circle_at(shape, p, d, biggest=False):
+    """The circular edge on the hole's axis (through p along d, within 0.1
+    mm of it) nearest p along the axis — at p first; among those at the
+    same depth the smallest (biggest: the largest). (index, edge)."""
+    best = None
+    for i, e, c in _round_edges(shape):
+        if c.Axis.cross(d).Length > 1e-3:
+            continue
+        off = c.Center - p
+        along = off.dot(d)
+        if (off - d * along).Length > 0.1:
+            continue
+        depth = 0.0 if abs(along) <= 0.1 else round(abs(along), 3)
+        key = (depth, c.Radius if not biggest else -c.Radius)
         if best is None or key < best[0]:
             best = (key, i, e)
     return (best[1], best[2]) if best else (None, None)
@@ -560,8 +714,11 @@ def hole_screw(doc, hole_args, hole_out, spec):
         return {"screwNote": f"{ftype} has no {size}: give screw.type one that has (fastener_types {{ type }} lists sizes)."}
     body = _obj(doc, hole_out.get("body"))
     shape = body.Shape
-    d = _vec(hole_args.get("dir", "-z"))
-    p = FreeCAD.Vector(*[float(v) for v in at])
+    # at and dir are the document's (global); body.Shape is in the frame of
+    # what holds the Body (an App::Part's placement left out): the search
+    # point taken there, or it missed the hole by the Part's offset.
+    p, d = to_shape(body, FreeCAD.Vector(*[float(v) for v in at]), _vec(hole_args.get("dir", "-z")))
+    d.normalize()
     sizes = hole_out.get("sizes") or {}
     through = hole_out.get("through")
     depth = hole_args.get("depth", "through")
@@ -582,7 +739,8 @@ def hole_screw(doc, hole_args, hole_out, spec):
         need = plate
     idx, edge = _circle_at(shape, p, d, biggest)
     if idx is None:
-        return {"screwNote": f"No round edge of the hole found at {[round(v, 2) for v in (p.x, p.y, p.z)]}: fastener_add {{ edges }} puts one on an edge you pick."}
+        q = to_global(body, p)
+        return {"screwNote": f"No round edge of the hole found on its axis at {[round(v, 2) for v in (q.x, q.y, q.z)]}: fastener_add {{ edges: [{{ body, near: [x, y, z] }}] }} puts one on an edge you pick."}
     length = spec.get("length") or (need if need and need > 0 else None)
     container = None
     try:

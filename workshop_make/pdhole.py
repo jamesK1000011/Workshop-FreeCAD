@@ -112,6 +112,38 @@ def _local(body, at, d):
     return inv.multVec(_V(*at)), inv.Rotation.multVec(d)
 
 
+def shape_frame(o):
+    """The placement o.Shape's coordinates are in, from the document's:
+    what holds o (an App::Part's placement), o's own placement being in its
+    Shape already. Identity for an object at the top."""
+    import FreeCAD
+
+    try:
+        g = o.getGlobalPlacement()
+        return g.multiply(o.Placement.inverse())
+    except Exception:  # noqa: BLE001
+        return FreeCAD.Placement()
+
+
+def to_shape(o, at, d=None):
+    """A global point (and direction) in o.Shape's coordinates."""
+    f = shape_frame(o).inverse()
+    p = f.multVec(_V(*at) if not hasattr(at, "x") else at)
+    return (p, f.Rotation.multVec(d)) if d is not None else p
+
+
+def sentence(e):
+    """An exception from FreeCAD as words: its message without the class
+    name, Python's repr or a trailing full stop; the class when it says
+    nothing."""
+    msg = getattr(e, "message", None) or (e.args[0] if getattr(e, "args", None) else "") or str(e)
+    if isinstance(msg, dict):
+        msg = msg.get("sErrMsg") or msg.get("swhat") or str(msg)
+    msg = str(msg).strip().rstrip(".")
+    msg = STATES.get(msg, msg)
+    return msg or type(e).__name__
+
+
 def face_at(shape, at, d, tol=1e-3):
     """The name of the flat face the hole enters by: the point on it, its
     outward normal against the drilling direction. None if none."""
@@ -135,6 +167,37 @@ def face_at(shape, at, d, tol=1e-3):
     return best[0] if best else None
 
 
+def entry_face(doc, body, tip, face):
+    """(feature, "FaceN") the hole's sketch goes on, from face as given:
+    "Face4" (the Body's tip), or "Pocket 5.Face4" / "Body.Face4" — a
+    feature's face by its label or name (the whole reference was taken as
+    the face's name, so the sketch had no face and the Hole stayed
+    "Touched"). (tip, None) when no face is given."""
+    if not face:
+        return tip, None
+    import re
+
+    m = re.match(r"^(?:(.+)[.:])?(Face\d+)$", str(face).strip())
+    if not m:
+        raise Failed(f"face: {face!r} — a face as \"Face4\" or \"Pocket.Face4\".")
+    owner, sub = m.group(1), m.group(2)
+    on = tip
+    if owner and owner not in (body.Label, body.Name):
+        hits = [o for o in doc.Objects if owner in (o.Label, o.Name)]
+        if not hits:
+            raise Failed(f"face: no feature called {owner}.")
+        on = hits[0]
+    try:
+        f = on.Shape.getElement(sub)
+    except Exception:  # noqa: BLE001
+        f = None
+    if f is None:
+        raise Failed(f"face: {on.Label} has no {sub} (it has {len(on.Shape.Faces)} faces) — the numbers change after an edit: pick it again.")
+    if "Plane" not in type(f.Surface).__name__:
+        raise Failed(f"face: {on.Label}.{sub} is not flat — a hole starts on a flat face.")
+    return on, sub
+
+
 def _attach(sk, feature, face):
     support = [(feature, face)]
     try:
@@ -147,7 +210,7 @@ def _attach(sk, feature, face):
 def _sketch_on(doc, body, feature, face, name):
     sk = body.newObject("Sketcher::SketchObject", name)
     _attach(sk, feature, face)
-    doc.recompute()
+    settle(doc, [sk])
     return sk
 
 
@@ -182,6 +245,69 @@ class Failed(Exception):
     pass
 
 
+# FreeCAD's object states, as a sentence (getStatusString gives the bare word).
+STATES = {
+    "Touched": "FreeCAD left it waiting for a recompute",
+    "Invalid": "FreeCAD marked it invalid",
+    "Error": "FreeCAD's recompute failed on it",
+}
+
+
+def why_not(o, doc=None):
+    """Why a feature has no solid, in a sentence: FreeCAD's status words
+    (Touched, Invalid …) said as what they mean, a feature before it that
+    is broken named."""
+    raw = ""
+    try:
+        raw = (o.getStatusString() or "").strip()
+    except Exception:  # noqa: BLE001
+        pass
+    said = STATES.get(raw, raw)
+    broken = []
+    if doc is not None:
+        for x in getattr(o, "OutListRecursive", []) or []:
+            try:
+                if "Invalid" in x.State or "Error" in x.State:
+                    broken.append(x.Label)
+            except Exception:  # noqa: BLE001
+                pass
+    if broken:
+        said = f"{said or 'no solid'}; {', '.join(broken[:3])} before it {'is' if len(broken) == 1 else 'are'} broken"
+    return said or "it gave no solid"
+
+
+def settle(doc, objs):
+    """Recompute objs and what they stand on (not the rest of the document),
+    recomputes switched on for it when the document has them frozen (Skip
+    recompute). True when they were frozen."""
+    frozen = bool(getattr(doc, "RecomputesFrozen", False))
+    if frozen:
+        doc.RecomputesFrozen = False
+    try:
+        try:
+            doc.recompute([o for o in objs if o is not None])
+        except TypeError:  # an older FreeCAD takes no list
+            doc.recompute()
+        # What the document's recompute left waiting (it ran nothing on the
+        # Mac: "recomputed 0", the new Hole still Touched) is recomputed by
+        # itself, forced, in order; then the rest once more.
+        for _ in range(2):
+            left = [o for o in objs if o is not None and "Touched" in getattr(o, "State", ())]
+            if not left:
+                break
+            for o in left:
+                try:
+                    o.recompute(True)
+                except TypeError:  # a FreeCAD whose recompute takes no force
+                    o.recompute()
+                except Exception:  # noqa: BLE001
+                    pass
+    finally:
+        if frozen:
+            doc.RecomputesFrozen = True
+    return frozen
+
+
 def make(doc, body, kind, size, at, d, depth, fit, cal, face=None, sketch=None):
     """The hole as PartDesign features in body. at/d: where it enters and
     which way it goes (global); face: the entry face's name on the Body's
@@ -192,17 +318,24 @@ def make(doc, body, kind, size, at, d, depth, fit, cal, face=None, sketch=None):
     if kind not in fits.KINDS:
         raise Failed(f"kind: one of {', '.join(fits.KINDS)}.")
     add = float(cal.get("hole", 0.0))
+    # A recompute pending in the document (an edit not yet recomputed, or
+    # recomputes frozen) left the new Hole "Touched": the Body is brought
+    # up to date first, and only it.
+    settle(doc, [body])
     tip = body.Tip
     made = []
     try:
+        if tip is not None and (tip.Shape.isNull() or "Invalid" in tip.State or "Error" in tip.State):
+            raise Failed(f"{body.Label}'s last feature, {tip.Label}, is broken ({why_not(tip, doc)}): fix it first, then the hole.")
         if sketch is None:
             if tip is None:
                 raise Failed("The Body has no solid yet to put a hole in.")
             p, dl = _local(body, at, d)
+            on, face = entry_face(doc, body, tip, face)
             face = face or face_at(tip.Shape, p, dl)
             if face is None:
                 raise Failed(f"No flat face of {body.Label} at {list(at)} facing against the drilling direction: put at on a flat face, dir into the material.")
-            sk = _sketch_on(doc, body, tip, face, "HoleSketch")
+            sk = _sketch_on(doc, body, on, face, "HoleSketch")
             made.append(sk)
             cx, cy = _to_sketch(sk, at)
             _circle(sk, cx, cy, 0.5)  # its centre is the hole's; the Hole sizes it
@@ -212,13 +345,13 @@ def make(doc, body, kind, size, at, d, depth, fit, cal, face=None, sketch=None):
         made.append(h)
         h.Profile = sk
         sizes = _configure(h, kind, size, depth, fit, add)
-        doc.recompute()
+        settle(doc, [sk, h, body])
         if kind == "nut_trap":
             if sketch is not None:
                 raise Failed("A nut trap needs the point it enters at (at), not a sketch.")
             af, mh = fits.M[size]["nut"]
             a, hgt = af + add, mh + 0.3
-            sk2 = _sketch_on(doc, body, tip, face, "NutTrapSketch")
+            sk2 = _sketch_on(doc, body, on, face, "NutTrapSketch")
             made.append(sk2)
             _polygon(sk2, hexagon(a, cx, cy))
             pk = body.newObject("PartDesign::Pocket", "NutTrap")
@@ -226,14 +359,13 @@ def make(doc, body, kind, size, at, d, depth, fit, cal, face=None, sketch=None):
             pk.Profile = sk2
             pk.Length = hgt
             sizes.update({"nutAcrossFlats": round(a, 3), "nutDepth": round(hgt, 3)})
-            doc.recompute()
+            settle(doc, [sk2, pk, body])
         for x in made:
             if x.TypeId.startswith("Sketcher"):
                 x.Visibility = False
         last = made[-1]
         if last.isValid() is False or last.Shape.isNull() or not last.Shape.Solids:
-            why = getattr(last, "getStatusString", lambda: "")()
-            raise Failed(f"FreeCAD's {last.TypeId.split('::')[-1]} could not be made here: {why or 'no solid'}.")
+            raise Failed(f"FreeCAD's {last.TypeId.split('::')[-1]} could not be made here: {why_not(last, doc)}.")
         return [x.Name for x in made], sizes
     except Exception:
         for x in reversed(made):

@@ -2,6 +2,7 @@
 
 ## Reading it
 - `mass_properties`: mass, centre of mass and inertia per body. In a print setup the mass is as printed (perimeters, top and bottom layers and infill, the same estimate as part_review, the shells' mass on the surface); otherwise solid. Magnets from gen_make and ballast cut here are counted.
+- `material` is the material's name; `materialId` is its id (a FreeCAD library card's is a UUID).
 - Weigh a test print when the mass matters: the slicer (`slice`) and the scale beat the estimate.
 
 ## Reaching a target

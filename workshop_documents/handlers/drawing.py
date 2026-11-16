@@ -43,6 +43,16 @@ def _safe(name):
     return re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("_") or "drawing"
 
 
+def material_shown(mid, doc=None):
+    """A material id as its name (workshop.matname): never a UUID."""
+    try:
+        from workshop import matname
+
+        return matname.shown(mid, doc)
+    except Exception:  # noqa: BLE001
+        return str(mid)
+
+
 def _num(v):
     return f"{v:.1f}".rstrip("0").rstrip(".")
 
@@ -129,10 +139,37 @@ def _bodies(s, refs):
     return out
 
 
-def _write(s, base, sheet, kinds):
+KINDS = ("pdf", "svg", "dxf")
+
+
+def out_place(out_dir, file, name):
+    """(folder, base name) the drawing's files are written as. file: an
+    absolute path (~ too) is honoured — its folder made, its extension
+    (.pdf, .svg, .dxf) dropped, so the other formats sit beside it with the
+    same stem; a relative one with folders goes under the out folder; a bare
+    name is the files' name. Without file, the drawing's name."""
+    if not file:
+        return out_dir, _safe(name)
+    f = os.path.expanduser(str(file).strip())
+    stem, ext = os.path.splitext(f)
+    if ext.lower().lstrip(".") in KINDS:
+        f = stem
+    folder, leaf = os.path.split(f)
+    if not leaf:
+        raise ToolError("invalid_input", f"file: {file!r} names a folder — give the files' name too (…/Stem-drawing).")
+    if not os.path.isabs(folder):
+        folder = os.path.join(out_dir, folder) if folder else out_dir
+    try:
+        os.makedirs(folder, exist_ok=True)
+    except OSError as e:
+        raise ToolError("invalid_input", f"file: the folder {folder} cannot be made here ({e.strerror or e}).")
+    return folder, _safe(leaf)
+
+
+def _write(s, base, sheet, kinds, folder=None):
     paths = {}
     for k in kinds:
-        p = os.path.join(s.out_dir, f"{base}.{k}")
+        p = os.path.join(folder or s.out_dir, f"{base}.{k}")
         data = {"svg": sheet.svg, "pdf": sheet.pdf, "dxf": sheet.dxf}[k]()
         with open(p, "wb" if isinstance(data, bytes) else "w", **({} if isinstance(data, bytes) else {"encoding": "utf-8"})) as f:
             f.write(data)
@@ -489,39 +526,132 @@ def _callout(nominal, d, diameter=False):
         raise ToolError("invalid_input", f"fit: {e}")
 
 
-def _holes(objs, view):
-    """The round holes seen end on in a view, grouped by diameter: [(d,
-    [centres])]. A hole is a circle edge on a cylindrical face that goes
-    into the part, its axis along the view."""
+def _cylinder_of(f):
+    """(axis, centre, radius) of a face that is a cylinder: Part's own, or
+    a surface of revolution of a line parallel to its axis (what
+    PartDesign's Hole and Revolution make); else None."""
     import Part
 
+    srf = f.Surface
+    if isinstance(srf, Part.Cylinder):
+        return srf.Axis, srf.Center, srf.Radius
+    if type(srf).__name__ != "SurfaceOfRevolution":
+        return None
+    try:
+        ax = V(srf.Direction)
+        ax.normalize()
+        loc = V(srf.Location)
+        bc = srf.BasisCurve
+        if type(bc).__name__ not in ("Line", "LineSegment"):
+            return None
+        d = V(bc.Direction) if hasattr(bc, "Direction") else (bc.EndPoint - bc.StartPoint)
+        d.normalize()
+        if abs(abs(d.dot(ax)) - 1) > 1e-6:
+            return None
+        q = V(bc.Location if hasattr(bc, "Location") else bc.StartPoint) - loc
+        radial = q - ax * q.dot(ax)
+        if radial.Length < 1e-9:
+            return None
+        return ax, loc, radial.Length
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _pd_holes(objs, view):
+    """PartDesign Hole features of the bodies drawn, seen end on in the
+    view: [{diameter, centres, suffix, cut}] — what FreeCAD's own Hole
+    says it is (its size, thread, depth, counterbore or countersink), at
+    the centres of its profile's circles."""
+    Z, X, Y = views.frame(view)
+    out = {}
+    for o in objs:
+        if o.TypeId != "PartDesign::Body":
+            continue
+        for f in getattr(o, "Group", []) or []:
+            if f.TypeId != "PartDesign::Hole" or getattr(f, "Suppressed", False):
+                continue
+            try:
+                prof = f.Profile[0] if isinstance(f.Profile, tuple) else f.Profile
+                pl = o.Placement.multiply(prof.Placement)
+                normal = pl.Rotation.multVec(V(0, 0, 1))
+                if abs(abs(normal.dot(Z)) - 1) > 1e-6:
+                    continue
+                pts = []
+                for i, g in enumerate(prof.Geometry):
+                    if prof.getConstruction(i):
+                        continue
+                    if type(g).__name__ == "Circle":
+                        pts.append(pl.multVec(g.Center))
+                    elif type(g).__name__ == "Point":
+                        pts.append(pl.multVec(V(g.X, g.Y, g.Z)))
+                if not pts:
+                    continue
+                dia = round(float(f.Diameter), 3)
+                bits = []
+                thread = str(getattr(f, "ThreadType", "None")) not in ("None", "") and bool(getattr(f, "Threaded", False))
+                head = str(f.ThreadSize) if thread else None
+                if str(getattr(f, "DepthType", "")) == "ThroughAll":
+                    bits.append("THRU")
+                else:
+                    bits.append(f"DEEP {_num(float(f.Depth))}")
+                cut = str(getattr(f, "HoleCutType", "None"))
+                cutd = float(getattr(f, "HoleCutDiameter", 0) or 0)
+                kind = None
+                # FreeCAD names a cut by its kind or by the screw it takes
+                # (ISO 4762 a counterbore; ISO 10642, 2009, 7046 a countersink).
+                if cut not in ("None", "") and any(w in cut for w in ("ountersink", "10642", "2009", "7046", "14582")):
+                    kind = "countersink"
+                    bits.append(f"CSK ⌀{_num(cutd)} × {_num(float(getattr(f, 'HoleCutCountersinkAngle', 90)))}°")
+                elif cut not in ("None", ""):
+                    kind = "counterbore"
+                    bits.append(f"CBORE ⌀{_num(cutd)} DEEP {_num(float(f.HoleCutDepth))}")
+                key = (dia, head, " ".join(bits))
+                g = out.setdefault(key, {"diameter": dia, "thread": head, "suffix": " ".join(bits), "cut": kind, "cutDiameter": round(cutd, 3) if kind else None,
+                                         "centres": [], "features": []})
+                g["centres"] += pts
+                g["features"].append(f.Label)
+            except Exception:  # noqa: BLE001 — a Hole that cannot be read is found by its faces below
+                continue
+    return list(out.values())
+
+
+def _holes(objs, view, skip=()):
+    """The round holes seen end on in a view, grouped by diameter: [(d,
+    [centres])]. A hole is a cylindrical face (Part's, or the surface of
+    revolution PartDesign's Hole makes) that goes all the way round into
+    the part, its axis along the view. skip: (diameter, centre) already
+    called out (a PartDesign Hole's bore and counterbore)."""
     Z, _, _ = views.frame(view)
     seen = {}
     for o in objs:
         sh = o.Shape
         for f in sh.Faces:
-            if not isinstance(f.Surface, Part.Cylinder):
+            cyl = _cylinder_of(f)
+            if cyl is None:
                 continue
-            ax = f.Surface.Axis
+            ax, c, rad = cyl
             if abs(abs(ax.dot(Z)) - 1) > 1e-6:
                 continue
             # A hole's material is outside its cylinder: the face's normal points to the axis.
             u0, u1, v0, v1 = f.ParameterRange
             p = f.valueAt((u0 + u1) / 2, (v0 + v1) / 2)
             n = f.normalAt((u0 + u1) / 2, (v0 + v1) / 2)
-            c = f.Surface.Center
             radial = p - c - ax * (p - c).dot(ax)
             if radial.Length < 1e-9 or n.dot(radial) > 0:
                 continue
-            dia = round(2 * f.Surface.Radius, 3)
+            dia = round(2 * rad, 3)
             key = (round(c.dot(views.frame(view)[1]), 2), round(c.dot(views.frame(view)[2]), 2))
             got = seen.setdefault(dia, {}).setdefault(key, [c, 0.0])
+            # The turn the face covers about its axis (u for Part's cylinder
+            # and for a surface of revolution alike).
             got[1] += abs(u1 - u0)
     # A hole goes all the way round (in one face or two); a cavity's rounded
     # inside corner is a quarter turn and is no hole.
+    X, Y = views.frame(view)[1], views.frame(view)[2]
     out = []
     for d, v in seen.items():
         centres = [c for c, span in v.values() if span >= 0.95 * 2 * math.pi]
+        centres = [c for c in centres if not any(abs(d - sd) < 0.02 and abs(c.dot(X) - sc.dot(X)) < 0.05 and abs(c.dot(Y) - sc.dot(Y)) < 0.05 for sd, sc in skip)]
         if centres:
             out.append((d, centres))
     return sorted(out, key=lambda x: -x[0])
@@ -832,11 +962,23 @@ def drawing_make(s, a):
         if hv not in drawn:
             raise ToolError("invalid_input", f"holes: a view drawn ({', '.join(want)}), or true for the top.")
         box, centre = drawn[hv]["box"], L["centres"][hv]
-        for k, (dia, centres) in enumerate(_holes(objs, hv)):
+        # FreeCAD's own Holes first, called out as they are made (size,
+        # thread, through or deep, counterbore or countersink); then every
+        # other round hole by its faces.
+        pdh = _pd_holes(objs, hv)
+        skip = []
+        for g in pdh:
+            for c in g["centres"]:
+                skip.append((g["diameter"], c))
+                if g["cutDiameter"]:
+                    skip.append((g["cutDiameter"], c))
+        found = [(g["diameter"], g["centres"], g) for g in pdh] + [(d, cs, None) for d, cs in _holes(objs, hv, skip)]
+        for k, (dia, centres, pd) in enumerate(found):
             c0 = min(centres, key=lambda c: (views.point(c, hv)[0], -views.point(c, hv)[1]))
             pa = _to_paper(views.point(c0, hv), box, centre, scale)
             fit = (a.get("holeFits") or {}).get(str(dia)) or (a.get("holeFits") or {}).get(f"{dia:g}")
-            label = (f"{len(centres)}× " if len(centres) > 1 else "") + _callout(dia, {"fit": fit}, diameter=True)
+            size = pd["thread"] if pd and pd["thread"] else _callout(dia, {"fit": fit}, diameter=True)
+            label = (f"{len(centres)}× " if len(centres) > 1 else "") + size + (f" {pd['suffix']}" if pd else "")
             rp = dia / 2 * scale
             ang = math.radians(135 + 20 * k)
             tip = (pa[0] + rp * math.cos(ang), pa[1] - rp * math.sin(ang))
@@ -845,7 +987,8 @@ def drawing_make(s, a):
             sheet.line([tip, elbow, tail], "dim")
             sheet.arrow(tip, elbow)
             sheet.text(tail[0] - 1, tail[1] - 1, 3.0, label, "end")
-            holes_out.append({"view": hv, "diameter": dia, "count": len(centres), "label": label})
+            holes_out.append({"view": hv, "diameter": dia, "count": len(centres), "label": label,
+                              **({"from": "PartDesign Hole", "features": pd["features"], **({"cut": pd["cut"], "cutDiameter": pd["cutDiameter"]} if pd["cut"] else {})} if pd else {"from": "its faces"})})
             over, under = _tolerance(dia, {"fit": fit}) if fit else (None, None)
             specs.append({"view": hv, "type": "Diameter", "centre": views.point(c0, hv), "radius": dia / 2, "value": dia,
                           "fit": fit, "over": over, "under": under, "prefix": f"{len(centres)}× " if len(centres) > 1 else ""})
@@ -857,10 +1000,12 @@ def drawing_make(s, a):
     if not tb.get("material"):
         mat = store.materials(s.doc).get(objs[0].Label) if len(objs) == 1 else None
         if mat:
-            tb["material"] = str(mat).upper()
+            # Its name (a FreeCAD library card's, not its UUID); the id kept apart.
+            tb["material"] = material_shown(mat, s.doc).upper()
+            tb["materialId"] = str(mat)
     tb.setdefault("sheet", f"{paper}  mm")
     title_block_grid(sheet, tb)
-    base = _safe(a.get("file") or name)
+    folder, base = out_place(s.out_dir, a.get("file"), name)
     page, made = (None, "not asked for")
     if a.get("page", True):
         page, made = _techdraw_page(s.doc, objs, [(v, L["centres"][v]) for v in want], scale, paper, f"{name} drawing", a.get("dimensions", True), specs, drawn,
@@ -870,12 +1015,12 @@ def drawing_make(s, a):
     # removal) writes the rest, and the answer says which is which.
     paths, frm = {}, {}
     if page is not None:
-        paths, why = _export_page(page, s.out_dir, base)
+        paths, why = _export_page(page, folder, base)
         frm = {k: "TechDraw page" for k in paths}
         frm.update({k: f"Workshop's sheet writer: {w}" for k, w in why.items()})
     rest = [k for k in ("svg", "pdf", "dxf") if k not in paths]
     if rest:
-        paths.update(_write(s, base, sheet, rest))
+        paths.update(_write(s, base, sheet, rest, folder))
         for k in rest:
             frm.setdefault(k, "Workshop's sheet writer: no TechDraw page")
     paths = {k: paths[k] for k in ("svg", "pdf", "dxf")}
@@ -965,7 +1110,8 @@ def drawing_exploded(s, a):
                 "part": o.Label,
                 "bodies": [],
                 "size": [round(v, 1) for v in st["box"]],
-                "material": m or "",
+                "material": material_shown(m, s.doc) if m else "",
+                **({"materialId": m} if m else {}),
                 "massG": round(o.Shape.Volume * DENSITY[m] / 1000.0, 1) if m in DENSITY else None,
                 "madeBy": setup["type"] if setup else "",
             }
@@ -1328,7 +1474,7 @@ def patent_draft(s, a):
         mat = store.materials(s.doc).get(o.Label)
         md.append(
             f"The {name(o)} {numerals[o.Label]} measures about {_num(b.XLength)} mm by {_num(b.YLength)} mm by {_num(b.ZLength)} mm"
-            + (f" and may be made of {mat.upper()}" if mat else "")
+            + (f" and may be made of {material_shown(mat, s.doc)}" if mat else "")
             + ". [What it does, and how.]"
         )
     for o1, o2 in touch:

@@ -29,6 +29,10 @@ GROUP = "drawing"
 WORKBENCHES = {"drawing_": "TechDrawWorkbench"}
 COMMANDS = {"drawing_make": "TechDraw_ProjectionGroup"}
 PAGES = ("drawing_",)
+# drawing_make's file is written (an absolute one too): Agent Link checks it
+# as it checks every writer's path (the home folder or the session's, never a
+# hidden folder or a script).
+WRITERS = {"drawing_make"}
 INFO = "Drawings and documents: dimensioned views as a TechDraw page with SVG, PDF and DXF; assembly manuals with exploded steps and a bill of materials; patent figures and a draft."
 
 handlers.lend(H, ToolError=ToolError, M=M, picks=picks)

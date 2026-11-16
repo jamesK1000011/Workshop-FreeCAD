@@ -181,12 +181,17 @@ def _principal(I):
         return None
 
 
-def _shown(mid):
+def _shown(mid, card=None):
     """A material as a person reads it: a filament's display name (pla ->
-    PLA), a FreeCAD card's own name."""
+    PLA), a FreeCAD card's own name (never its UUID); the card's own name
+    when nothing else knows the id."""
+    from workshop import matname
     from workshop_make import results
 
-    return results.material_name(mid)
+    n = matname.name_of(mid)
+    if not n and card and card.get("name"):
+        n = str(card["name"]).split(" (")[0]
+    return n or results.material_name(mid)
 
 
 def report(o, p):
@@ -197,7 +202,7 @@ def report(o, p):
         "volume": _r(p["volume"], 1),
         # The material by its display name, in a person's words; its id
         # for agents.
-        "material": _shown(p["material"]["id"]) + ("" if p["materialSet"] else " (assumed; set the material to change it)"),
+        "material": _shown(p["material"]["id"], p["material"]) + ("" if p["materialSet"] else " (assumed; set the material to change it)"),
         "materialId": p["material"]["id"],
         "density": p["material"]["density"],
         "as": p["as"],

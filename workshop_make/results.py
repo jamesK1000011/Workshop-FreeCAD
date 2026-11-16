@@ -46,15 +46,13 @@ def material_name(text):
         return "not set"
     mid, _, rest = t.partition(" (")
     assumed = "assumed" in rest
-    name = None
     try:
-        from . import materials
+        from workshop import matname
 
-        c = materials.card(mid)
-        name = c["name"].split(" (")[0] if c else None
+        # A filament, a custom card, or FreeCAD's library by its id (a
+        # UUID): its name, never the bare id.
+        name = matname.shown(mid)
     except Exception:  # noqa: BLE001 — a name is never worth a failure
-        name = None
-    if name is None:
         name = mid.upper() if len(mid) <= 5 and mid.replace("-", "").isalnum() else mid
     return f"{name} (assumed: no material set yet; the Materials tab sets one)" if assumed else name
 
