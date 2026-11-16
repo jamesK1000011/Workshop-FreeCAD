@@ -77,10 +77,7 @@ def make_job(doc, body, stock, tool, label=None):
                 pass
         tcs = list(job.Tools.Group)
         if tcs:
-            try:
-                tcs[0].Tool.Diameter = float(tool)
-            except Exception:  # noqa: BLE001 — a bit without a Diameter: CAM's default stays
-                pass
+            set_tool(tcs[0], tool)
         doc.recompute()
         return job, None
     except Exception as e:  # noqa: BLE001
@@ -90,6 +87,26 @@ def make_job(doc, body, stock, tool, label=None):
             except Exception:  # noqa: BLE001
                 pass
         return None, f"FreeCAD's CAM could not make a Job here ({e})"
+
+
+def tool_name(d):
+    """A tool's name by its diameter, as CAM's own are named: "3 mm End Mill"."""
+    return f"{float(d):g} mm End Mill"
+
+
+def set_tool(tc, d):
+    """The tool controller's bit at d mm, and both named for it ("TC: 3 mm
+    End Mill"), so the Job does not say 5 mm for a 3 mm cutter."""
+    try:
+        tc.Tool.Diameter = float(d)
+    except Exception:  # noqa: BLE001 — a bit without a Diameter: CAM's default stays, its name too
+        return False
+    for o, label in ((tc.Tool, tool_name(d)), (tc, "TC: " + tool_name(d))):
+        try:
+            o.Label = label
+        except Exception:  # noqa: BLE001
+            pass
+    return True
 
 
 def sanity_report(job, path):

@@ -90,4 +90,16 @@ The first tagged release, 0.3.0 (the version in `package.xml`), is being prepare
 
 ### Fixed
 
+- Cut Export and Cut Check take the cut setup's sheet when no sheet is
+  given (the setup's [300, 200] was ignored and the parts went in rows).
+- BIM Nest's answer read the way ArchNesting keeps it (run()'s sheets,
+  each a list of [hashCode, face]; first sheet placed, later ones left
+  over); the gap kept by growing each profile and shrinking the sheet by
+  half of it, ROTATIONS held at [0] while it runs. It placed the piece and
+  Make had read "placed nothing".
+- Mass Properties names the material as a person reads it: "PLA (assumed;
+  set the material to change it)", display names for filaments
+  (`materialId` keeps the id for agents).
+- Mill Export's new CAM Job names its tool controller and tool for the
+  diameter set ("TC: 3 mm End Mill"), not CAM's default "5mm Endmill".
 - `fea_frame`: gravity is defined.

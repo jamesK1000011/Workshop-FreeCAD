@@ -181,13 +181,24 @@ def _principal(I):
         return None
 
 
+def _shown(mid):
+    """A material as a person reads it: a filament's display name (pla ->
+    PLA), a FreeCAD card's own name."""
+    from workshop_make import results
+
+    return results.material_name(mid)
+
+
 def report(o, p):
     out = {
         "body": o.Label,
         "mass": _r(p["mass"], 2),
         "com": _vl(p["com"]),
         "volume": _r(p["volume"], 1),
-        "material": p["material"]["id"] + ("" if p["materialSet"] else " (assumed: material_set records it)"),
+        # The material by its display name, in a person's words; its id
+        # for agents.
+        "material": _shown(p["material"]["id"]) + ("" if p["materialSet"] else " (assumed; set the material to change it)"),
+        "materialId": p["material"]["id"],
         "density": p["material"]["density"],
         "as": p["as"],
         "inertia": {"aboutCom": [[_r(x, 1) for x in row] for row in p["I"]], "units": "g·mm²"},
@@ -245,7 +256,7 @@ def mass_properties(s, a):
     out = [report(o, properties(s, o)) for o in bodies]
     res = {"bodies": out, "units": "mm, g, g·mm²"}
     if any("assumed" in b["material"] for b in out):
-        res["note"] = "A body with no material is taken as PLA: material_set says what it is."
+        res["note"] = "A body with no material is taken as PLA: set its material to change that."
     if any(b["as"].startswith("printed") for b in out):
         res["printedNote"] = "As printed is an estimate from walls and infill; a slicer's figure (slice) is closer."
     return res
