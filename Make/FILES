@@ -13,6 +13,7 @@ tests/_fc.py
 tests/_stubs.py
 tests/_threadtable.py
 tests/test_api.py
+tests/test_checkgeometry.py
 tests/test_cut.py
 tests/test_embed.py
 tests/test_fcmaterials.py

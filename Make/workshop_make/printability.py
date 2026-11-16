@@ -172,6 +172,13 @@ def check(shape, rules, waived=(), min_area=1.0):
     if not fits or bb.ZLength > vz:
         add("build-volume", "error", max(bb.XLength, bb.YLength, bb.ZLength), max(rules["volume"]), "mm", [bb.Center.x, bb.Center.y, bb.Center.z], f"{bb.XLength:.0f} × {bb.YLength:.0f} × {bb.ZLength:.0f} mm does not fit the {rules['printer']} ({vx} × {vy} × {vz} mm): split it or turn it")
 
+    # Sound first: FreeCAD's own Check Geometry (Part_CheckGeometry's
+    # check), not a copy of it; the print checks above are Make's.
+    found = geo.freecad_check(shape)
+    if found:
+        add("check-geometry", "error", len(found), 0, "findings", [bb.Center.x, bb.Center.y, bb.Center.z],
+            "FreeCAD's Check Geometry finds the shape broken (" + "; ".join(found[:3]) + "): a slicer reads it wrongly — rebuild the last step")
+
     order = {"error": 0, "warning": 1, "info": 2}
     findings.sort(key=lambda f: (order[f["severity"]], f["rule"]))
     for i, f in enumerate(findings, 1):
