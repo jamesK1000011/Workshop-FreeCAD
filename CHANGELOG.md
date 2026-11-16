@@ -84,6 +84,9 @@ bridge.
 
 ### Fixed
 
+- Screws from before the keeper (older documents, or made with Fasteners' own buttons) are adopted as the document opens and at each recompute. The hole comes from the edge they are on, and a label Fasteners counted up (`M8x25-Screw221`) goes back to the per-size scheme (`M8x25-Screw`, `M8x25-Screw 2`); a name someone gave stays. `fastener_list` gives each screw's `hole` (kept, reattached, lost) and `adopted`. Found live on the stem: its older screws still counted up.
+- `fastener_add { edges: [{ body, near }] }` also takes the hole's centre: a point within 1 mm of a round edge's centre (the nearest centre first, then the hole's outer rim). It was refused when the point was at the centre rather than on the edge.
+
 - `drawing_make` judged on a live page (the bike stem, 102 × 49 × 47 mm):
   - Paper and scale: A3 at 1:2 left the views about 12% of the sheet. Now the largest standard scale at which the views, with room for their names and dimensions, fill at most about 70% of the drawing area beside the title block, on the smallest paper at that scale (the stem: A3 at 1:1, since at 1:1 its views and dimensions do not clear A4's 62 mm title block). The iso view goes in the room left at its own standard scale up to the views' (said under it). The answer gives `fill`.
   - Overall dimensions were drawn inside the views, their text over the geometry. Now they are outside the outline, 10 mm under or right of it, stacked 7 mm, each size once, on the TechDraw page and in the files alike. Each view's name is over it.

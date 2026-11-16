@@ -194,9 +194,27 @@ def _to_circle(p, c):
     return (h * h + (r - c.Radius) ** 2) ** 0.5
 
 
+def _out(c, shape):
+    """How far out a circle sits along its hole's axis: its centre's
+    distance along the axis from the middle of the coaxial round edges
+    (the hole's rims at both ends score highest)."""
+    ax = c.Axis * (1.0 / c.Axis.Length)
+    along = []
+    for _i, _e, d in _round_edges(shape):
+        off = d.Center - c.Center
+        if abs(abs((d.Axis * (1.0 / d.Axis.Length)).dot(ax)) - 1) < 1e-6 and (off - ax * off.dot(ax)).Length < 0.05:
+            along.append(d.Center.dot(ax))
+    if not along:
+        return 0.0
+    mid = (max(along) + min(along)) / 2
+    return abs(c.Center.dot(ax) - mid)
+
+
 def edge_near(doc, ref, point, within=1.0):
-    """(object, "EdgeN"): the round edge of ref nearest a global point,
-    within mm; refused with the nearest round edges' centres when none."""
+    """(object, "EdgeN"): the round edge of ref with a global point on it,
+    or at its centre, within mm (on it first; at a centre, the nearest
+    centre, then the outer rim along the hole's axis); refused with the
+    nearest round edges' centres when none."""
     import FreeCAD
 
     o = _obj(doc, ref)
@@ -207,13 +225,23 @@ def edge_near(doc, ref, point, within=1.0):
         p = to_shape(o, FreeCAD.Vector(*[float(v) for v in point]))
     except (TypeError, ValueError):
         raise Missing("near: [x, y, z], mm — a point on the round edge.", "invalid_input")
-    found = sorted(((_to_circle(p, c), i, c) for i, e, c in _round_edges(sh)), key=lambda t: (t[0], t[1]))
+    edges = list(_round_edges(sh))
+    found = sorted(((_to_circle(p, c), i, c) for i, e, c in edges), key=lambda t: (t[0], t[1]))
+    # A point on the edge itself, or at its centre (a hole's centre on the
+    # face): the nearest centre first, then the rim further out along the
+    # hole's axis (the face the screw seats on), then the smaller circle.
+    centred = sorted(((round((p - c.Center).Length, 2), -round(_out(c, sh), 3), round(c.Radius, 3), i, c) for i, e, c in edges
+                      if (p - c.Center).Length <= within), key=lambda t: t[:4])
+    if found and found[0][0] <= within:
+        return o, f"Edge{found[0][1]}"
+    if centred:
+        return o, f"Edge{centred[0][3]}"
     if not found or found[0][0] > within:
         close = []
         for d, i, c in found[:4]:
             q = to_global(o, c.Center)
             close.append({"edge": f"Edge{i}", "centre": [round(q.x, 2), round(q.y, 2), round(q.z, 2)], "diameter": _clean(2 * c.Radius), "away": round(d, 2)})
-        raise Missing(f"No round edge of {o.Label} within {within} mm of {list(point)}: the nearest are {close or 'none'} — give a point on the edge.", "not_found")
+        raise Missing(f"No round edge of {o.Label} within {within} mm of {list(point)}, on it or at its centre: the nearest are {close or 'none'} — give a point on the edge or the hole's centre on its face.", "not_found")
     return o, f"Edge{found[0][1]}"
 
 
@@ -319,6 +347,9 @@ def describe(o):
     lost = keep.lost_note(o)
     if lost:
         out["lost"] = lost
+    st = keep.state(o)
+    if st:
+        out.update(st)
     try:
         p = o.Placement.Base
         out["at"] = [_clean(p.x), _clean(p.y), _clean(p.z)]

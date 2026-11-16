@@ -22,6 +22,12 @@ with the file, read-only in the property editor):
   given with fastener_set { label } is kept as given;
 - lost: why it could not be put back on its hole, when it could not.
 
+Fasteners made before this (older documents, or by Fasteners' own
+buttons) are taken in as the document opens and at each recompute
+(adopt_all): their hole from the edge they are on now, their label put
+in the per-size scheme when Fasteners made it ("M8x25-Screw221" becomes
+"M8x25-Screw"), kept as it is when someone named it; `adopted` says so.
+
 After each recompute (an App document observer, Init.py) and after each
 Workshop fasteners call (sweep): a fastener whose edge no longer is the
 circle in its anchor is put on the round edge with the same radius and a
@@ -187,11 +193,27 @@ def _relabel(doc, o, rec):
 
 # ---- taking a fastener in -----------------------------------------------------------------
 
-def adopt(doc, o, label=None):
+# A label Fasteners made: "M8x25-Screw", "M8x25-Screw221", "M8x35-Screw002",
+# "M4-Nut", "M8x25 - Screw 2" (its size, a dash, its kind, a counter).
+AUTO = re.compile(r"^[^\s-][^-]*-\s*[A-Za-z][A-Za-z ]*?\s*\d*$")
+
+
+def is_auto(label):
+    return bool(AUTO.match(str(label or "")))
+
+
+def adopt(doc, o, label=None, adopted=False):
     """Keep o: its anchor from its BaseObject now, its label stable (or
-    label as given)."""
+    label as given). adopted: a fastener made before Workshop kept them
+    (an older document): its label kept as it is unless Fasteners made it,
+    then put in the per-size scheme."""
     rec = read(o) or {}
     rec.pop("lost", None)
+    rec["state"] = "kept"
+    if adopted:
+        rec["adopted"] = True
+        if not label and not is_auto(o.Label):
+            label = o.Label
     try:
         b = o.BaseObject
     except Exception:  # noqa: BLE001
@@ -209,6 +231,37 @@ def adopt(doc, o, label=None):
     rec = _relabel(doc, o, rec)
     write(o, rec)
     return rec
+
+
+def _looks_fastener(o):
+    try:
+        from . import detect
+
+        return detect.is_fastener(o)
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def adopt_all(doc):
+    """Every Fasteners part of doc not kept yet, attached to an edge, taken
+    in (adopt(adopted=True)): documents made before this kept nothing.
+    The names of those taken in."""
+    out = []
+    for o in getattr(doc, "Objects", []):
+        if PROP in getattr(o, "PropertiesList", ()) or not _looks_fastener(o):
+            continue
+        try:
+            b = o.BaseObject
+        except Exception:  # noqa: BLE001
+            continue
+        if not (b and b[0] is not None and b[1]):
+            continue
+        try:
+            adopt(doc, o, adopted=True)
+            out.append(o.Name)
+        except Exception as e:  # noqa: BLE001 — never break opening a file
+            _warn(f"could not keep {getattr(o, 'Label', '?')} on its hole: {e}")
+    return out
 
 
 def on_edge(doc, obj, sub):
@@ -274,6 +327,8 @@ def check(doc, o, fix=True):
                 state = "reattached"
                 REATTACHED[(getattr(doc, "Name", ""), o.Name)] = (
                     f"FreeCAD renumbered {obj.Label}'s edges after an edit: put back on its hole, {obj.Label}.{new} (was {was}).")
+        rec["state"] = "lost" if state == "lost" else ("reattached" if state == "reattached" or rec.get("state") == "reattached" else
+                                                        ("pending" if state == "pending" else "kept"))
         if state == "lost":
             msg = f"{rec.get('label') or o.Label} lost its hole: {why}. It is not attached to its hole — fastener_set {{ objects: [\"{rec.get('label') or o.Label}\"], edge }} puts it on one."
             if rec.get("lost") != msg:
@@ -300,6 +355,7 @@ def sweep(doc, fix=True):
     _busy = True
     try:
         out = {}
+        adopt_all(doc)
         for o in kept(doc):
             try:
                 s = check(doc, o, fix)
@@ -315,6 +371,18 @@ def sweep(doc, fix=True):
 
 def lost_note(o):
     return (read(o) or {}).get("lost")
+
+
+def state(o):
+    """{hole: kept | reattached | lost | pending, adopted: true} for a kept
+    fastener; None for one Workshop does not keep (loose, or not attached)."""
+    r = read(o)
+    if r is None or not r.get("anchor") and not r.get("lost"):
+        return None
+    out = {"hole": r.get("state") or ("lost" if r.get("lost") else "kept")}
+    if r.get("adopted"):
+        out["adopted"] = True
+    return out
 
 
 # ---- the observer ---------------------------------------------------------------------------
@@ -346,8 +414,16 @@ class Observer:
     once; a reattach (it recomputes the fastener) just after, with a
     window, or at once without one."""
 
+    def slotFinishRestoreDocument(self, doc):
+        # An older document: its screws taken in as it opens.
+        if not _busy:
+            adopt_all(doc)
+
     def slotRecomputedDocument(self, doc):
-        if _busy or not kept(doc):
+        if _busy:
+            return
+        adopt_all(doc)
+        if not kept(doc):
             return
         try:
             gui = bool(getattr(_fc(), "GuiUp", False))
