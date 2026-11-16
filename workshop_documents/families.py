@@ -38,6 +38,20 @@ def _host():
                     hooks.register_tab(title, make, order)
 
 
+def _health():
+    """The drawing pages' state in Agent Link's shared health check
+    (td_wait.py holds the reading and imports no Agent Link)."""
+    from agentlink import health
+
+    from . import td_wait
+
+    health.register(td_wait.HEALTH_OWNER, td_wait.page_reading)
+
+
+try:
+    _health()
+except Exception:  # noqa: BLE001 — an Agent Link before the shared health check: the tools still load
+    pass
 try:
     _host()
 except Exception:  # noqa: BLE001 — no Qt (a headless Agent Link): the tools still load

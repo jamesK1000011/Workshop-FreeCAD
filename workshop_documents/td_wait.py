@@ -111,3 +111,64 @@ def wait_views(views_, timeout=30.0):
     (as before, for callers that only wait)."""
     got = views_ready(views_, timeout)
     return got["seconds"] if got["seconds"] >= 0.05 or got["notReady"] else None
+
+
+# ---- Documents' reading for the shared health check --------------------------------------
+
+HEALTH_OWNER = "workshop_documents"
+HEALTH_PAGES = 8   # pages looked at per call
+HEALTH_VIEWS = 12  # views asked whether they are drawn (the check has a time budget)
+PAGE_TYPE = "TechDraw::DrawPage"
+
+
+def page_reading(session, tool, changed):
+    """The drawing pages' state after a changing call, for Agent Link's
+    shared health check (health.register(owner, fn): fn(session, tool,
+    changed) -> [{ line, red, todo }]). Only reads:
+
+    - a page with no template (its exports have no frame or title block);
+    - a view whose source is gone (the body it drew was deleted): red, it
+      draws nothing and its dimensions hang on nothing;
+    - a view the call recomputed, or whose source it recomputed, that
+      TechDraw has not drawn yet (its lines are worked out on another
+      thread): an export now would hold the dimensions with no views
+      under them.
+
+    No Agent Link import here: families.py registers it."""
+    doc = getattr(session, "doc", None)
+    if doc is None:
+        return []
+    try:
+        pages = [o for o in doc.Objects if getattr(o, "TypeId", "") == PAGE_TYPE][:HEALTH_PAGES]
+    except Exception:  # noqa: BLE001
+        return []
+    touched = {id(o) for o in changed or []}
+    out, asked = [], 0
+    for p in pages:
+        try:
+            if p.Template is None:
+                out.append({"line": f"drawing page {p.Label} has no template: its exports have no frame or title block", "red": False,
+                            "todo": f"td_page gives {p.Label} a template, or drawing_make draws the sheet again"})
+            vs = list(p.Views or [])
+        except Exception:  # noqa: BLE001
+            continue
+        for v in vs:
+            if not hasattr(v, "Source") or not hasattr(v, "getVisibleEdges"):
+                continue  # a dimension, a balloon, an annotation
+            try:
+                src = list(v.Source or []) + list(getattr(v, "XSource", None) or [])
+            except Exception:  # noqa: BLE001
+                continue
+            if not src:
+                out.append({"line": f"view {v.Label} on page {p.Label} draws nothing: its source is no longer in the document", "red": True,
+                            "todo": f"object_delete {v.Label} (and the dimensions on it), or drawing_make draws the sheet again from the bodies there are"})
+                continue
+            if asked >= HEALTH_VIEWS or not (id(v) in touched or any(id(x) in touched for x in src)):
+                continue
+            asked += 1
+            busy = view_busy(v)
+            if busy:
+                out.append({"line": f"view {v.Label} on page {p.Label} is not drawn yet ({busy}): TechDraw works its lines out after the call", "red": False,
+                            "todo": "wait a moment before td_export; drawing_make waits for its own views by itself"})
+    return out
+

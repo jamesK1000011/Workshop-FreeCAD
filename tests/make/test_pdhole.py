@@ -62,6 +62,8 @@ OUT["fit"] = [H.pick_fit(["Medium", "Fine", "Coarse"], f) for f in ("close", "no
 OUT["fit_other"] = [H.pick_fit(["Standard", "Close", "Wide"], "loose"), H.pick_fit(["a", "b", "c"], "close")]
 OUT["cut"] = [H.pick_cut(["None", "Counterbore", "ISO 4762"], "counterbore"), H.pick_cut(["None", "Counterbore", "Countersink"], "countersink"),
               H.pick_cut(["None"], "counterbore")]
+# FreeCAD lists the cuts in the order it read their files: the standard's own name wins over the one with a washer.
+OUT["cut_exact"] = [H.pick_cut(["None", "ISO 4762 + 7089", "ISO 4762"], "counterbore"), H.pick_cut(["None", "ISO 4762 + 7089"], "counterbore")]
 import math
 h = H.hexagon(5.5)
 OUT["af"] = round(max(p[0] for p in h) - min(p[0] for p in h), 4)
@@ -71,6 +73,7 @@ OUT["corners"] = len(h)
         self.assertEqual(out["fit"], ["Fine", "Medium", "Coarse"])
         self.assertEqual(out["fit_other"], ["Wide", "b"])
         self.assertEqual(out["cut"], [["ISO 4762", True], ["Countersink", False], ["None", False]])
+        self.assertEqual(out["cut_exact"], [["ISO 4762", True], ["ISO 4762 + 7089", True]])
         self.assertEqual(out["corners"], 6)
         self.assertAlmostEqual(out["af"], 5.5, places=3)
 

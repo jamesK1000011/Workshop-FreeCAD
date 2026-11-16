@@ -63,6 +63,12 @@ def make_job(doc, body, stock, tool, label=None):
         import Path.Main.Job as PathJob
         import Path.Main.Stock as PathStock
 
+        # Path.Main.Job.Create makes the Job in FreeCAD.ActiveDocument
+        # (FreeCAD 1.1 source: src/Mod/CAM/Path/Main/Job.py), whatever
+        # document the body is in: the body's document is made the active
+        # one first, so the Job never lands in another open file.
+        if getattr(FreeCAD, "ActiveDocument", doc) is not doc and getattr(doc, "Name", None):
+            FreeCAD.setActiveDocument(doc.Name)
         job = PathJob.Create("Job", [body], None)
         if label:
             job.Label = label

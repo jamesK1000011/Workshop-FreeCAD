@@ -70,7 +70,12 @@ def kicad_import(s, a):
         raise Refused(code="not_found", message=f"path: {path!r} is not a file — the .kicad_pcb's full path.")
     with open(path, encoding="utf-8", errors="replace") as f:
         text = f.read()
-    b = kicad.read_board(text, path)
+    try:
+        b = kicad.read_board(text, path)
+    except ValueError as e:
+        # The reader's own words (not a board, no outline, an outline that
+        # does not close): a refusal that says what to do, not a crash.
+        raise Refused(code="invalid_input", message=f"{os.path.basename(path)}: {e}")
     heights = a.get("heights") or {}
     min_h = float(a.get("minHeight", 3.0))
     x0, y0, x1, y1 = b["outline"]["box"]
@@ -299,6 +304,15 @@ def pcb_order_package(s, a):
 
 def printed_channel(s, a):
     o = s.body(a.get("body"))
+    # The channel is written into the body as a plain shape: FreeCAD would
+    # rebuild a PartDesign Body or a parametric Part object at the next
+    # recompute and the channel would be gone, the answer saying it was cut.
+    why = geo.rebuilt(o, "the channel")
+    if why:
+        raise Refused(code="invalid_state", message=why)
+    awg = a.get("awg")
+    if awg is not None and not (isinstance(awg, int) and 10 <= awg <= 40):
+        raise Refused(code="invalid_input", message="awg: a wire gauge, a whole number 10 to 40 (22 when left out).")
     path = a.get("path")
     if not (isinstance(path, list) and len(path) >= 2 and all(isinstance(p, list) and len(p) == 3 for p in path)):
         raise Refused(code="invalid_input", message="path: [[x, y, z], …], two points or more, mm — where the channel runs, ends on the part's faces to open there.")

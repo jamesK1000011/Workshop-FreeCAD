@@ -46,8 +46,15 @@ class Data(unittest.TestCase):
             tools = json.load(f)["entries"]
         self.assertEqual(sorted({v["group"] for v in tools.values()}), ["cut", "embed", "fits", "make", "mass", "mill", "printer", "slice", "strength", "thread"])
         for name, t in tools.items():
-            self.assertLessEqual(len(t["description"]), 1500, name)
+            # No length budget on a description (the owner's ruling of 16 Nov
+            # 2026: quality and correctness first); it says what the tool
+            # does, its inputs, its traps and what the reply means.
+            self.assertGreaterEqual(len(t["description"]), 200, name)
             self.assertFalse(t["inputSchema"].get("additionalProperties", False), name)
+            # The optional fields Agent Link's format takes: the FreeCAD
+            # workbench the tool belongs to, the commands it does the work of.
+            self.assertIsInstance(t.get("workbench", ""), str, name)
+            self.assertTrue(all(isinstance(c, str) and c for c in t.get("commands", [])), name)
 
 
 @unittest.skipUnless(HAVE, "FreeCAD is not importable here")

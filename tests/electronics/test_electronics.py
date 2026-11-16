@@ -211,6 +211,14 @@ class Electronics(unittest.TestCase):
             self.sound(lb)
         err, e = self.call("kicad_import", {"path": "/no/such.kicad_pcb"})
         self.assertTrue(err)
+        # A file that is no board is a refusal in the reader's words, not a crash.
+        bad = os.path.join(os.path.dirname(self.pcb), "notes.kicad_pcb")
+        with open(bad, "w", encoding="utf-8") as f:
+            f.write("(not_a_board)")
+        err, e = self.call("kicad_import", {"path": bad})
+        self.assertTrue(err)
+        self.assertEqual(e["error"]["code"], "invalid_input")
+        self.assertIn("not a KiCad board", e["error"]["message"])
 
     def test_2_enclosure(self):
         err, e = self.call("board_enclosure", {})
@@ -269,6 +277,22 @@ class Electronics(unittest.TestCase):
         err, e = self.call("printed_channel", {"body": "Block", "path": [[100, 100, 100], [120, 100, 100]]})
         self.assertTrue(err)
         self.assertIn("outside", e["error"]["message"])
+
+    def test_5_channel_in_a_parametric_part_is_refused_not_lost(self):
+        # A Part::Box takes its own shape again at the recompute: the channel
+        # was answered as cut and was gone. Refused, naming the plain copy.
+        box = self.session.doc.addObject("Part::Box", "PBox")
+        box.Label = "PBox"
+        box.Length, box.Width, box.Height = 60, 30, 20
+        self.session.doc.recompute()
+        err, e = self.call("printed_channel", {"body": "PBox", "path": [[0, 15, 10], [60, 15, 10]]})
+        self.assertTrue(err, e)
+        self.assertEqual(e["error"]["code"], "invalid_state")
+        self.assertIn("part_transform", e["error"]["message"])
+        self.assertAlmostEqual(box.Shape.Volume, 36000.0, places=3)
+        err, e = self.call("printed_channel", {"body": "Block", "path": [[0, 15, 4], [60, 15, 4]], "awg": 99})
+        self.assertTrue(err)
+        self.assertIn("awg", e["error"]["message"])
 
 
 if __name__ == "__main__":

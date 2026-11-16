@@ -51,6 +51,10 @@ def fea_frame(s, a):
         sec = m.get("section") or {}
         if sec.get("kind", "rect") not in FR.SECTIONS:
             raise ToolError("invalid_input", f"members[{k}].section.kind: {', '.join(FR.SECTIONS)}.")
+        for end in ("from", "to"):
+            v = m.get(end)
+            if not (isinstance(v, (list, tuple)) and len(v) == 3 and all(isinstance(x, (int, float)) for x in v)):
+                raise ToolError("invalid_input", f"members[{k}].{end}: [x, y, z] mm — the member's {'start' if end == 'from' else 'end'}.")
         c = mat_of(m.get("material") or default_mat)
         name = m.get("name") or f"M{k + 1}"
         cards[name] = c

@@ -12,6 +12,7 @@ import Part
 from workshop_make import geo
 from workshop_make import records as store
 
+from .. import pdhole
 from .. import threads as tt
 from ._lent import Refusal
 
@@ -165,6 +166,128 @@ def _print_clearance(doc, o, row, mode):
         return None
 
 
+def _thread_hole(h, row, mode, depth, comp, rec):
+    """A PartDesign Hole h (its Profile set) made the thread of row: its
+    type and size as this FreeCAD lists them, threaded, modelled or not,
+    depth mm, a flat end. comp: (diametral clearance mm, source) for a
+    printed modelled thread, or None; kept on rec. Refused when FreeCAD's
+    Hole lists no such size."""
+    h.ThreadType = HOLE_TYPE[row["series"]]
+    # The size as this release lists it: "M6x1.0" in later ones, the
+    # coarse "M6" in 1.0.
+    sizes = list(h.getEnumerationsOfProperty("ThreadSize"))
+    want = row["freecad"]
+    if not want:
+        raise ToolError("unavailable", f"{row['size']} is a size of your own, not in FreeCAD's tables: FreeCAD's Hole cannot thread it. Drill it at its tap drill ({row['tapDrill']} mm) and tap it.")
+    pick = want if want in sizes else None
+    if pick is None and row["series"].startswith("metric"):
+        bare = want.split("x")[0]
+        pitch = want.split("x")[1] if "x" in want else None
+        pick = next((z for z in sizes if z == bare), None) if row["series"] == "metric" else None
+        pick = pick or next((z for z in sizes if pitch and z.startswith(bare + "x") and float(z.split("x")[1]) == float(pitch)), None)
+    if pick is None:
+        raise ToolError("unavailable", f"FreeCAD {'.'.join(FreeCAD.Version()[:3])} lists no hole thread {want} ({', '.join(sizes[:8])} …): cut it cosmetic, or with a size it lists.")
+    h.ThreadSize = pick
+    h.Threaded = True
+    h.ModelThread = mode == "modelled"
+    if comp:
+        try:  # FreeCAD's own custom thread clearance on the Hole
+            h.UseCustomThreadClearance = True
+            h.CustomThreadClearance = comp[0]
+            rec["printClearance"] = {"mm": comp[0], "source": comp[1]}
+        except Exception:  # noqa: BLE001 — a FreeCAD without it: the thread as the table has it
+            pass
+    h.HoleCutType = "None"
+    h.DepthType = "Dimension"
+    h.Depth = depth
+    h.DrillPoint = "Flat"
+    try:
+        h.ThreadDepthType = "Hole Depth"
+    except Exception:
+        pass
+
+
+def _cut_in_body(s, o, pd, cyl, end, row, mode, depth, rec, threads):
+    """The thread in a PartDesign Body: FreeCAD's own Hole (Threaded) kept
+    in the Body as a feature on a sketch at the hole's open end, editable
+    in its panel. A shape written into a Body is gone at its next recompute
+    (Body::execute takes the tip's shape again), which is what the plain
+    route below would do to it."""
+    doc = s.doc
+    pdhole.settle(doc, [pd])
+    tip = pd.Tip
+    if tip is None or tip.Shape.isNull() or "Invalid" in tip.State or "Error" in tip.State:
+        raise ToolError("invalid_state", f"{pd.Label}'s last feature{' (' + tip.Label + ')' if tip is not None else ''} has no sound solid "
+                                         f"({pdhole.why_not(tip, doc) if tip is not None else 'the Body is empty'}): fix it first, then the thread.")
+    # The face was picked on o.Shape: the Body's shape carries the Body's
+    # Placement, a feature's is in the Body's own frame already; the sketch
+    # and the Hole live in the Body's own frame.
+    at, out_dir = end["at"], end["out"]
+    if o is pd:
+        inv = pd.Placement.inverse()
+        at, out_dir = inv.multVec(at), inv.Rotation.multVec(out_dir)
+    before = pd.Shape.Volume
+    made = []
+    try:
+        sk = pd.newObject("Sketcher::SketchObject", "ThreadSketch")
+        made.append(sk)
+        sk.MapMode = "Deactivated"
+        sk.Placement = FreeCAD.Placement(at, FreeCAD.Rotation(V(0, 0, 1), out_dir))
+        sk.addGeometry(Part.Circle(V(0, 0, 0), V(0, 0, 1), cyl["diameter"] / 2), False)
+        pdhole.settle(doc, [sk])
+        h = pd.newObject("PartDesign::Hole", "Thread")
+        made.append(h)
+        h.Profile = sk
+        _thread_hole(h, row, mode, depth, _print_clearance(doc, o, row, mode), rec)
+        pdhole.settle(doc, [sk, h, pd])
+        if h.isValid() is False or h.Shape.isNull() or not h.Shape.Solids:
+            raise ToolError("failed", f"FreeCAD's Hole could not make {row['size']} here ({mode}): {pdhole.why_not(h, doc)} — try mode cosmetic, or check the hole with body_check. Nothing was kept.")
+        hole_d = float(h.Diameter)
+        sk.Visibility = False
+        try:
+            h.Label2 = f"{row['size']} thread, {mode}"
+        except Exception:  # noqa: BLE001
+            pass
+    except Exception:
+        for x in reversed(made):
+            try:
+                pd.removeObject(x)
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                doc.removeObject(x.Name)
+            except Exception:  # noqa: BLE001
+                pass
+        try:
+            pd.Tip = tip
+            doc.recompute()
+        except Exception:  # noqa: BLE001
+            pass
+        raise
+    rec.update({"depth": _r(depth, 2), "at": [_r(x) for x in end["at"]], "into": [_r(x) for x in end["out"] * -1], "holeDiameter": _r(hole_d), "feature": h.Name})
+    threads.append(rec)
+    store.write(doc, "threads", threads)
+    s.snapshot("thread_cut")
+    sound = geo.soundness(pd.Shape)
+    out = {"thread": rec, "removed": _r(before - pd.Shape.Volume, 2), "sound": sound["ok"], "step": len(s.steps),
+           "route": "PartDesign Hole", "features": [x.Name for x in made]}
+    if not sound["ok"]:
+        out["problems"] = sound["problems"][:3]
+    return _notes(out, doc, o, row, mode, cyl, hole_d, "FreeCAD's own Hole in the Body (double-click it to edit). ")
+
+
+def _notes(out, doc, o, row, mode, cyl, hole_d, lead=""):
+    if mode == "cosmetic":
+        out["note"] = lead + "The hole is at the thread's tapping size and the thread is recorded with the document; tap it after making."
+    elif lead:
+        out["note"] = lead.strip()
+    if mode != "cosmetic" and store.setup_of(doc, o.Label, "print") and row["major"] < 5:
+        out["warning"] = "A modelled thread under M5 rarely prints cleanly: print the tapping hole and tap it, or use a heat-set insert."
+    if cyl["diameter"] > hole_d + 0.01:
+        out["warning2"] = f"The hole was {cyl['diameter']:.2f} mm, over the {hole_d:.2f} mm the thread drills: the thread is shallow there."
+    return out
+
+
 def thread_cut(s, a):
     o = s.body(a.get("body"))
     mode = a.get("mode", "cosmetic")
@@ -207,6 +330,12 @@ def thread_cut(s, a):
     depth = float(a.get("depth", cyl["length"]))
     if depth <= 0:
         raise ToolError("invalid_input", "depth: mm, over 0 (the hole's length by default).")
+    pd = pdhole.body_of(o)
+    if pd is not None:
+        return _cut_in_body(s, o, pd, cyl, end, row, mode, depth, rec, threads)
+    why = geo.rebuilt(o, "the thread")
+    if why:
+        raise ToolError("invalid_state", why + " Or pd_clone it into a PartDesign Body, where the thread is FreeCAD's own editable Hole.")
     doc = s.doc
     had = {x.Name for x in doc.Objects}
     made = []
@@ -228,40 +357,7 @@ def thread_cut(s, a):
         made.append(h)
         h.Profile = sk
         body.addObject(h)
-        h.ThreadType = HOLE_TYPE[row["series"]]
-        # The size as this release lists it: "M6x1.0" in later ones, the
-        # coarse "M6" in 1.0.
-        sizes = list(h.getEnumerationsOfProperty("ThreadSize"))
-        want = row["freecad"]
-        if not want:
-            raise ToolError("unavailable", f"{row['size']} is a size of your own, not in FreeCAD's tables: FreeCAD's Hole cannot thread it. Drill it at its tap drill ({row['tapDrill']} mm) and tap it.")
-        pick = want if want in sizes else None
-        if pick is None and row["series"].startswith("metric"):
-            bare = want.split("x")[0]
-            pitch = want.split("x")[1] if "x" in want else None
-            pick = next((z for z in sizes if z == bare), None) if row["series"] == "metric" else None
-            pick = pick or next((z for z in sizes if pitch and z.startswith(bare + "x") and float(z.split("x")[1]) == float(pitch)), None)
-        if pick is None:
-            raise ToolError("unavailable", f"FreeCAD {'.'.join(FreeCAD.Version()[:3])} lists no hole thread {want} ({', '.join(sizes[:8])} …): cut it cosmetic, or with a size it lists.")
-        h.ThreadSize = pick
-        h.Threaded = True
-        h.ModelThread = mode == "modelled"
-        comp = _print_clearance(doc, o, row, mode)
-        if comp:
-            try:  # FreeCAD's own custom thread clearance on the Hole
-                h.UseCustomThreadClearance = True
-                h.CustomThreadClearance = comp[0]
-                rec["printClearance"] = {"mm": comp[0], "source": comp[1]}
-            except Exception:  # noqa: BLE001 — a FreeCAD without it: the thread as the table has it
-                pass
-        h.HoleCutType = "None"
-        h.DepthType = "Dimension"
-        h.Depth = depth
-        h.DrillPoint = "Flat"
-        try:
-            h.ThreadDepthType = "Hole Depth"
-        except Exception:
-            pass
+        _thread_hole(h, row, mode, depth, _print_clearance(doc, o, row, mode), rec)
         doc.recompute()
         shape = h.Shape
         bad = h.isValid() is False or shape.isNull() or not shape.Solids
@@ -298,16 +394,10 @@ def thread_cut(s, a):
     store.write(s.doc, "threads", threads)
     s.snapshot("thread_cut")
     sound = geo.soundness(o.Shape)
-    out = {"thread": rec, "removed": _r(before - o.Shape.Volume, 2), "sound": sound["ok"], "step": len(s.steps)}
+    out = {"thread": rec, "removed": _r(before - o.Shape.Volume, 2), "sound": sound["ok"], "step": len(s.steps), "route": "Part solid"}
     if not sound["ok"]:
         out["problems"] = sound["problems"][:3]
-    if mode == "cosmetic":
-        out["note"] = "The hole is at the thread's tapping size and the thread is recorded with the document; tap it after making."
-    elif store.setup_of(doc, o.Label, "print") and row["major"] < 5:
-        out["warning"] = "A modelled thread under M5 rarely prints cleanly: print the tapping hole and tap it, or use a heat-set insert."
-    if cyl["diameter"] > hole_d + 0.01:
-        out["warning2"] = f"The hole was {cyl['diameter']:.2f} mm, over the {hole_d:.2f} mm the thread drills: the thread is shallow there."
-    return out
+    return _notes(out, doc, o, row, mode, cyl, hole_d)
 
 
 HANDLERS = {

@@ -71,6 +71,28 @@ def clean(shape):
     return shape
 
 
+def rebuilt(o, what="a cut"):
+    """Why a shape written into o (o.Shape = …) would not stay, as a
+    sentence saying what to do, or None when it stays. Only a plain
+    Part::Feature keeps a shape given to it: its execute() leaves Shape
+    alone. Writing Shape touches the object, and at the next recompute a
+    PartDesign Body takes its tip's shape again (Body::execute), a
+    primitive, a boolean or an extrusion its own (Part::Box::execute …):
+    the cut was gone while the answer said it was made. An object without
+    a TypeId (a test's stand-in) is taken as plain."""
+    t = getattr(o, "TypeId", None)
+    if t is None or t == "Part::Feature":
+        return None
+    if t == "PartDesign::Body":
+        kind, source = "a PartDesign Body", "its features"
+    else:
+        kind, source = f"a parametric object ({t})", "its own properties"
+    label = getattr(o, "Label", "it")
+    return (f"{label} is {kind}: FreeCAD rebuilds its shape from {source} at the next recompute, so {what} written into it as a plain shape "
+            f"would be gone again. Work on a plain copy: part_transform {{ body: \"{label}\", op: \"move\", by: [0, 0, 0], copy: true, name: \"{label} plain\" }} "
+            f"makes one (a plain Part solid, no history), then this call again with body \"{label} plain\" — a board's and a setup's records go by the body's label.")
+
+
 # ---- readings -----------------------------------------------------------------------------
 
 def r3(v):

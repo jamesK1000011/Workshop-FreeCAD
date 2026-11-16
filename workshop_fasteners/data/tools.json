@@ -5,7 +5,7 @@
  "entries": {
   "fastener_types": {
    "group": "fasteners",
-   "description": "Fasteners Workbench's types, sizes and lengths, from its own tables: query (words, e.g. \"socket cap\"), standard (ISO, DIN, ASME …), kind (screw, nut, washer, insert, pin …) list types; type gives its sizes; type and size give its lengths and holes (tap hole from its calculator; an IUT insert's hole). Fasteners Workbench: Shai Seger; screw_maker: Ulrich Brammer.",
+   "description": "Fasteners Workbench's types, sizes and lengths, read from its own tables (these tools are listed only when Fasteners Workbench is installed). Three levels: no type → the types that match query (words, all must match: \"socket cap\"), standard (ISO, DIN, ASME …) and kind (screw, nut, washer, insert, pin …): count and types [{ type, kind, what }] (the first 40; narrow the query for more); type (\"ISO4762\") → that type's sizes [\"M3\", …] and hasLength; type and size → lengths (the lengths it comes in, or length { any, default } for one cut to length), hole (the pass and tap hole diameters from Fasteners' own screw calculator) and insert (an IUT heat-set insert's hole and depth). A type that is not one is refused not_found with the nearest names; a size the type does not come in, with those it does. Sizes are written as Fasteners writes them (M3, #10, 1/4in). Changes nothing. Fasteners Workbench: Shai Seger; screw_maker: Ulrich Brammer.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -31,11 +31,15 @@
    },
    "changes": false,
    "source": "Workshop for FreeCAD (Fasteners bridge), calling Fasteners Workbench at run time",
-   "date": "2026-11-15"
+   "date": "2026-11-15",
+   "workbench": "FastenersWorkbench",
+   "commands": [
+    "Fasteners_ScrewCalculator"
+   ]
   },
   "fastener_add": {
    "group": "fasteners",
-   "description": "A Fasteners Workbench part (screw, nut, washer, insert …): type (ISO4762 …), size (M3, which wins over the hole; left out on edges: matched to the hole), length (mm, the nearest it has), thread simple|real; edges [\"Plate.Edge7\" or { body, near: [x,y,z] } — a point on the edge or the hole's centre] attach one to each round edge (match outer: pass hole, inner: tap hole; invert, offset mm) — a size given on a counterbore's wall goes on the bore's edge at its floor, and says so — else loose at [x,y,z]. Answers each one made: type, size, length, where, attached to (and that edge's diameter). Fasteners Workbench: Shai Seger; screw_maker: Ulrich Brammer. Each attached fastener is kept on its hole by the edge's geometry too (centre, axis, radius): when a later PartDesign feature renumbers the Body's edges it is put back on the same round edge (reattached); when no edge of that size is left within reach it stays put and says so (lost, and a Report-view warning). Labels read \"M8x25-Screw\", \"M8x25-Screw 2\" …, numbered per size and kept.",
+   "description": "Add a Fasteners Workbench part (screw, bolt, nut, washer, insert, pin …). type (required): Fasteners' type name, e.g. ISO4762 (fastener_types { query } finds one). edges: round edges to attach one fastener to each — \"Plate.Edge7\", or { body, near: [x, y, z] } with a point on the round edge or at the hole's centre (within 1 mm; at a centre the nearest centre wins, then the hole's outer rim). Prefer near: edge numbers change after any edit of the body. Without edges it is made loose at at [x, y, z] (the origin when left out). size (M3; it wins over the hole; left out on edges, Fasteners matches it to the edge's diameter); length mm (the nearest length the type comes in); thread simple (a plain cylinder: fast, the default) or real (a modelled thread: slow and heavy, for close-ups only); match outer (the edge is a pass hole: the screw goes through; default) or inner (a tap hole: its thread fits it); invert: true turns it end for end; offset mm along its axis. A size given on a counterbore's wall goes on the bore's edge at its floor, and attachNote says so. Kept on its hole: each attached fastener also remembers the edge's geometry (centre, axis, radius), so when a later PartDesign feature renumbers the Body's edges it is put back on the same round edge (reattached); when no edge of that size is left within reach it stays where it is and says so (lost, and a Report-view warning) — fastener_set { edge } puts it on another. Labels read \"M8x25-Screw\", \"M8x25-Screw 2\" …, numbered per size and kept (Fasteners itself relabels at every recompute). Refused: an unknown type (nearest names given), a size the type does not come in, an edge that is not circular or a point with no round edge within 1 mm (the nearest are listed), thread or match other than their two words. Reply: made [{ object, label, type, kind, size, length, thread (simple | real), matchOuter, invert, offset, attachedTo (\"Plate.Edge7\"), edgeDiameter, at, bom (its BOM line), hidden, attachNote, hole (kept | reattached | lost), reattached, lost, adopted }], source. A changing call's reply may also carry health { ok, verdict, todo } from the shared check. Fasteners Workbench: Shai Seger; screw_maker: Ulrich Brammer.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -88,11 +92,16 @@
    "changes": true,
    "source": "Workshop for FreeCAD (Fasteners bridge), calling Fasteners Workbench at run time",
    "date": "2026-11-15",
-   "activity": "Added {type} {size}"
+   "activity": "Added {type} {size}",
+   "workbench": "FastenersWorkbench",
+   "commands": [
+    "Fasteners_MatchTypeOuter",
+    "Fasteners_MatchTypeInner"
+   ]
   },
   "fastener_set": {
    "group": "fasteners",
-   "description": "Change Fasteners parts in place (each keeps its object name and label) as its Change Parameters, Flip and Move do: objects, and type (one with the same properties), size (\"Auto\": matched to its hole), length (nearest it has), thread, invert, offset, match, edge (move it to another round edge), label (one fastener: the label it keeps; else Workshop keeps \"M8x25-Screw\", \"M8x25-Screw 2\" … numbered per size, though Fasteners relabels at every recompute). restore: true gives its objects back their behaviour in a file saved without Fasteners loaded.",
+   "description": "Change Fasteners parts in place, as Fasteners' own Change Parameters, Flip and Move do; each keeps its object name and label. objects (required unless only restore): names or labels (fastener_list gives them). Give any of: type (only one with the same properties: a screw to another screw standard; refused otherwise, listing what it can become), size (\"Auto\": matched to its hole again), length mm (the nearest it comes in), thread simple | real, invert, offset mm, match inner | outer, edge (\"Plate.Edge9\": move it to another round edge), label (for ONE fastener: the label it then keeps across recomputes; with several objects it is refused). restore: true gives the document's Fasteners objects their behaviour back when the file was saved where Fasteners Workbench was not loaded (alone it needs no objects; reply restored). Refused: no objects, an object that is not a Fasteners part, a type it cannot become, a size it does not come in. Reply: changed [{ object, label, type, kind, size, length, thread (simple | real), matchOuter, invert, offset, attachedTo (\"Plate.Edge7\"), edgeDiameter, at, bom (its BOM line), hidden, attachNote, hole (kept | reattached | lost), reattached, lost, adopted }]. A changing call's reply may also carry health { ok, verdict, todo } from the shared check. Fasteners Workbench: Shai Seger; screw_maker: Ulrich Brammer.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -147,11 +156,17 @@
    },
    "changes": true,
    "source": "Workshop for FreeCAD (Fasteners bridge), calling Fasteners Workbench at run time",
-   "date": "2026-11-15"
+   "date": "2026-11-15",
+   "workbench": "FastenersWorkbench",
+   "commands": [
+    "Fasteners_ChangeParameters",
+    "Fasteners_Flip",
+    "Fasteners_Move"
+   ]
   },
   "fastener_list": {
    "group": "fasteners",
-   "description": "The Fasteners parts in the document (type, size, length, thread, what each is attached to) and their bill of materials, counted from the objects as they are now: each fastener once, hidden ones too (hidden: true), plus the links and arrays of it Fasteners counts; sheet: true puts the BOM in a spreadsheet (its Generate BOM in the window). Each attached fastener is checked against its hole first and says hole: kept, reattached (put back on the same circle when FreeCAD renumbered the edges) or lost (its hole moved or was removed; also under warnings — fastener_set { edge } puts it on one). Fasteners from before Workshop kept them (older documents) are taken in as the document opens or recomputes: their hole from the edge they are on, a label Fasteners counted up put back in the per-size scheme; adopted: true says so.",
+   "description": "The Fasteners parts in the document and their bill of materials, counted from the objects as they are now: fasteners [{ object, label, type, kind, size, length, thread (simple | real), matchOuter, invert, offset, attachedTo (\"Plate.Edge7\"), edgeDiameter, at, bom (its BOM line), hidden, attachNote, hole (kept | reattached | lost), reattached, lost, adopted }] and bom [{ item (\"ISO4762 Screw M3x12\"), qty }], each fastener once, hidden ones too (hidden: true), plus the links and arrays of it Fasteners counts. Before listing, each attached fastener is checked against its hole: hole kept, reattached (put back on the same circle after FreeCAD renumbered the edges) or lost (its hole moved or was removed; also under warnings — fastener_set { edge } puts it on one). Fasteners from before Workshop kept them (older documents, or added with Fasteners' own buttons) are taken in as the document opens or recomputes: their hole from the edge they are on, a label Fasteners counted up put back in the per-size scheme; adopted: true says so. sheet: true also puts the BOM in a spreadsheet in the document (Fasteners' own Generate BOM with the window up, else Workshop's in the same layout): that call changes the document and the reply adds sheet and by. Without sheet it is a read (the reattaching above is the keeper's own doing, not this call's). Fasteners Workbench: Shai Seger; screw_maker: Ulrich Brammer.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -170,11 +185,15 @@
     ]
    },
    "source": "Workshop for FreeCAD (Fasteners bridge), calling Fasteners Workbench at run time",
-   "date": "2026-11-15"
+   "date": "2026-11-15",
+   "workbench": "FastenersWorkbench",
+   "commands": [
+    "Fasteners_BOM"
+   ]
   },
   "fastener_print": {
    "group": "fasteners",
-   "description": "Fasteners' 3D-print thread settings, read; or set: mode standard|3dprint, nut [A, B] and screw [A, B] (a printed thread's diameter is d x A + B). Threaded fasteners are redone.",
+   "description": "Fasteners Workbench's 3D-print thread settings (its own preference, for every document on this computer — not kept with the file). Called with nothing it only reads them: mode (standard | 3dprint), nut [A, B], screw [A, B], formula, source. A printed thread's diameter is d x A + B: nut for inside threads (1.03, 0.1 to start), screw for outside ones (0.99, −0.05); they apply when mode is 3dprint. Give mode, nut [A, B] and/or screw [A, B] to set them: every fastener with a real (modelled) thread in every open document is then recomputed and named under redone — slow when there are many. Refused: a mode other than the two; nut or screw that is not two numbers. thread_cut's modelled threads in a printed body take the nut figures as their clearance when mode is 3dprint. Not undone by history_undo: it is a preference, not part of the document; call it again with the old figures. Fasteners Workbench: Shai Seger; screw_maker: Ulrich Brammer.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -203,7 +222,8 @@
    },
    "changes": true,
    "source": "Workshop for FreeCAD (Fasteners bridge), calling Fasteners Workbench at run time",
-   "date": "2026-11-15"
+   "date": "2026-11-15",
+   "workbench": "FastenersWorkbench"
   }
  }
 }

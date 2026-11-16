@@ -22,6 +22,53 @@ Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
 
 ### Fixed
 
+- A cut written into a parametric object was lost without a word. FreeCAD
+  rebuilds a PartDesign Body from its tip, and a Part::Box, a boolean or an
+  extrusion from its own properties, at the recompute that follows a write to
+  its Shape; only a plain Part solid (Part::Feature) keeps one. `hw_hole` (in
+  a Part object that is no Body), `thread_cut`, `hw_embed`, `hw_unembed`,
+  `mass_ballast { cut: true }` and `printed_channel` answered that the cut
+  was made and kept its record, and the model was unchanged. They now refuse
+  such a body up front and name the plain copy to work on (`part_transform`
+  with `copy: true`; `pd_clone` for an editable Hole). Found by reading
+  FreeCAD's source in the hardening pass of 16 Nov 2026 (no test used a
+  Body or a primitive).
+- `thread_cut` in a PartDesign Body leaves FreeCAD's own Hole (Threaded) on a
+  sketch in the Body, a feature that stays and is editable in its panel
+  (`route: "PartDesign Hole"`, `features`), as `hw_hole` always did.
+- `drawing_exploded` and `patent_figures` add TechDraw pages (and, in an
+  Assembly, its Exploded View) to the document but were listed as reads: no
+  undo step, no health check, and a long one could be run as a job. They are
+  changing tools now; `patent_figures { page: false }`, which only writes
+  files, stays a read.
+- `hw_hole`'s counterbore takes "ISO 4762" by its exact name before a cut
+  whose name only starts with it ("ISO 4762 + 7089", the head with a washer:
+  a wider counterbore). FreeCAD lists the cuts in the order it read their
+  files.
+- `mill_export` makes its CAM Job in the body's document: CAM's Job.Create
+  adds it to whichever document is active, which was another file when two
+  were open.
+- `kicad_import` on a file that is no board, or whose outline does not
+  close, is a refusal in the reader's words; it was an error without one.
+- Refusals that were errors or said too little: `part_spec` with a wrong
+  limit (it now lists all five), `mass_target { mass: 0 }` (it divided by
+  zero), `fea_frame` with a member end that is not [x, y, z], `hw_pauses` on
+  a setup with a layer height of 0, `printed_channel { awg }` out of range
+  (it was said after the channel was cut).
+
+### Changed
+
+- Every tool's description is rewritten for the agent that calls it: what it
+  does, its inputs, its traps and limits, what is refused and what the reply
+  holds. No length budget (the 1500-character cap in the tests is gone).
+- Each entry in the parts' `data/tools.json` names the FreeCAD workbench it
+  belongs to (`workbench`) and the commands it does the work of
+  (`commands`), the two optional fields Agent Link's tool-data format takes.
+- Make and Documents each add a reading to Agent Link's shared health check
+  (`health.register`): a setup that names a body no longer in the document,
+  an encased part whose pocket is solid again; a drawing page without a
+  template, a view whose source is gone, a view TechDraw has not drawn yet.
+
 - SafetyNet: every document came back as a "(recovered …)" copy after a
   watchdog restart. `app_recover auto` no longer recovers a person's saved
   file that was unchanged at the stop: it opens again from its own file as

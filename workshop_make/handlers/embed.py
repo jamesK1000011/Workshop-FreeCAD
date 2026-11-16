@@ -102,6 +102,8 @@ def item(a):
         s = size or "M3"
         if s not in fits_hw.M:
             raise ToolError("invalid_input", f"size: an insert {', '.join(fits_hw.M)}.")
+        if not fits_hw.M[s].get("insert"):
+            raise ToolError("invalid_input", f"size: no heat-set insert figures for {s} — kind cylinder with dims [diameter, height] from the insert's own sheet.")
         d, h = fits_hw.M[s]["insert"]
         return "cyl", [d], h, f"{s} insert"
     if kind == "weight":
@@ -183,8 +185,16 @@ def cal(s, o):
     return api.calibration(s.doc, o.Label)
 
 
+def _plain(o, what):
+    """Refused where a shape written into o would not stay (geo.rebuilt)."""
+    why = geo.rebuilt(o, what)
+    if why:
+        raise ToolError("invalid_state", why)
+
+
 def hw_embed(s, a):
     o = s.body(a.get("body"))
+    _plain(o, "the pocket")
     setup = print_setup(s, o)
     try:
         first, lh = E.grid(setup)
@@ -268,6 +278,7 @@ def hw_unembed(s, a):
     if a.get("keepPocket"):
         keep(s, o.Label, rest)
         return {"body": o.Label, "removed": rid, "pocket": "left open: it is a hole now, the part pressed in after printing"}
+    _plain(o, "the filled pocket")
     x, y, z0 = r["at"]
     bed = o.Shape.BoundBox.ZMin
     fill = pocket_solid(r["shape"], r["pocket"], x, y, z0, bed + r["top"], r["turn"])
@@ -281,7 +292,10 @@ def hw_unembed(s, a):
 def hw_pauses(s, a):
     o = s.body(a.get("body"))
     setup = print_setup(s, o)
-    first, lh = E.grid(setup)
+    try:
+        first, lh = E.grid(setup)
+    except ValueError as e:
+        raise ToolError("invalid_input", f"the print setup's {e} setup set {{ id: \"{setup['id']}\", settings: {{ layerHeight, firstLayer }} }} puts them right.")
     recs, gone = live(s, o)
     all_ = [{"id": r["id"], "layer": r["layer"], "note": r["note"]} for r in recs]
     enc = (s.meta.get(o.Label) or {}).get("encased")

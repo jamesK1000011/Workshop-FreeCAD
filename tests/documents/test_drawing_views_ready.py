@@ -190,5 +190,41 @@ OUT["clear_of_views"] = [not D._boxes_hit(sheets.text_box(c["text"]), v) for c i
         self.assertTrue(all(out["clear_of_views"]))
 
 
+class HealthReading(unittest.TestCase):
+    """Documents' reading for Agent Link's shared health check: a page
+    without a template, a view whose source is gone (red), a view the call
+    recomputed that TechDraw has not drawn yet."""
+
+    def test_pages_state(self):
+        out = run(LATE_VIEW + r'''
+from workshop_documents import td_wait as T
+body = types.SimpleNamespace(Label="Bracket")
+class PView(View):
+    def __init__(self, label, late, source, **kw):
+        super().__init__(label, late, **kw)
+        self.Source = source
+dim = types.SimpleNamespace(Label="Dimension")           # no Source: passed over
+ok = PView("Front", 0, [body])
+late = PView("Top", 3, [body])
+orphan = PView("Right", 0, [])
+page = types.SimpleNamespace(TypeId="TechDraw::DrawPage", Label="Sheet", Template=object(), Views=[ok, late, orphan, dim])
+bare = types.SimpleNamespace(TypeId="TechDraw::DrawPage", Label="Bare", Template=None, Views=[])
+ses = types.SimpleNamespace(doc=types.SimpleNamespace(Objects=[body, page, bare]))
+OUT["after_body_change"] = T.page_reading(ses, "pd_pad", [body])
+OUT["after_other_change"] = T.page_reading(ses, "setup", [])
+OUT["no_doc"] = T.page_reading(types.SimpleNamespace(doc=None), "x", [])
+''')
+        got = out["after_body_change"]
+        self.assertEqual([x["red"] for x in got], [False, True, False])
+        self.assertIn("Top", got[0]["line"])
+        self.assertIn("waiting", got[0]["line"])
+        self.assertIn("Right", got[1]["line"])
+        self.assertIn("object_delete", got[1]["todo"])
+        self.assertIn("Bare", got[2]["line"])
+        # A call that recomputed neither a view nor its source asks no view whether it is drawn.
+        self.assertEqual([x["red"] for x in out["after_other_change"]], [True, False])
+        self.assertEqual(out["no_doc"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

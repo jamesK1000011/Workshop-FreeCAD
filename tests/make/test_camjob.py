@@ -70,9 +70,19 @@ d = D([part])
 job, why = C.make_job(d, part, [24, 14, 7], 3.0, "Bracket mill")
 OUT["job"] = [job.Label, job.Stock.ext, job.Stock.plc[1], bit.Diameter, d.removed, why]
 OUT["labels"] = [tc.Label, bit.Label]
+# The Job is made in FreeCAD's active document (Path.Main.Job.Create): the
+# body's document is made the active one first.
+d2 = D([part]); d2.Name = "Bracket_doc"
+F.ActiveDocument = D([]); went = []
+F.setActiveDocument = lambda n: went.append(n)
+C.make_job(d2, part, [24, 14, 7], 3.0)
+F.ActiveDocument = d2
+C.make_job(d2, part, [24, 14, 7], 3.0)
+OUT["active"] = went
 jm.Create = lambda *a: (_ for _ in ()).throw(RuntimeError("no CAM here"))
 OUT["fail"] = C.make_job(D([part]), part, [24, 14, 7], 3.0)[1]
 ''')
+        self.assertEqual(out["active"], ["Bracket_doc"])
         self.assertEqual(out["job"], ["Bracket mill", [24, 14, 7], [-2.0, -2.0, -1.0], 3.0, ["Stock000"], None])
         self.assertIn("no CAM here", out["fail"])
         self.assertEqual(out["labels"], ["TC: 3 mm End Mill", "3 mm End Mill"])
