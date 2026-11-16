@@ -48,7 +48,7 @@ PANELS = {
 # The one line under each panel's title saying what it does, as the Parts
 # panels have.
 INTRO = {
-    "drawing": "A TechDraw page of the parts in the views you pick, on a sheet.",
+    "drawing": "A TechDraw page of the parts in the views you pick, on TechDraw's own template: edit it in TechDraw after.",
     "exploded": "An assembly manual: each step's parts moved apart, balloons and a bill of materials.",
     "library": "A pack of the parts to share: STEP and STL files, a readme and a licence.",
     "patent": "Patent figures of the parts: black line art with reference numerals.",

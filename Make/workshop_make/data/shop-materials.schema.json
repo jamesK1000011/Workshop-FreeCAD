@@ -33,6 +33,13 @@
   },
   "cut": {
    "type": "boolean"
+  },
+  "freecadCards": {
+   "type": "array",
+   "items": {
+    "type": "string",
+    "minLength": 1
+   }
   }
  }
 }

@@ -29,12 +29,17 @@ class Data(unittest.TestCase):
         self.assertEqual(data.check_folder(DATA), [])
 
     def test_threads_without_freecad(self):
-        from workshop_make import threads
+        sys.path.insert(0, HERE)
+        import _threadtable
 
-        m6 = threads.lookup("M6")
-        self.assertEqual((m6["pitch"], m6["tapDrill"]), (1.0, 5.0))
-        self.assertEqual(threads.lookup("1/4-20")["series"], "unc")
-        self.assertEqual(len(threads.METRIC_COARSE), 17)
+        threads = _threadtable.install()
+        try:
+            m6 = threads.lookup("M6")
+            self.assertEqual((m6["pitch"], m6["tapDrill"]), (1.0, 5.0))
+            self.assertEqual(threads.lookup("1/4-20")["series"], "unc")
+            self.assertEqual(len(threads.table("metric")), 17)
+        finally:
+            threads.use(None)
 
     def test_tool_definitions(self):
         with open(os.path.join(DATA, "tools.json"), encoding="utf-8") as f:

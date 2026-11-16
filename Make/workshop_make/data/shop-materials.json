@@ -1,14 +1,18 @@
 {
  "$schema": "shop-materials.schema.json",
- "dataVersion": "1.1.0",
+ "dataVersion": "1.2.0",
  "licence": "CC-BY-4.0",
- "about": "Materials as the cut and mill checks see them: whether sheets of it are cut here, metal or not (the cut rules), and the thinnest wall a mill leaves standing, mm. Order is the order offered. name is how a person reads it; sameAs marks another spelling of an entry (found by search, listed once).",
+ "about": "Materials as the cut and mill checks see them: whether sheets of it are cut here, metal or not (the cut rules), and the thinnest wall a mill leaves standing, mm. Order is the order offered. name is how a person reads it; sameAs marks another spelling of an entry (found by search, listed once). freecadCards: FreeCAD library cards to read a metal's E and yield from (exact name, else a name holding it); the figures are FreeCAD's, none are kept here.",
  "entries": {
   "steel": {
    "name": "Steel",
    "metal": true,
    "cut": true,
    "millWall": 0.8,
+   "freecadCards": [
+    "Steel-Generic",
+    "CalculiX-Steel"
+   ],
    "source": "Typical shop rules of thumb (Agent Link); the shop's own limits win",
    "date": "2026-11-14"
   },
@@ -17,6 +21,10 @@
    "metal": true,
    "cut": true,
    "millWall": 0.8,
+   "freecadCards": [
+    "Stainless",
+    "X5CrNi18-10"
+   ],
    "source": "Typical shop rules of thumb (Agent Link); the shop's own limits win",
    "date": "2026-11-14"
   },
@@ -34,6 +42,11 @@
    "metal": true,
    "cut": true,
    "millWall": 1.0,
+   "freecadCards": [
+    "Aluminum-Generic",
+    "Aluminum-6061-T6",
+    "Aluminum"
+   ],
    "source": "Typical shop rules of thumb (Agent Link); the shop's own limits win",
    "date": "2026-11-14"
   },
@@ -42,6 +55,10 @@
    "metal": true,
    "cut": true,
    "millWall": 0.8,
+   "freecadCards": [
+    "Brass-Generic",
+    "Brass"
+   ],
    "source": "Typical shop rules of thumb (Agent Link); the shop's own limits win",
    "date": "2026-11-14"
   },
@@ -50,6 +67,10 @@
    "metal": true,
    "cut": true,
    "millWall": 1.0,
+   "freecadCards": [
+    "Copper-Generic",
+    "Copper"
+   ],
    "source": "Typical shop rules of thumb (Agent Link); the shop's own limits win",
    "date": "2026-11-14"
   },
@@ -58,6 +79,10 @@
    "metal": true,
    "cut": true,
    "millWall": 1.0,
+   "freecadCards": [
+    "Titanium-Generic",
+    "Titanium"
+   ],
    "source": "Typical shop rules of thumb (Agent Link); the shop's own limits win",
    "date": "2026-11-14"
   },

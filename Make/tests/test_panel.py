@@ -12,7 +12,11 @@ import unittest
 from _stubs import ROOT, run
 
 PARITY = r'''
+import os
 from workshop_make import handlers, runner as R
+sys.path.insert(0, os.path.join(sys.argv[1], "tests"))
+import _threadtable
+_threadtable.install()  # FreeCAD's thread tables, stood in for
 
 def hosted(doc):
     """What Agent Link's panel._call does with a Make tool: the bound

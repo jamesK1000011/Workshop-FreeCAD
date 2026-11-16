@@ -30,7 +30,8 @@ def fit(s, a):
 def hw_hole(s, a):
     o = s.body(a.get("body"))
     try:
-        out = api.hole(s.doc, o, a.get("kind"), a.get("size", "M3"), a.get("at"), a.get("dir", "-z"), a.get("depth", "through"), a.get("fit", "normal"))
+        out = api.hole(s.doc, o, a.get("kind"), a.get("size", "M3"), a.get("at"), a.get("dir", "-z"), a.get("depth", "through"), a.get("fit", "normal"),
+                       face=a.get("face"), sketch=a.get("sketch"))
     except Refused as e:
         raise ToolError(e.code, e.message)
     s.snapshot("hw_hole")

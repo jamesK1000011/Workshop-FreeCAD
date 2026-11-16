@@ -13,7 +13,7 @@ from workshop_make import geo
 from workshop_make import materials as fil
 from workshop_make import records as store
 
-from .. import api, orcalib, printability, printmass
+from .. import api, fcmaterials, orcalib, printability, printmass
 from ._lent import Refusal
 
 # Lent by the family layer when Agent Link binds these handlers (lend()); alone
@@ -27,7 +27,17 @@ def card(session, label, given=None):
     """The body's material: (id, density g/cm³, filament word or None,
     name) — from Agent Link's material family (FreeCAD's library and custom
     materials) when it has one, else the filaments."""
-    mid = given or store.materials(session.doc).get(label) or "pla"
+    mid = given or store.materials(session.doc).get(label)
+    if not mid:
+        # A material given with FreeCAD's own command (Std_SetMaterial) is
+        # the one the part is weighed with.
+        try:
+            fc = fcmaterials.of(session.body(label))
+        except Exception:  # noqa: BLE001
+            fc = None
+        if fc and fc.get("density"):
+            return fc["card"], float(fc["density"]), None, fc["card"]
+        mid = "pla"
     c = None
     if matfam is not None:
         c = matfam.card(session.doc, mid)
@@ -110,11 +120,16 @@ def setup(s, a):
 def part_spec(s, a):
     spec = api.spec_set(s.doc, a.get("spec"), bool(a.get("clear")))
     mats = store.materials(s.doc)
+    fc = None
     if a.get("material"):
-        mats = api.material_set(s.doc, [s.body(b).Label for b in (a.get("bodies") or [s.body(None).Label])], a["material"])
+        bodies = [s.body(b).Label for b in (a.get("bodies") or [s.body(None).Label])]
+        mats = api.material_set(s.doc, bodies, a["material"])
+        fc = api.freecad_material(s.doc, bodies, a["material"])
     elif a.get("material") == "":
-        mats = api.material_clear(s.doc, [s.body(b).Label for b in (a.get("bodies") or [s.body(None).Label])])
-    return {"spec": spec, "materials": mats}
+        bodies = [s.body(b).Label for b in (a.get("bodies") or [s.body(None).Label])]
+        mats = api.material_clear(s.doc, bodies)
+        fc = api.freecad_material(s.doc, bodies, None)
+    return {"spec": spec, "materials": mats, **({"freecadMaterial": fc} if fc else {})}
 
 
 @refused

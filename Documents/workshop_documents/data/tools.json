@@ -5,7 +5,7 @@
  "entries": {
   "drawing_make": {
    "group": "drawing",
-   "description": "A drawing sheet of bodies: standard views (front, top, right, iso by default; back, bottom, left too), first-angle (ISO) or third-angle (ASME) projection, at the largest standard scale that fits A4 or A3 (paper auto picks A3 only when it allows a bigger scale), overall sizes dimensioned once each (dimensions: false leaves them off), hidden: true dashes the hidden edges. Writes SVG, PDF and DXF to the output folder and adds a TechDraw page with the same views to the document (page: false leaves it out). dims adds feature dimensions with tolerances or ISO 286 fits (limits written in), holes calls out every round hole by size, titleBlock fills a title block of labelled cells. section: a straight view drawn as a full section (cut square to it through the middle, sectionAt mm towards the viewer; the cut faces hatched, the cutting line lettered sectionLabel, A, in a view that sees it edge on) — for bores, pockets and walls inside.",
+   "description": "A drawing of bodies as a normal TechDraw page, editable in TechDraw (its template and title block, its views, section and dimensions), laid out in one call: standard views (front, top, right, iso by default; back, bottom, left too), first-angle (ISO) or third-angle (ASME) projection, at the largest standard scale that fits A4 or A3 (paper auto picks A3 only when it allows a bigger scale), overall sizes dimensioned once each (dimensions: false leaves them off), hidden: true dashes the hidden edges. Exports SVG, PDF and DXF to the output folder: the page's own TechDraw exports where TechDraw can write them (PDF and SVG need FreeCAD's window), Workshop's sheet writer for the rest (filesFrom says which); page: false writes the files only. dims adds feature dimensions with tolerances or ISO 286 fits (limits written in), holes calls out every round hole by size, titleBlock fills the template's title block. section: a straight view drawn as a full section (cut square to it through the middle, sectionAt mm towards the viewer; the cut faces hatched, the cutting line lettered sectionLabel, A, in a view that sees it edge on) — for bores, pockets and walls inside.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -101,7 +101,7 @@
      },
      "titleBlock": {
       "type": "object",
-      "description": "{ title, partNumber, revision, material, finish, drawnBy, date, checkedBy, company, generalTolerance (ISO 2768-m to start) } — ask the person for theirs."
+      "description": "{ title, partNumber, revision, material, finish, drawnBy, date, checkedBy, company, generalTolerance (ISO 2768-m to start) } — filled into TechDraw's title block (and the files' own); ask the person for theirs."
      }
     },
     "required": [],

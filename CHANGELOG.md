@@ -28,3 +28,12 @@ The first tagged release is being prepared.
   scipy optional; each workbench's icon relative to its own folder, as
   FreeCAD reads it), a README with install, uninstall and privacy, and this
   changelog.
+
+### Changed
+
+- Features that came back from ScanRuler build on FreeCAD's own and keep
+  only the extras: Hole for Hardware is a PartDesign Hole plus the printer
+  allowance, nut traps, inserts and magnets; Thread Lookup reads FreeCAD's
+  thread tables; the Materials tab hands the library to FreeCAD's Material
+  editor and sets FreeCAD's material on the part; Drawing… is a normal
+  TechDraw page exported by TechDraw.

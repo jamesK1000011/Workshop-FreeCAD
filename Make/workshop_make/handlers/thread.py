@@ -28,7 +28,7 @@ V = FreeCAD.Vector
 # thread_identify { scan } asks the first, so a CAD face and a scanned
 # thread are named by one tool.
 SCAN_READERS = []  # lent: Agent Link's live list of "thread_scan" readers
-HOLE_TYPE = {"metric": "ISOMetricProfile", "metric-fine": "ISOMetricFineProfile", "unc": "UNC", "unf": "UNF"}
+HOLE_TYPE = tt.HOLE_TYPE
 
 
 def _r(x, n=3):
@@ -71,25 +71,39 @@ def _entry(shape, cyl, prefer=None):
     return max(opens, key=lambda e: (e["at"].z, e["at"].x, e["at"].y))
 
 
+def _table(series=None):
+    rows = tt.table(series)
+    if not rows and not tt.table():
+        raise ToolError("unavailable", "FreeCAD's thread tables (PartDesign Hole's) cannot be read here: PartDesign is not in this build.")
+    return rows
+
+
 def _row(size):
+    _table()
     r = tt.lookup(size)
     if r is None:
-        raise ToolError("not_found", f"size {size!r}: not a size here — M1.6 … M24 (coarse), M10x1.25 (fine), #4-40 … 1/2-13 (UNC), #4-48 … 1/2-20 (UNF); thread_lookup lists them.")
+        raise ToolError("not_found", f"size {size!r}: not in FreeCAD's thread tables (ISO metric coarse and fine, UNC, UNF) — thread_lookup lists them; a size of your own goes in ~/.config/workshop_make/threads.json.")
     return r
+
+
+NOTE = ("Sizes, majors and tap drills are FreeCAD's own (PartDesign Hole's thread tables); pitch diameter and minors from the ISO 68-1 basic profile. "
+        "A Unified pitch and drill name, and heat-set insert holes, are Workshop Make's, where FreeCAD has none. "
+        "A printed hole is better tapped or fitted with an insert than printed threaded under M5.")
 
 
 def thread_lookup(s, a):
     if a.get("size"):
         r = _row(a["size"])
-        return {"thread": r, "units": "mm", "note": "Basic sizes (ISO 68-1 / ASME B1.1 profile); tap drills are the usual ones. A printed hole is better tapped or fitted with an insert than printed threaded under M5."}
+        return {"thread": r, "units": "mm", "note": NOTE}
     series = (a.get("series") or "all").lower()
     if series not in tt.SERIES + ("all",):
         raise ToolError("invalid_input", f"series: {', '.join(tt.SERIES)} or all.")
-    rows = tt.table(series)
+    rows = _table(series)
     if a.get("near") is not None:
         d = float(a["near"])
         rows = sorted(rows, key=lambda r: abs(r["major"] - d))[:6]
-    return {"threads": [{k: r[k] for k in ("size", "major", "pitch", "minorInt", "tapDrill")} for r in rows], "units": "mm", "columns": "size, major, pitch, internal minor, tap drill"}
+    return {"threads": [{k: r[k] for k in ("size", "major", "pitch", "minorInt", "tapDrill")} for r in rows], "units": "mm", "columns": "size, major, pitch, internal minor, tap drill",
+            "source": "FreeCAD's PartDesign Hole thread tables"}
 
 
 def thread_identify(s, a):
@@ -112,6 +126,7 @@ def thread_identify(s, a):
     name, face = picked[0]
     cyl = cylinder_of(o.Shape, face)
     d = cyl["diameter"]
+    _table()
     near = tt.nearest(d, cyl["inside"], 4)
     out = {
         "body": o.Label, "face": name, "diameter": _r(d), "kind": "hole" if cyl["inside"] else "shaft",
@@ -148,6 +163,7 @@ def thread_cut(s, a):
     if a.get("size"):
         row = _row(a["size"])
     else:
+        _table()
         near = tt.nearest(cyl["diameter"], cyl["inside"], 4)
         if tt.tie(near):
             raise ToolError("invalid_input", f"size: say which — {', '.join(x['size'] for x in tt.tie(near))} fit this diameter alike.")
@@ -203,6 +219,8 @@ def thread_cut(s, a):
         # coarse "M6" in 1.0.
         sizes = list(h.getEnumerationsOfProperty("ThreadSize"))
         want = row["freecad"]
+        if not want:
+            raise ToolError("unavailable", f"{row['size']} is a size of your own, not in FreeCAD's tables: FreeCAD's Hole cannot thread it. Drill it at its tap drill ({row['tapDrill']} mm) and tap it.")
         pick = want if want in sizes else None
         if pick is None and row["series"].startswith("metric"):
             bare = want.split("x")[0]

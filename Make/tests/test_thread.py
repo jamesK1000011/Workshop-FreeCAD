@@ -4,10 +4,19 @@ import unittest
 
 from _fc import AGENT, add_body, caller, server
 
+import _threadtable
 from workshop_make import threads as tt
 
 
 class Table(unittest.TestCase):
+    """Make's arithmetic on FreeCAD's rows (a stand-in for them here)."""
+
+    def setUp(self):
+        _threadtable.install()
+
+    def tearDown(self):
+        tt.use(None)
+
     def test_sizes(self):
         m6 = tt.lookup("M6")
         self.assertEqual((m6["major"], m6["pitch"], m6["tapDrill"]), (6.0, 1.0, 5.0))
@@ -21,6 +30,34 @@ class Table(unittest.TestCase):
         self.assertEqual(tt.lookup("#10-32")["series"], "unf")
         self.assertIsNone(tt.lookup("M7.3"))
         self.assertEqual(len(tt.table("metric")), 17)
+        self.assertEqual((m6["freecad"], m6["source"]), ("M6x1.0", "FreeCAD"))
+        self.assertEqual(m6["insert"]["hole"], 8.0)
+        self.assertEqual(tt.lookup("M6x1.0"), m6)
+        self.assertEqual((u["tpi"], u["tapDrillName"], u["freecad"]), (20, "#7", "1/4"))
+        self.assertAlmostEqual(u["tapDrill"], 5.105, places=3)
+
+    def test_unified_without_our_pitch(self):
+        # A Unified size FreeCAD has and Make has no pitch for: listed by
+        # FreeCAD's name, its pitch unknown rather than made up.
+        tt.use(lambda: _threadtable.rows() + [{"series": "unc", "designation": "9/16", "major": 14.288, "tapDrill": 12.1}])
+        r = tt.lookup("9/16")
+        self.assertEqual((r["size"], r["pitch"], r["minorInt"]), ("9/16", None, None))
+        self.assertTrue(tt.nearest(14.29, False))
+
+    def test_no_freecad_no_table(self):
+        tt.use(lambda: [])
+        self.assertEqual(tt.table(), [])
+        self.assertIsNone(tt.lookup("M6"))
+
+    def test_extras_only_what_freecad_lacks(self):
+        import json
+        import os
+
+        with open(os.path.join(os.path.dirname(tt.__file__), "data", "threads.json"), encoding="utf-8") as f:
+            entries = json.load(f)["entries"]
+        for k, v in entries.items():
+            self.assertIn(v["series"], ("unc", "unf"), k)
+            self.assertFalse({"nominal", "pitch", "tapDrill", "majorInch", "tapDrillInch"} & set(v), k)
 
     def test_nearest_and_tie(self):
         n = tt.nearest(5.0, True)
