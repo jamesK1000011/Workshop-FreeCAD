@@ -24,7 +24,7 @@ from workshop_documents import geo
 from workshop_documents import iso286
 from workshop_documents import sheets
 from workshop_documents import records as store
-from workshop_documents.td_wait import wait_views as _wait_views
+from workshop_documents.td_wait import views_ready as _wait_views
 
 from .. import fcexplode, views
 from ._lent import Refusal
@@ -34,6 +34,23 @@ from ._lent import Refusal
 ToolError = Refusal
 M = None  # Agent Link's measure family
 picks = None  # Agent Link's picks family
+
+
+def _settle(vs):
+    """Every view's lines worked out before anything is placed on them or
+    the page exported: {"seconds", "notReady"} as td_wait.views_ready (a
+    stand-in that answers None: all ready at once)."""
+    try:
+        got = _wait_views(list(vs))
+    except Exception as e:  # noqa: BLE001
+        return {"seconds": 0.0, "notReady": [{"view": "?", "why": f"the wait failed: {type(e).__name__}: {e}"}]}
+    if not isinstance(got, dict):
+        return {"seconds": float(got or 0.0), "notReady": []}
+    return got
+
+
+def _part_views(page):
+    return [v for v in (getattr(page, "Views", None) or []) if hasattr(v, "getVisibleEdges")]
 
 
 V = FreeCAD.Vector
@@ -282,6 +299,10 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
                 sec_note = {"section": sv.Label}
             except Exception as e:
                 sec_note = {"sectionNote": f"the section view could not go on the page here ({e}); the files have it"}
+        # Every view's lines worked out (TechDraw's own thread) before a
+        # dimension goes on them, however long it takes, and said so: the
+        # wait once sat in a try that could skip it unnoticed.
+        ready = _settle([v for _, v in made])
         extent_done, extent_missed = [], []
         if dims and boxes:
             # The overall sizes as TechDraw's own distance dimensions between
@@ -291,10 +312,6 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
             # (7 more for a second on that side), its text off the lines.
             # (makeExtentDim with no edges read 0 on 1.1.3.)
             by = dict(made)
-            try:
-                _wait_views([v for _, v in made])
-            except Exception:  # noqa: BLE001
-                pass
             for view, axis, pa, pb, off, mm in sheets.extent_dims(boxes, views.AXES, extents or {"x": 0, "y": 0, "z": 0}):
                 v = by.get(view)
                 if v is None:
@@ -330,7 +347,8 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
                 table_note = {"holeTable": ann.Label}
             except Exception as e:  # noqa: BLE001
                 table_note = {"holeTableNote": f"the hole table could not go on the page here ({e}); the files have it"}
-        out = {"views": len(made), "extentDimensions": dimmed, "template": os.path.basename(path) if path else None, **sec_note, **table_note}
+        out = {"views": len(made), "viewsReadyIn": ready["seconds"], **({"viewsNotReady": ready["notReady"]} if ready["notReady"] else {}),
+               "extentDimensions": dimmed, "template": os.path.basename(path) if path else None, **sec_note, **table_note}
         if extent_done:
             out["extents"] = extent_done
         if extent_missed:
@@ -343,12 +361,9 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
             # The dimensions and hole callouts on the page itself, each on
             # its own (one failing never drops the rest), added to what is
             # already listed as not on the page, never in place of it.
-            try:
-                waited = _wait_views([v for _, v in made])
-                if waited is not None:
-                    out["viewsReadyIn"] = waited
-            except Exception:  # noqa: BLE001
-                pass
+            again = _settle([v for _, v in made])
+            if again["notReady"]:
+                out["viewsNotReady"] = again["notReady"]
             try:
                 done, missed = _page_dims(doc, page, made, drawn, specs, {vw: (x, y) for vw, (x, y) in placed}, H)
             except Exception as e:  # noqa: BLE001 — the page stands without them
@@ -361,15 +376,28 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
         return None, f"the TechDraw page could not be made here ({e}); the files stand on their own"
 
 
-def _export_page(page, out_dir, base, kinds=("dxf", "pdf", "svg")):
+def _export_page(page, out_dir, base, kinds=("dxf", "pdf", "svg"), report=None):
     """The page's own exports, as TechDraw's File ▸ Export does them: DXF
     always (TechDraw.writeDXFPage), PDF and SVG with the GUI up
-    (TechDrawGui). ({kind: path}, {kind: why not})."""
+    (TechDrawGui). ({kind: path}, {kind: why not}). Only once every view's
+    lines are worked out (none exported otherwise), and the SVG checked to
+    hold the views' lines, not only the template and dimensions: exported
+    once more after a further wait when it does not, and neither SVG nor
+    PDF kept from the page when it still does not. report (a dict) is
+    filled with viewsReadyIn, viewsNotReady and viewsInExport."""
     paths, why = {}, {}
-    try:
-        _wait_views([v for v in page.Views if hasattr(v, "getVisibleEdges")])
-    except Exception:  # noqa: BLE001
-        pass
+    report = {} if report is None else report
+    pv = _part_views(page)
+    ready = _settle(pv)
+    report["viewsReadyIn"] = ready["seconds"]
+    if ready["notReady"]:
+        # Never a page whose views have no lines yet: its export held only
+        # the frame and the dimensions floating on white.
+        report["viewsNotReady"] = ready["notReady"]
+        names = ", ".join(f"{x['view']} ({x['why']})" for x in ready["notReady"])
+        for k in kinds:
+            why[k] = f"TechDraw had not drawn every view yet ({names}); not exported from the page"
+        return paths, why
     p = os.path.join(out_dir, f"{base}.dxf")
     if "dxf" in kinds:
         try:
@@ -396,7 +424,7 @@ def _export_page(page, out_dir, base, kinds=("dxf", "pdf", "svg")):
         if not gui:
             why[k] = "TechDraw exports it with FreeCAD's window only"
             continue
-        if k == "pdf" and why.get("svg", "").startswith("TechDraw left the template out"):
+        if k == "pdf" and why.get("svg", "").startswith(("TechDraw left the template out", "TechDraw's export held no view")):
             why[k] = why["svg"]
             continue
         p = os.path.join(out_dir, f"{base}.{k}")
@@ -404,15 +432,63 @@ def _export_page(page, out_dir, base, kinds=("dxf", "pdf", "svg")):
             import TechDrawGui
 
             getattr(TechDrawGui, fn)(page, p)
+            if k == "svg" and pv and os.path.isfile(p) and not views_in_svg(p, page, pv, report):
+                # The views' lines missing from the scene the export draws:
+                # wait for them again (the window redrawn) and export once more.
+                again = _settle(pv)
+                report["viewsReadyIn"] = round(report["viewsReadyIn"] + again["seconds"], 2)
+                getattr(TechDrawGui, fn)(page, p)
             if not (os.path.isfile(p) and os.path.getsize(p) > 0):
                 why[k] = "TechDraw wrote nothing"
             elif k == "svg" and not template_in_svg(p, page):
                 why[k] = "TechDraw left the template out of its export (no frame or title block in it)"
+            elif k == "svg" and pv and not views_in_svg(p, page, pv, report):
+                why[k] = ("TechDraw's export held no view geometry (only the template and dimensions), twice; "
+                          "the page itself is fine: File ▸ Export it in FreeCAD's window")
             else:
                 paths[k] = p
         except Exception as e:  # noqa: BLE001
             why[k] = f"TechDraw could not write it ({e})"
     return paths, why
+
+
+DRAWN = re.compile(r"<(path|polyline|polygon|line|rect|circle|ellipse)\b")
+
+
+def _template_marks(page):
+    try:
+        with open(page.Template.Template, encoding="utf-8", errors="replace") as f:
+            return len(DRAWN.findall(f.read()))
+    except Exception:  # noqa: BLE001
+        return 0
+
+
+def views_in_svg(path, page, part_views, report=None):
+    """Whether TechDraw's SVG export holds the views' lines: its drawn
+    elements beyond the template's own and an allowance for each dimension
+    (8) number at least a quarter of the views' visible edges. A page
+    exported before its views were drawn holds only the frame, title block
+    and dimensions. report["viewsInExport"] gets the counts."""
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            n = len(DRAWN.findall(f.read()))
+    except OSError:
+        return False
+    edges = 0
+    for v in part_views:
+        try:
+            edges += len(v.getVisibleEdges() or [])
+        except Exception:  # noqa: BLE001
+            pass
+    if not edges:
+        return True
+    dims = sum(1 for v in (getattr(page, "Views", None) or []) if "Dimension" in str(getattr(v, "TypeId", "")) or "Dimension" in str(getattr(v, "Name", "")))
+    tpl = _template_marks(page)
+    beyond = n - tpl - 8 * dims
+    ok = beyond >= max(1, edges // 4)
+    if report is not None:
+        report["viewsInExport"] = {"ok": ok, "drawn": n, "template": tpl, "dimensions": dims, "viewEdges": edges}
+    return ok
 
 
 def template_in_svg(path, page):
@@ -768,6 +844,11 @@ def _page_dim(doc, page, by_view, view_frames, drawn, sp, at=None, H=None):
             try:
                 dim.ViewObject.StandardAndStyle = "ISO Referencing"
             except Exception:  # noqa: BLE001 — no window: the style is the preference's
+                pass
+            try:
+                # The size the callouts were kept apart at (place_callout).
+                dim.ViewObject.Fontsize = f"{PAGE_FONT} mm"
+            except Exception:  # noqa: BLE001
                 pass
         if sp.get("over") is not None or sp.get("under") is not None:
             dim.EqualTolerance = False
@@ -1218,20 +1299,99 @@ def merge_counterbores(groups, flat):
     return out
 
 
-def callout_leader(at, r, outline, k):
+def callout_leader(at, r, outline, k, left=None, slope=45):
     """A hole callout's leader from the circle (centre at, radius r on the
     paper) out past the view's outline, the k-th in that view turned a
     little more: (tip, elbow, tail end, text anchor). Up and to the left
-    or right, whichever side of the view the hole is nearer."""
-    left = at[0] <= (outline[0] + outline[2]) / 2
-    ang = math.radians(135 if left else 45)
+    or right, whichever side of the view the hole is nearer (or as left
+    says), at slope degrees over the horizontal (45 unless asked)."""
+    if left is None:
+        left = at[0] <= (outline[0] + outline[2]) / 2
+    ang = math.radians(180 - slope if left else slope)
     tip = (at[0] + r * math.cos(ang), at[1] - r * math.sin(ang))
-    # Out at 45° until clear of the view's outline above it: 6 mm over its
-    # top, each further callout of the view 6 mm higher.
+    # Out at the slope until clear of the view's outline above it: 6 mm over
+    # its top, each further callout of the view 6 mm higher.
     rise = max(6.0, tip[1] - outline[1] + 6.0 + 6.0 * k)
-    elbow = (tip[0] + (-rise if left else rise), tip[1] - rise)
+    run_ = rise / math.tan(math.radians(slope))
+    elbow = (tip[0] + (-run_ if left else run_), tip[1] - rise)
     tail = (elbow[0] + (-12 if left else 12), elbow[1])
     return tip, elbow, tail, ("end" if left else "start")
+
+
+# TechDraw's dimension text on the page (its Fontsize set to this), and the
+# clear margin kept round each callout's text.
+PAGE_FONT = 3.5
+CALLOUT_PAD = 1.5
+
+
+def _segs_cross(a, b, c, d):
+    """Whether segments ab and cd cross (touching ends do not count)."""
+    def o(p, q, r):
+        v = (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+        return 0 if abs(v) < 1e-9 else (1 if v > 0 else -1)
+    o1, o2, o3, o4 = o(a, b, c), o(a, b, d), o(c, d, a), o(c, d, b)
+    return o1 * o2 < 0 and o3 * o4 < 0
+
+
+def _seg_in_box(a, b, box):
+    """Whether segment ab passes through box (x0, y0, x1, y1)."""
+    x0, y0, x1, y1 = box
+    for t in (i / 16 for i in range(17)):
+        x, y = a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t
+        if x0 < x < x1 and y0 < y < y1:
+            return True
+    return False
+
+
+def _pad(box, m):
+    return (box[0] - m, box[1] - m, box[2] + m, box[3] + m)
+
+
+def page_text_box(centre, text, size=PAGE_FONT):
+    """The box TechDraw's text takes on the page, centred where the
+    callout's text is put (dim.X, dim.Y), at the page's font size."""
+    w, h = 0.6 * size * len(text), 1.25 * size
+    return (centre[0] - w / 2, centre[1] - h / 2, centre[0] + w / 2, centre[1] + h / 2)
+
+
+def place_callout(pa, r, outline, k, label, busy, placed, size=3.0, tries=12):
+    """A hole callout clear of what is on the sheet and of every callout
+    placed before it: its text (as the sheet draws it and as the TechDraw
+    page does, larger, with a margin) off the views, the texts and every
+    earlier callout's text, and its leaders (the sheet's tip, elbow, tail;
+    the page's straight line from the hole to its text) crossing no earlier
+    leader nor running through an earlier text. Each try goes 6 mm further
+    up, on the hole's own side first, then the other, its leader at 45°,
+    then 30° and 60° (a leader parallel to an earlier one can pass under
+    that one's text only at another slope). The first clear
+    place, else the one with fewest clashes.
+    placed: earlier callouts as returned here (their "boxes" and "segs");
+    returns {tip, elbow, tail, anchor, text, textAt, boxes, segs, clashes}."""
+    best = None
+    near_left = pa[0] <= (outline[0] + outline[2]) / 2
+    for extra in range(tries):
+        for left, slope in ((sd, sl) for sd in (near_left, not near_left) for sl in (45, 30, 60)):
+            tip, elbow, tail, anchor = callout_leader(pa, r, outline, k + extra, left, slope)
+            t = (tail[0] + (1 if anchor == "start" else -1), tail[1] - 1, size, label, anchor)
+            tb = sheets.text_box(t)
+            at = ((tb[0] + tb[2]) / 2, (tb[1] + tb[3]) / 2)
+            pb = page_text_box(at, label)
+            boxes = [_pad(tb, CALLOUT_PAD / 2), _pad(pb, CALLOUT_PAD)]
+            # The page's leader: from the hole to the near lower corner of its text.
+            corner = (pb[2], pb[3]) if anchor == "end" else (pb[0], pb[3])
+            segs = [(tip, elbow), (elbow, tail), (pa, corner)]
+            clashes = sum(1 for b in boxes for o in busy if _boxes_hit(b, o))
+            for q in placed:
+                clashes += sum(1 for b in boxes for o in q["boxes"] if _boxes_hit(b, o))
+                clashes += sum(1 for s1 in segs for s2 in q["segs"] if _segs_cross(s1[0], s1[1], s2[0], s2[1]))
+                clashes += sum(1 for s1 in segs for o in q["boxes"] if _seg_in_box(s1[0], s1[1], o))
+                clashes += sum(1 for s2 in q["segs"] for o in boxes if _seg_in_box(s2[0], s2[1], o))
+            got = {"tip": tip, "elbow": elbow, "tail": tail, "anchor": anchor, "text": t, "textAt": at, "boxes": boxes, "segs": segs, "clashes": clashes}
+            if clashes == 0:
+                return got
+            if best is None or clashes < best["clashes"]:
+                best = got
+    return best
 
 
 def default_projection(asked):
@@ -1426,7 +1586,7 @@ def drawing_make(s, a):
         order = [a["holes"]] if isinstance(a["holes"], str) else HOLE_VIEWS
         groups = hole_groups(objs, order, [v for v in want if v not in ("iso", sec_view)] if not isinstance(a["holes"], str) else [a["holes"]])
         fits = a.get("holeFits") or {}
-        per_view = {}
+        per_view, callouts = {}, []
         for g in groups:
             dia = g["diameter"]
             fit = fits.get(str(dia)) or fits.get(f"{dia:g}")
@@ -1450,12 +1610,12 @@ def drawing_make(s, a):
             pa = _to_paper(views.point(c0, hv), box, centre, sv)
             # Clear of every view and every text already on the sheet: the
             # callout goes up 6 mm more until it is.
+            # and of every callout before it (text boxes tested against each
+            # other at the page's font, leaders never crossing).
             busy = list(L["boxes"].values()) + [sheets.text_box(t) for t in sheet.texts]
-            for extra in range(12):
-                tip, elbow, tail, anchor = callout_leader(pa, dia / 2 * sv, L["boxes"][hv], k + extra)
-                t = (tail[0] + (1 if anchor == "start" else -1), tail[1] - 1, 3.0, label, anchor)
-                if not any(_boxes_hit(sheets.text_box(t), b) for b in busy):
-                    break
+            co = place_callout(pa, dia / 2 * sv, L["boxes"][hv], k, label, busy, callouts)
+            callouts.append(co)
+            tip, elbow, tail, t = co["tip"], co["elbow"], co["tail"], co["text"]
             sheet.line([tip, elbow, tail], "dim")
             sheet.arrow(tip, elbow)
             sheet.text(*t)
@@ -1463,7 +1623,7 @@ def drawing_make(s, a):
             over, under = _tolerance(dia, {"fit": fit}) if fit else (None, None)
             specs.append({"view": hv, "type": "Diameter", "centre": views.point(c0, hv), "centre3": [c0.x, c0.y, c0.z], "radius": dia / 2, "value": dia,
                           "fit": fit, "over": over, "under": under, "prefix": f"{len(g['centres'])}× " if len(g["centres"]) > 1 else "",
-                          "textAt": ((sheets.text_box(t)[0] + sheets.text_box(t)[2]) / 2, (sheets.text_box(t)[1] + sheets.text_box(t)[3]) / 2),
+                          "textAt": co["textAt"],
                           **({"label": label} if g.get("features") or g.get("cut") else {})})
         if hole_table:
             rows = [("HOLE", "QTY", "AXIS")] + [(r["label"].split("× ", 1)[-1], str(r["count"]), r["axis"]) for r in hole_table]
@@ -1502,7 +1662,14 @@ def drawing_make(s, a):
     # removal) writes the rest, and the answer says which is which.
     paths, frm = {}, {}
     if page is not None:
-        paths, why = _export_page(page, folder, base)
+        exported = {}
+        paths, why = _export_page(page, folder, base, report=exported)
+        if isinstance(made, dict):
+            # The wait just before the export, and whether the export holds the views.
+            made["exportViewsReadyIn"] = exported.get("viewsReadyIn")
+            for k in ("viewsNotReady", "viewsInExport"):
+                if k in exported:
+                    made[k if k != "viewsNotReady" else "exportViewsNotReady"] = exported[k]
         frm = {k: "TechDraw page" for k in paths}
         frm.update({k: f"Workshop's sheet writer: {w}" for k, w in why.items()})
     rest = [k for k in ("svg", "pdf", "dxf") if k not in paths]
