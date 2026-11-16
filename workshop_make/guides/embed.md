@@ -10,3 +10,4 @@
 - The part goes in from above, upright. A pocket that would open the part, or whose roof is under 2 layers, is refused: lower it or thicken the part.
 - `hw_unembed` fills the pocket again; `keepPocket: true` leaves a hole to press the part into after printing.
 - history_undo of an hw_embed drops its pause too: the lists read the body as it is.
+- The pocket is written into the body as a plain shape, so the body must be a plain Part solid (gen_make's, an import, a `part_transform` copy). A PartDesign Body or a parametric Part object is refused, naming the copy to make: FreeCAD would rebuild it at the next recompute and the pocket would be gone. The same holds for `mass_ballast { cut: true }`.

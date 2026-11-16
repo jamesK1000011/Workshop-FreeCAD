@@ -1,0 +1,939 @@
+{
+ "tutorial": "PartDesign_Hole.md (a Hole on a Pad's face: FreeCAD's ISO 273 clearance, ISO 4762 counterbore and ISO 10642 countersink sizes) for the bracket; CAM_Walkthrough_for_the_Impatient.md for the milled block (60 x 40 x 20 with a 30 x 20 x 8 pocket, as the CAM model of this pass). Neither page gives the bracket's sizes: an 80 x 40 x 10 plate is used. Make has no FreeCAD tutorial of its own (it is an add-on).",
+ "reference": null,
+ "expected": {
+  "padVolume_mm3": 32000,
+  "iso273": {
+   "M3": {
+    "fine": 3.2,
+    "medium": 3.4,
+    "coarse": 3.6
+   },
+   "M4": {
+    "fine": 4.3
+   },
+   "M6": {
+    "medium": 6.6
+   },
+   "source": "FreeCAD 1.1 source: src/Mod/PartDesign/App/FeatureHole.cpp (metricHoleDiameters)"
+  },
+  "counterboreM6": {
+   "standard": "ISO 4762",
+   "diameter": 11.0,
+   "depth": 6.4,
+   "source": "FreeCAD 1.1 source: src/Mod/PartDesign/Resources/Hole/iso4762.json"
+  },
+  "countersinkM3": {
+   "standard": "ISO 10642",
+   "diameter": 6.7,
+   "source": "FreeCAD 1.1 source: src/Mod/PartDesign/Resources/Hole/iso10642.json"
+  },
+  "threadM6": {
+   "major": 6.0,
+   "pitch": 1.0,
+   "tapDrill": 5.0
+  },
+  "removed_mm3": {
+   "clearanceM6": 342.12,
+   "counterboreM6": 731.38,
+   "clearanceM3withAllowance": 101.79,
+   "threadM6onA4.5hole": 37.31
+  },
+  "embed": {
+   "pocketDiameter": 6.4,
+   "afterLayer": 26,
+   "pauseZ": 5.2,
+   "roof": 4.8
+  },
+  "plateVolume_mm3": 17849.2,
+  "blockVolume_mm3": 43200,
+  "beam": {
+   "deflection_mm": 0.156,
+   "reactionEach_N": 5000,
+   "bendingStress_MPa": 15.0
+  },
+  "counts": {
+   "setups": 3,
+   "bracketFeaturesAfterHoles": "Pad + 6 Holes + NutTrap Pocket + Thread Hole"
+  }
+ },
+ "calls": [
+  {
+   "tool": "doc_new",
+   "arguments": {
+    "name": "MakeModel"
+   },
+   "expect": "a new empty document"
+  },
+  {
+   "tool": "pd_body_new",
+   "arguments": {
+    "name": "Bracket"
+   },
+   "expect": "a PartDesign Body called Bracket"
+  },
+  {
+   "tool": "sketch_new",
+   "arguments": {
+    "plane": "XY",
+    "name": "Base"
+   },
+   "expect": "a sketch on the Body's XY plane"
+  },
+  {
+   "tool": "sketch_add",
+   "arguments": {
+    "sketch": "Base",
+    "items": [
+     {
+      "kind": "rectangle",
+      "corner": [
+       0,
+       0
+      ],
+      "size": [
+       80,
+       40
+      ]
+     }
+    ]
+   },
+   "expect": "a closed 80 x 40 rectangle"
+  },
+  {
+   "tool": "pd_pad",
+   "arguments": {
+    "sketch": "Base",
+    "length": 10
+   },
+   "expect": "a Pad: volume 32000 mm³, box [80, 40, 10]"
+  },
+  {
+   "tool": "setup",
+   "arguments": {},
+   "expect": "action list by default: setups [] and types { print, cut, mill } with each type's settings explained"
+  },
+  {
+   "tool": "setup",
+   "arguments": {
+    "action": "of",
+    "body": "Bracket"
+   },
+   "expect": "setup null and none: \"in no setup …\""
+  },
+  {
+   "tool": "setup",
+   "arguments": {
+    "action": "add",
+    "type": "print",
+    "bodies": [
+     "Bracket"
+    ],
+    "settings": {
+     "nozzle": 0.4,
+     "layerHeight": 0.2,
+     "walls": 3,
+     "infill": 20
+    }
+   },
+   "expect": "added { id: \"S1\", type: \"print\", name: \"Print\", bodies: [\"Bracket\"], nozzle: \"0.4\", layerHeight: 0.2, walls: 3, infill: 20 }, setups 1; health ok (only the hidden records object was made)"
+  },
+  {
+   "tool": "setup",
+   "arguments": {
+    "action": "add",
+    "type": "print",
+    "bodies": [
+     "Bracket"
+    ]
+   },
+   "expect": "REFUSED invalid_input: Bracket is in Print (S1) already, naming setup set { id: \"S1\", remove: [\"Bracket\"] }"
+  },
+  {
+   "tool": "setup",
+   "arguments": {
+    "action": "set",
+    "id": "S1",
+    "settings": {
+     "topLayers": 5,
+     "bogus": 1
+    }
+   },
+   "expect": "REFUSED invalid_input: settings.bogus is not a print setting, listing them"
+  },
+  {
+   "tool": "part_spec",
+   "arguments": {
+    "spec": {
+     "minWall": 1.2,
+     "massMax": 60
+    },
+    "material": "petg",
+    "bodies": [
+     "Bracket"
+    ]
+   },
+   "expect": "spec { minWall: 1.2, massMax: 60 }, materials { Bracket: \"petg\" }, freecadMaterial for Bracket (a card or a note)"
+  },
+  {
+   "tool": "part_spec",
+   "arguments": {
+    "spec": {
+     "colour": 3
+    }
+   },
+   "expect": "REFUSED invalid_input: spec.colour is not a limit, listing minWall, massMin, massMax, minSafety, minClearance"
+  },
+  {
+   "tool": "fit",
+   "arguments": {
+    "action": "calibrate",
+    "hole": 0,
+    "shaft": 0
+   },
+   "expect": "calibration { hole: 0, shaft: 0 }: no printer allowance from now on"
+  },
+  {
+   "tool": "fit",
+   "arguments": {
+    "nominal": 8,
+    "of": "hole",
+    "kind": "slide",
+    "body": "Bracket"
+   },
+   "expect": "model { slide: 8.2 } (8 + the slide gap 0.2 + allowance 0), printerFit \"calibrated\""
+  },
+  {
+   "tool": "fit",
+   "arguments": {
+    "nominal": 8,
+    "of": "shaft"
+   },
+   "expect": "model { press: 8, snug: 8, slide: 8, free: 8 }: the gap is always on the hole"
+  },
+  {
+   "tool": "fit",
+   "arguments": {
+    "action": "stack",
+    "items": [
+     {
+      "name": "plate",
+      "nominal": 10,
+      "tol": 0.1
+     },
+     {
+      "name": "washer",
+      "nominal": 1.6,
+      "tol": 0.05
+     },
+     {
+      "name": "gap",
+      "nominal": -11,
+      "tol": 0.2
+     }
+    ],
+    "target": [
+     0,
+     1
+    ]
+   },
+   "expect": "nominal 0.6, worstCase [0.25, 0.95], rss [0.371, 0.829], worstCaseOk true, rssOk true"
+  },
+  {
+   "tool": "hw_hole",
+   "arguments": {
+    "body": "Bracket",
+    "kind": "clearance",
+    "size": "M6",
+    "at": [
+     10,
+     20,
+     10
+    ],
+    "dir": "-z"
+   },
+   "expect": "route \"PartDesign Hole\"; features [HoleSketch, Hole]; sizes.freecadSize \"M6x1.0\", fit \"Medium\", clearance 6.6 (ISO 273 medium, FreeCAD 1.1 source: src/Mod/PartDesign/App/FeatureHole.cpp metricHoleDiameters); allowance 0; through 10; removed 342.12; headSide \"screw head on the face at z=10, facing +z …\"; sound true; note says no printer allowance; health ok"
+  },
+  {
+   "tool": "hw_hole",
+   "arguments": {
+    "body": "Bracket",
+    "kind": "counterbore",
+    "size": "M6",
+    "at": [
+     30,
+     20,
+     10
+    ]
+   },
+   "expect": "dir -z and depth through by default; sizes.cut \"ISO 4762\", cutSizedBy \"FreeCAD\", cutDiameter 11, cutDepth 6.4, clearance 6.6; removed 731.38; headSide \"counterbore on the face at z=10 …\""
+  },
+  {
+   "tool": "hw_hole",
+   "arguments": {
+    "body": "Bracket",
+    "kind": "countersink",
+    "size": "M3",
+    "at": [
+     50,
+     20,
+     10
+    ],
+    "fit": "close"
+   },
+   "expect": "sizes.cut \"ISO 10642\", cutDiameter 6.7 (FreeCAD's table), clearance 3.2 (ISO 273 fine), fit \"Fine\"; sound true"
+  },
+  {
+   "tool": "hw_hole",
+   "arguments": {
+    "body": "Bracket",
+    "kind": "clearance",
+    "size": "M3",
+    "at": [
+     50,
+     20,
+     5
+    ]
+   },
+   "expect": "REFUSED failed: no flat face of Bracket at [50, 20, 5] facing against the drilling direction (at must be on a face); nothing kept: the Body's tip is still the countersink Hole"
+  },
+  {
+   "tool": "fit",
+   "arguments": {
+    "action": "calibrate",
+    "hole": 0.2
+   },
+   "expect": "calibration { hole: 0.2, shaft: 0 }"
+  },
+  {
+   "tool": "hw_hole",
+   "arguments": {
+    "body": "Bracket",
+    "kind": "clearance",
+    "size": "M3",
+    "at": [
+     70,
+     30,
+     10
+    ]
+   },
+   "expect": "allowance 0.2; sizes.clearanceBeforeAllowance 3.4, clearance 3.6, allowanceOn names Diameter; the Hole has ThreadType None and Label2 \"M3 clearance, ISO 273 medium 3.4 mm + 0.2 mm printer allowance\" (object_get shows it); removed 101.79"
+  },
+  {
+   "tool": "hw_hole",
+   "arguments": {
+    "body": "Bracket",
+    "kind": "clearance",
+    "size": "M4",
+    "fit": "close",
+    "at": [
+     70,
+     10,
+     10
+    ]
+   },
+   "expect": "clearance 4.5 (4.3 + 0.2); removed 159.04: the hole thread_cut threads below"
+  },
+  {
+   "tool": "hw_hole",
+   "arguments": {
+    "body": "Bracket",
+    "kind": "nut_trap",
+    "size": "M3",
+    "at": [
+     20,
+     32,
+     0
+    ],
+    "dir": "+z"
+   },
+   "expect": "entered from the bottom face: features [HoleSketch…, Hole…, NutTrapSketch, NutTrap]; sizes.nutAcrossFlats 5.7, nutDepth 2.7, clearance 3.6; headSide \"nut trap on the face at z=0, facing -z …\"; removed about 150.28; sound true"
+  },
+  {
+   "tool": "thread_lookup",
+   "arguments": {
+    "size": "M6"
+   },
+   "expect": "thread { size \"M6\", series \"metric\", major 6, pitch 1, pitchDia 5.35, minorInt 4.917, minorExt 4.773, tapDrill 5, freecad \"M6x1.0\", source \"FreeCAD\", insert { hole 8 … } }"
+  },
+  {
+   "tool": "thread_lookup",
+   "arguments": {
+    "series": "metric",
+    "near": 4.5
+   },
+   "expect": "threads: six rows nearest 4.5 mm major (M4 and M5 among them), columns, source"
+  },
+  {
+   "tool": "thread_lookup",
+   "arguments": {
+    "size": "M7.3"
+   },
+   "expect": "REFUSED not_found, naming thread_lookup's table and ~/.config/workshop_make/threads.json"
+  },
+  {
+   "tool": "thread_identify",
+   "arguments": {
+    "body": "Bracket",
+    "faces": {
+     "near": [
+      72.25,
+      10,
+      5
+     ]
+    }
+   },
+   "expect": "face (a cylindrical one), diameter 4.5, kind \"hole\", length 10, axis ±z, nearest [up to 4 rows, each { size, series, pitch, as, standard, off }] (M5 read as tapDrill 4.2 is 0.3 off; FreeCAD's M4.5 read as major may be nearer), best or needs \"pitch\""
+  },
+  {
+   "tool": "thread_cut",
+   "arguments": {
+    "body": "Bracket",
+    "faces": {
+     "near": [
+      72.25,
+      10,
+      5
+     ]
+    },
+    "size": "M6"
+   },
+   "expect": "NEW in this pass: in a PartDesign Body the thread is a kept feature. route \"PartDesign Hole\"; features [ThreadSketch, Thread]; thread { size \"M6\", mode \"cosmetic\", kind \"hole\", diameter 4.5, depth 10, holeDiameter 5, feature \"Thread\" }; removed 37.31; sound true; the Body's tip is the Thread Hole (Threaded true, ModelThread false) and its volume stays lower after doc_recompute; history_undo takes it back"
+  },
+  {
+   "tool": "dfm_check",
+   "arguments": {
+    "body": "Bracket"
+   },
+   "expect": "body, setup \"Print (S1)\", findings with ids F1 … (expect none worse than a warning: the nut trap's flat ceiling is 5.7 mm, under the 10 mm bridge limit; holes are over the 2 mm least), wall { least, at, read }, rules { nozzle 0.4, minWall 0.8, maxOverhangDeg 50 … }; may answer with a job id (job_status)"
+  },
+  {
+   "tool": "part_review",
+   "arguments": {
+    "body": "Bracket"
+   },
+   "expect": "process \"printed\", processFrom \"setup Print (S1)\", verdict pass (or fix with the finding said), figures { volume, mass (as printed, PETG, under 60 g), material \"petg\", as \"printed: 3 walls …\", wall }, checks { body_check ran, dfm_check ran, mass ran, fea_results \"skipped: nothing solved\" }, spec { minWall 1.2, massMax 60 }"
+  },
+  {
+   "tool": "mass_properties",
+   "arguments": {
+    "body": "Bracket"
+   },
+   "expect": "bodies[0]: mass (g, as printed), com near [40, 20, 5], material PETG, materialId \"petg\", density 1.27, as \"printed: 3 walls, 5 top and 4 bottom layers, 20% infill …\", inertia { aboutCom, principal }; printedNote"
+  },
+  {
+   "tool": "mass_target",
+   "arguments": {
+    "body": "Bracket",
+    "mass": 60,
+    "com": [
+     40,
+     20,
+     null
+    ]
+   },
+   "expect": "now { mass, com }, mass { target 60, off (negative), offPct }, com { target [40, 20, null], off, distance }, met false, ballast { mass, centre, insideBody, note }"
+  },
+  {
+   "tool": "mass_target",
+   "arguments": {
+    "body": "Bracket",
+    "mass": 0
+   },
+   "expect": "REFUSED invalid_input: mass is the target in grams, over 0 (it divided by zero before this pass)"
+  },
+  {
+   "tool": "mass_ballast",
+   "arguments": {
+    "body": "Bracket",
+    "mass": 45,
+    "diameter": 8
+   },
+   "expect": "a plan only: pockets [{ at, diameter 8, depth, fill }], before and after { mass, com }, fillMass, massOff, minWall 1.2 (the spec's), printing { pauseAt }, cut false, next"
+  },
+  {
+   "tool": "mass_ballast",
+   "arguments": {
+    "body": "Bracket",
+    "mass": 45,
+    "diameter": 8,
+    "cut": true
+   },
+   "expect": "NEW: REFUSED invalid_state — Bracket is a PartDesign Body, FreeCAD would rebuild it and lose the pockets; names part_transform { copy: true }; the Body is unchanged"
+  },
+  {
+   "tool": "hw_embed",
+   "arguments": {
+    "body": "Bracket",
+    "kind": "magnet",
+    "size": "6x2",
+    "at": [
+     40,
+     10,
+     3
+    ]
+   },
+   "expect": "NEW: REFUSED invalid_state for the same reason, naming the plain copy"
+  },
+  {
+   "tool": "part_transform",
+   "arguments": {
+    "body": "Bracket",
+    "op": "move",
+    "by": [
+     0,
+     60,
+     0
+    ],
+    "copy": true,
+    "name": "Bracket plain"
+   },
+   "expect": "a plain Part solid (Part::Feature) copy 60 mm along y, same volume as Bracket"
+  },
+  {
+   "tool": "setup",
+   "arguments": {
+    "action": "set",
+    "id": "S1",
+    "add": [
+     "Bracket plain"
+    ]
+   },
+   "expect": "setup S1 with bodies [Bracket, Bracket plain]"
+  },
+  {
+   "tool": "hw_embed",
+   "arguments": {
+    "body": "Bracket plain",
+    "kind": "magnet",
+    "size": "6x2",
+    "at": [
+     40,
+     70,
+     3
+    ]
+   },
+   "expect": "id \"E1\", what \"6x2 magnet\", pocket { shape \"round\", size [6.4] (6 + slide 0.2 + allowance 0.2), depth 2.2, floor 3, top 5.2 }, pause { afterLayer 26, z 5.2 }, roof 4.8, least { roof 0.4, wall 0.8 }, sides, step; the copy's volume is lower by π·3.2²·2.2 = 70.77 and stays so after doc_recompute"
+  },
+  {
+   "tool": "hw_embed",
+   "arguments": {
+    "body": "Bracket plain",
+    "kind": "magnet",
+    "size": "6x2",
+    "at": [
+     40,
+     70,
+     8.5
+    ]
+   },
+   "expect": "REFUSED invalid_input: the pocket comes out of the part (or no roof), saying to lower at's z"
+  },
+  {
+   "tool": "hw_embed_list",
+   "arguments": {
+    "body": "Bracket plain"
+   },
+   "expect": "embeds [{ id E1, what, pocket, floor 3, top 5.2, layer 26, roof 4.8, note }]"
+  },
+  {
+   "tool": "hw_pauses",
+   "arguments": {
+    "body": "Bracket plain"
+   },
+   "expect": "layerHeight 0.2, firstLayer 0.2, pauses [{ afterLayer 26, z 5.2, ids [E1], note \"Insert the 6x2 magnet\", merged false }], count 1"
+  },
+  {
+   "tool": "hw_unembed",
+   "arguments": {
+    "body": "Bracket plain",
+    "id": "E9"
+   },
+   "expect": "REFUSED not_found, listing E1"
+  },
+  {
+   "tool": "hw_unembed",
+   "arguments": {
+    "body": "Bracket plain",
+    "id": "E1"
+   },
+   "expect": "removed \"E1\", pocket \"filled\", solids 1; the volume is back"
+  },
+  {
+   "tool": "mass_ballast",
+   "arguments": {
+    "body": "Bracket plain",
+    "mass": 45,
+    "diameter": 8,
+    "cut": true
+   },
+   "expect": "cut true, sound true, pockets cut into the plain copy (closed: not visible from outside), after.mass nearer 45 than before.mass, step; mass_properties then lists encased ballast"
+  },
+  {
+   "tool": "mass_properties",
+   "arguments": {
+    "body": "Bracket plain"
+   },
+   "expect": "encased [{ what \"ballast\", count, mass }], bodyMass, mass = bodyMass + the fill"
+  },
+  {
+   "tool": "mass_calibrate",
+   "arguments": {
+    "body": "Bracket",
+    "grams": 1
+   },
+   "expect": "REFUSED invalid_input: too far from the estimate to be the same part"
+  },
+  {
+   "tool": "slice",
+   "arguments": {
+    "body": "Bracket"
+   },
+   "expect": "gcode (a path in the session's folder), time, filament, layers, setup \"Print (S1)\" — or REFUSED unavailable saying which slicer or which add-on (Agent Link for OrcaSlicer) is missing; may answer with a job id"
+  },
+  {
+   "tool": "slicer_presets",
+   "arguments": {
+    "action": "list",
+    "slicer": "orcaslicer",
+    "kind": "machine"
+   },
+   "expect": "the machine presets on this computer and saved bundles, or REFUSED unavailable (no orcaslicer presets here)"
+  },
+  {
+   "tool": "slice_with",
+   "arguments": {
+    "body": "Bracket",
+    "slicer": "orcaslicer",
+    "project": true,
+    "name": "bracket-orca"
+   },
+   "expect": "gcode, time, filament, project (a .3mf path), profiles \"written\" (minimal ones from the setup), note — or REFUSED unavailable naming the slicers present"
+  },
+  {
+   "tool": "slice_read",
+   "arguments": {
+    "path": "bracket-orca.3mf"
+   },
+   "expect": "the project read back: slicer, presets, plates — or REFUSED not_found when the step above was refused"
+  },
+  {
+   "tool": "printer_list",
+   "arguments": {},
+   "expect": "printers [] on a fresh session folder (or those the person kept; never a key)"
+  },
+  {
+   "tool": "printer_status",
+   "arguments": {},
+   "expect": "REFUSED not_found: no printer kept yet, naming printer_add (when none is kept)"
+  },
+  {
+   "tool": "printer_pause",
+   "arguments": {
+    "confirm": "pause nothing"
+   },
+   "expect": "REFUSED: no printer kept (or, with one kept, confirm must be \"pause <name>\" word for word). Never start, pause or stop a print in a test"
+  },
+  {
+   "tool": "part_primitive",
+   "arguments": {
+    "kind": "box",
+    "size": [
+     100,
+     60,
+     3
+    ],
+    "name": "Plate"
+   },
+   "expect": "a Part::Box: volume 18000"
+  },
+  {
+   "tool": "part_primitive",
+   "arguments": {
+    "kind": "cylinder",
+    "radius": 4,
+    "height": 3,
+    "at": [
+     20,
+     30,
+     0
+    ],
+    "name": "Plate hole"
+   },
+   "expect": "volume 150.8"
+  },
+  {
+   "tool": "part_boolean",
+   "arguments": {
+    "op": "cut",
+    "base": "Plate",
+    "tools": [
+     "Plate hole"
+    ]
+   },
+   "expect": "volume 17849.20"
+  },
+  {
+   "tool": "setup",
+   "arguments": {
+    "action": "add",
+    "type": "cut",
+    "bodies": [
+     "Plate"
+    ],
+    "settings": {
+     "machine": "laser",
+     "thickness": 3,
+     "material": "acrylic",
+     "sheet": [
+      300,
+      200
+     ]
+    }
+   },
+   "expect": "added S2, type cut, name \"Cut\""
+  },
+  {
+   "tool": "cut_check",
+   "arguments": {
+    "body": "Plate"
+   },
+   "expect": "verdict \"pass\", machine \"laser\", material \"acrylic\", sheet.thickness 3, profile { size [100, 60], holes 1 }, least { hole 1.5, web 1.5 … }, assumed { kerf … }; no unjudged (the setup has a sheet)"
+  },
+  {
+   "tool": "cut_check",
+   "arguments": {
+    "body": "Bracket"
+   },
+   "expect": "REFUSED invalid_state: Bracket is in no cut setup, giving the setup add call"
+  },
+  {
+   "tool": "cut_export",
+   "arguments": {
+    "body": "Plate",
+    "copies": 4,
+    "name": "plate-cut"
+   },
+   "expect": "files.dxf { path, readBack, layers [OUTER, HOLES], matches true }, files.svg, placed { Plate: 4 }, sheet [300, 200], thickness 3, entities (4 outlines and 4 CIRCLEs: the outlines as LINEs or POLYLINEs), layout \"FreeCAD's BIM Nest\" (or \"rows: …\" with the reason), compensated false"
+  },
+  {
+   "tool": "hw_hole",
+   "arguments": {
+    "body": "Plate",
+    "kind": "clearance",
+    "size": "M3",
+    "at": [
+     80,
+     30,
+     3
+    ]
+   },
+   "expect": "NEW: REFUSED invalid_state when Plate is a parametric Part object (a Part::Cut or Part::Box): names part_transform { copy: true } and pd_clone; Plate's volume is unchanged. (If part_boolean left Plate a plain Part::Feature, the hole is cut instead: route \"Part solid\", removed 101.79 with the 0.2 allowance.)"
+  },
+  {
+   "tool": "thread_cut",
+   "arguments": {
+    "body": "Plate",
+    "faces": {
+     "near": [
+      24,
+      30,
+      1.5
+     ]
+    },
+    "size": "M10"
+   },
+   "expect": "NEW: REFUSED invalid_state the same way for a parametric Plate (else: route \"Part solid\", holeDiameter 8.5)"
+  },
+  {
+   "tool": "part_primitive",
+   "arguments": {
+    "kind": "box",
+    "size": [
+     60,
+     40,
+     20
+    ],
+    "name": "Block"
+   },
+   "expect": "volume 48000"
+  },
+  {
+   "tool": "part_primitive",
+   "arguments": {
+    "kind": "box",
+    "size": [
+     30,
+     20,
+     8
+    ],
+    "at": [
+     15,
+     10,
+     12
+    ],
+    "name": "Pocket tool"
+   },
+   "expect": "volume 4800"
+  },
+  {
+   "tool": "part_boolean",
+   "arguments": {
+    "op": "cut",
+    "base": "Block",
+    "tools": [
+     "Pocket tool"
+    ]
+   },
+   "expect": "volume 43200: the block with a rectangular pocket of CAM_Walkthrough_for_the_Impatient.md"
+  },
+  {
+   "tool": "setup",
+   "arguments": {
+    "action": "add",
+    "type": "mill",
+    "bodies": [
+     "Block"
+    ],
+    "settings": {
+     "axes": "3",
+     "minTool": 3,
+     "material": "aluminium"
+    }
+   },
+   "expect": "added S3, type mill"
+  },
+  {
+   "tool": "mill_check",
+   "arguments": {
+    "body": "Block"
+   },
+   "expect": "verdict \"pass with warnings\" or \"fix\": directions [\"+z\"], tool 3, reach 20 (assumed), material \"aluminium\", stock [64, 44, 22] (assumed), a finding for the pocket's four sharp inside corners (tighter than the 1.5 mm the tool leaves), leastWall, assumed { reach, material?, stock }"
+  },
+  {
+   "tool": "mill_export",
+   "arguments": {
+    "body": "Block",
+    "name": "block-mill"
+   },
+   "expect": "step { path …block-mill.step, volumeDiff under 0.01, solids 1 }, setupSheet { path …-setup.html, by \"FreeCAD CAM's Sanity report, Make's mill check added\" }, camJob { label \"Block mill\", reused false, note }: a CAM Job with a 64 x 44 x 22 stock and a 3 mm tool is now in the document, in THIS document even if another is open (fixed in this pass); health may list the Job's objects"
+  },
+  {
+   "tool": "mill_export",
+   "arguments": {
+    "body": "Block",
+    "name": "block-mill-2"
+   },
+   "expect": "camJob.reused true: no second Job"
+  },
+  {
+   "tool": "mill_export",
+   "arguments": {
+    "body": "Block",
+    "name": "block-mill-own",
+    "cam": false
+   },
+   "expect": "setupSheet.by \"Workshop Make (FreeCAD's CAM not used)\", a Markdown file; nothing added to the document"
+  },
+  {
+   "tool": "fea_frame",
+   "arguments": {
+    "members": [
+     {
+      "name": "Beam",
+      "from": [
+       0,
+       0,
+       0
+      ],
+      "to": [
+       1000,
+       0,
+       0
+      ],
+      "section": {
+       "kind": "rect",
+       "b": 50,
+       "d": 100
+      }
+     }
+    ],
+    "material": "Steel-Generic",
+    "supports": [
+     {
+      "at": [
+       0,
+       0,
+       0
+      ],
+      "kind": "pinned"
+     },
+     {
+      "at": [
+       1000,
+       0,
+       0
+      ],
+      "kind": "roller"
+     }
+    ],
+    "loads": [
+     {
+      "member": "Beam",
+      "w": 10
+     }
+    ],
+    "deflectionLimit": 360,
+    "name": "beam"
+   },
+   "expect": "a simply supported beam, 10 N/mm: members[0] { member \"Beam\", length 1000, deflectionMm near 0.156 (5wL⁴/384EI with E 200 GPa, I 4.167e6 mm⁴; shear adds a little), spanOverDeflection near 6400, deflectionOk true, axialBendingMPa about ±15 }, supports reactionN z near 5000 each, loadTotalN [0, 0, -10000] — or REFUSED unavailable (no ccx) / not_found (no card called Steel-Generic: material_list finds one with a Young's modulus); may answer with a job id"
+  },
+  {
+   "tool": "fea_frame",
+   "arguments": {
+    "members": [
+     {
+      "name": "Beam",
+      "from": [
+       0,
+       0
+      ],
+      "to": [
+       1000,
+       0,
+       0
+      ],
+      "section": {
+       "kind": "rect",
+       "b": 50,
+       "d": 100
+      }
+     }
+    ],
+    "material": "Steel-Generic",
+    "supports": [
+     {
+      "at": [
+       0,
+       0,
+       0
+      ],
+      "kind": "fixed"
+     }
+    ]
+   },
+   "expect": "REFUSED invalid_input: members[0].from is [x, y, z] (it was a crash before this pass); with no ccx the unavailable refusal comes first"
+  }
+ ],
+ "notCovered": [
+  "printer_add, printer_send, printer_stop: they need a real printer on the network and the person's word; printer_list, printer_status and printer_pause are called only for their refusals",
+  "slice_open: it opens the slicer's window for the person (run it by hand after slice_with wrote the .3mf)",
+  "slicer_presets use / export / import / fetch: they need the person's own presets by name (list them first) and, for fetch, the network",
+  "thread_identify { scan }: needs ScanRuler-FreeCAD and a scanned thread",
+  "thread_cut mode modelled: slow and its volume is the helix's (tests/make/test_thread.py covers it, in a Body and in a plain solid)",
+  "hw_hole insert and magnet kinds, sketch and face inputs (tests/make/test_pdhole.py and test_stem_findings.py cover them)",
+  "dfm_check waive and part_review waive: they write a record from a tool listed as a read (see the findings)",
+  "fea_frame bodies: needs box-like BIM members",
+  "mass_calibrate with a real weight: needs a weighed print"
+ ]
+}

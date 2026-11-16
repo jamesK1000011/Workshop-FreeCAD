@@ -62,7 +62,10 @@ def pick_cut(enums, kind):
     enums = list(enums or [])
     std = CUT_STANDARD.get(kind)
     if std:
-        hit = next((e for e in enums if e == std or e.startswith(std + " ")), None)
+        # The standard's own name first: FreeCAD lists the cuts in the order
+        # it read their files, so "ISO 4762 + 7089" (the head with a washer:
+        # a wider counterbore) may come before "ISO 4762".
+        hit = std if std in enums else next((e for e in enums if e.startswith(std + " ")), None)
         if hit:
             return hit, True
     plain = CUT_PLAIN.get(kind, "None")

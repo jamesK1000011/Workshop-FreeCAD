@@ -22,7 +22,9 @@ class View:
         self.Label, self.Scale, self.circles = name, 1.0, circles
     def getEdgeByIndex(self, i):
         if i >= len(self.circles): raise IndexError(i)
-        return types.SimpleNamespace(Curve=Circle(*self.circles[i]))
+        # A whole circle: its parameters run a full turn (a diameter is
+        # called out only on a circle drawn all the way round).
+        return types.SimpleNamespace(Curve=Circle(*self.circles[i]), FirstParameter=0.0, LastParameter=6.283185307179586)
     def getVertexByIndex(self, i):
         raise IndexError(i)
 class Dim:

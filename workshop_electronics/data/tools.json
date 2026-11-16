@@ -5,7 +5,7 @@
  "entries": {
   "kicad_import": {
    "group": "electronics",
-   "description": "Read a KiCad board (.kicad_pcb, KiCad 5 to 9; parsed here, KiCad not needed): the board as a solid from its Edge.Cuts outline and thickness, cut-outs and mounting holes through it, and its tall components as boxes over their courtyards — heights from heights { ref: mm }, the footprint's STEP model where this computer has it, or a Height property; none known, none made (noHeight lists them). minHeight (3 mm) drops the low ones. Centred on the origin unless centre: false (KiCad's own coordinates, y turned up). Gives the edge connectors found, which board_enclosure opens the walls for.",
+   "description": "Read a KiCad board into the document (.kicad_pcb, KiCad 5 to 9; the file is parsed here, KiCad is not needed). path (required): the file's full path. It makes the board as a solid body \"PCB <name>\" from its Edge.Cuts outline and thickness, with cut-outs and mounting holes through it, and each tall component as a box over its courtyard, a body each. A component's height comes from heights { \"J1\": mm } given here, else the footprint's STEP model where this computer has it, else a Height property on the footprint; with none known no box is made and noHeight lists the refs. minHeight (3 mm): components under it get no box. centre: true (default) moves the board's middle to the origin (moved says by how much); centre: false keeps KiCad's own coordinates with y turned up. name: the board's name (the file's when left out). The bodies are plain Part solids, and every import adds a new board and components: delete the old ones (object_delete) before importing a changed file. The board's facts (size, holes, footprints, edge connectors, the file's path) are kept with the document for board_enclosure and pcb_order_package. Refused: path is not a file; the file is not a board KiCad 5 to 9 wrote; no closed Edge.Cuts outline. A big board with hundreds of footprints takes several seconds. Reply: board (its label), size [x, y], thickness, copperLayers, holes [{ at, d, kind }], footprints (how many), tall [{ ref, value, side, height, from }], edgeConnectors (what board_enclosure opens the walls for), bodies, noHeight { count, refs, note }, openOutline (pieces of Edge.Cuts that join nothing), moved, step. A changing call's reply may also carry health { ok, verdict, todo } from the shared check.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -32,11 +32,15 @@
    },
    "changes": true,
    "source": "Agent Link for FreeCAD 1f8f209 (moved to Workshop Electronics)",
-   "date": "2026-11-14"
+   "date": "2026-11-14",
+   "workbench": "PartWorkbench",
+   "commands": [
+    "Workshop_Electronics_ImportBoard"
+   ]
   },
   "board_enclosure": {
    "group": "electronics",
-   "description": "An enclosure round an imported board, placed round it: standoffs under its mounting holes (the screw from the hole size), the standoff height over the underside's parts, headroom over the tallest part, openings in the walls for the edge connectors kicad_import found (skip: [refs] leaves some closed; openings adds more, as gen_part board_box takes them), and a lid laid beside. Holes take the printer's fit calibration. wall, floor, radius, lid, lip, clearance, gap and margin as board_box's.",
+   "description": "An enclosure round a board that kicad_import read, placed round it where it stands: two new bodies, the box and its lid (the lid laid beside, printed top down — turn it over about X to put it on). board: the board's label (may be left out when one is imported). It puts a standoff under each mounting hole (screw from the hole's size unless screw says M2, M2.5, M3 …), makes the standoff height clear the underside's parts and the headroom the tallest part on top (standoff and headroom mm override), and opens the walls for the edge connectors kicad_import found: skip [refs] leaves some closed, openings [{ side: front|back|left|right, at, width, height, z }] adds more as gen_part's board_box takes them. wall, floor, radius, lid, lip, clearance, gap (board edge to walls) and margin (round each opening), all mm, as board_box's; name: the box's label. Holes take the printer's fit calibration (fit calibrate; 0.2 mm when none is kept, printerFit says). Refused: no board imported yet (kicad_import first; or gen_part { generator: \"board_box\" } takes the sizes by hand); several boards and none named; a name that is not an imported board; a value out of board_box's range. Each call adds a new box and lid: delete the old pair before making it again. Reply: board, bodies [box, lid], outside [x, y, z], standoff, headroom, standoffs { screw, at, diameter, pilot, pilotDepth }, openings [{ …, for: the connector's ref or \"given\" }], printerFit, sound { label: true|false }, openingHeightGuessed { refs, mm, note } (connectors with no known height got a 5 mm opening: give heights in kicad_import), step. A changing call's reply may also carry health { ok, verdict, todo } from the shared check.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -97,11 +101,12 @@
    },
    "changes": true,
    "source": "Agent Link for FreeCAD 1f8f209 (moved to Workshop Electronics)",
-   "date": "2026-11-14"
+   "date": "2026-11-14",
+   "workbench": "PartDesignWorkbench"
   },
   "pcb_order_package": {
    "group": "electronics",
-   "description": "Package a board for ordering: files (full paths) sorted into Gerbers, drill, BOM and placement (CPL); an upload-ready <name>_gerbers.zip; and <name>_order.zip with it, the assembly files and ORDER.md — the board's size (from an imported board, size, or read from the outline Gerber), copper layers, thickness, quantity and what to upload where, for vendor jlcpcb, pcbway or oshpark. Runs kicad-cli's DRC on kicadPcb (or the imported board's file) when kicad-cli is on PATH, and says so when it is not. Nothing is uploaded or ordered.",
+   "description": "Package a board's fabrication files for ordering; nothing is uploaded, ordered or paid for — that is the person's to do. files (required): full paths of the Gerbers, drill files, BOM and placement (CPL) files KiCad's fabrication outputs wrote; they are sorted by kind. vendor jlcpcb | pcbway | oshpark (the order sheet says what to upload where for that house). The board's size comes from board (an imported board's label), else size [x, y] mm, else it is read from the outline Gerber; layers (copper), thickness mm, quantity; name: the files' stem. Writes to the session's folder: <name>_gerbers.zip (upload-ready), <name>_order.zip (that, the assembly files and the order sheet) and <name>_ORDER.md. When kicad-cli is on this computer's PATH it runs KiCad's design rule check on kicadPcb (a .kicad_pcb path; else the imported board's own file) and reports it under drc { errors, warnings, unconnected, first }; otherwise drc says why it was not run — an order is not checked until it is. Refused: a path in files that is not a file; no Gerber among them; an unknown vendor; a board that was not imported. Changes nothing in the document. Reply: gerberZip, package, orderSheet (paths), vendor, board { size, layers, thickness }, files { kind: how many }, drc, warnings, note.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -151,11 +156,12 @@
    },
    "changes": false,
    "source": "Agent Link for FreeCAD 1f8f209 (moved to Workshop Electronics)",
-   "date": "2026-11-14"
+   "date": "2026-11-14",
+   "workbench": "WorkshopMakeWorkbench"
   },
   "printed_channel": {
    "group": "electronics",
-   "description": "Cut a channel inside a body along path [[x,y,z] …] for wire or a conductive trace: section { shape: round|square, size mm }, corners rounded to bend mm; an end on the part's face opens there, an end inside stops blind. fill: wire (the channel takes the printer's hole calibration; gives the AWG wire's diameter, whether it fits and its copper resistance), filament (also makes the trace as its own body, for a second material; resistance from material carbon-pla | electrifi or resistivity Ω·cm), paint. A channel must stay inside the part between its ends.",
+   "description": "Cut a channel inside a body along a path for a wire or a conductive trace. path (required): [[x, y, z] …], two or more points in document coordinates, each at least the section's size from the one before; an end on the part's face opens there (it is carried 1 mm past the face), an end inside stops blind; between its ends the channel must stay inside the part. section { shape: round | square, size: 0.4 to 20 mm (the diameter or side; 2 when left out) }; corners are rounded to bend mm (the section's size or 2, whichever is more); a turn of over 170° is refused. fill: wire (default: the channel takes the printer's hole calibration; awg 10 to 40, 22 when left out, gives the wire's diameter, whether it fits with 0.4 mm to spare, and its copper resistance), filament (also makes the trace as its own body \"<body> trace\" for a second material unless trace: false; resistance from material carbon-pla | electrifi or resistivity Ω·cm), or paint (resistance the same way). The channel is written into the body as a plain shape, so the body must be a plain Part solid (Part::Feature — an enclosure from board_enclosure or gen_part, an import, a part_transform copy): a PartDesign Body or a parametric Part object is refused, naming the plain copy to make, because FreeCAD would rebuild it and lose the channel. Refused too: the sweep fails (fewer, longer segments or a larger bend), the channel cuts nothing (the path is outside the part), or it leaves the part unsound (move the path off the faces it grazes). Face and edge numbers of the body change. Reply: body, bodies (the trace too), length mm, section { shape, size, areaMm2 }, ends [open | blind, …], bend, removed mm³, sound, conductor { fill, resistivityOhmCm, ohms, note, wire { awg, diameter, ohms, channelAtLeast, fits, note } }, printerFit, step. A printed trace reads several times higher across layers than the figure given. A changing call's reply may also carry health { ok, verdict, todo } from the shared check.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -206,7 +212,12 @@
    "changes": true,
    "source": "Agent Link for FreeCAD 1f8f209 (moved to Workshop Electronics)",
    "date": "2026-11-14",
-   "pathIsCurve": true
+   "pathIsCurve": true,
+   "workbench": "PartWorkbench",
+   "commands": [
+    "Part_Sweep",
+    "Part_Cut"
+   ]
   }
  }
 }

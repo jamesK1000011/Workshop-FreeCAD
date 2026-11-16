@@ -156,6 +156,11 @@ def hole(doc, body, kind, size="M3", at=None, direction="-z", depth="through", f
                 "sound": s["ok"], **({"problems": s["problems"]} if not s["ok"] else {})}
     if sk is not None:
         raise Refused("sketch: a sketch's circles make holes in a PartDesign Body only; give at for a plain Part solid.")
+    why = geo.rebuilt(o, "a hole")
+    if why:
+        # A Part::Box, a boolean, an extrusion: the hole was cut, answered,
+        # and gone at the same call's recompute.
+        raise Refused(why + " Or pd_clone it into a PartDesign Body, where the hole is FreeCAD's own editable Hole.", "invalid_state")
     bb = o.Shape.BoundBox
     d = bb.DiagonalLength if depth == "through" else float(depth)
     try:
@@ -302,7 +307,8 @@ def spec_set(doc, spec=None, clear=False):
         elif k in SPEC_KEYS and isinstance(v, (int, float)):
             out[k] = v
         else:
-            raise Refused(f"spec.{k}: minWall, massMin or massMax (numbers, mm and g).")
+            raise Refused(f"spec.{k}: not a limit, or not a number — the limits are minWall (mm), massMin and massMax (g), minSafety (a safety factor) "
+                          f"and minClearance (mm); null drops one.")
     records.write(doc, "spec", out)
     return out
 

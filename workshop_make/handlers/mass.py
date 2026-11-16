@@ -302,6 +302,8 @@ def mass_target(s, a):
     Mt = a.get("mass")
     if Mt is None and Ct is None:
         raise ToolError("invalid_input", "mass (g) and/or com ([x, y, z] mm, null for an axis that does not matter): the target.")
+    if Mt is not None and not (isinstance(Mt, (int, float)) and Mt > 0):
+        raise ToolError("invalid_input", "mass: the target in grams, over 0.")
     out = {"body": o.Label, "now": {"mass": _r(M, 2), "com": _vl(C)}}
     if Mt is not None:
         out["mass"] = {"target": Mt, "off": _r(M - Mt, 2), "offPct": _r((M - Mt) / Mt * 100, 1)}
@@ -462,6 +464,9 @@ def mass_ballast(s, a):
     top = max(pk["lo"] + pk["h"] for pk in chosen)
     out["printing"] = {"pauseAt": _r(top, 2), "note": "Closed pockets: pause at the layer that reaches pauseAt, fill them, and print over. Weigh the fill for each pocket."}
     if a.get("cut"):
+        why = geo.rebuilt(o, "the pockets")
+        if why:
+            raise ToolError("invalid_state", why + " (cut: false still lays the pockets out.)")
         o.Shape = cut
         s.doc.recompute()
         s.meta.setdefault(o.Label, {})["ballast"] = meta["ballast"]

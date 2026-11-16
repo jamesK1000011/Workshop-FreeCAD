@@ -1,0 +1,266 @@
+{
+ "tutorial": "No FreeCAD wiki tutorial covers a KiCad board import or an enclosure round it (Workshop Electronics is this add-on's own; FreeCAD's KiCad route is the external KicadStepUp). The model uses the add-on's own test board, whose sizes are known.",
+ "reference": null,
+ "expected": {
+  "board": {
+   "size": [
+    50,
+    30
+   ],
+   "thickness": 1.6,
+   "copperLayers": 2,
+   "volume_mm3": 2365.1,
+   "tall": [
+    "C1",
+    "J1"
+   ],
+   "noHeight": [
+    "R1"
+   ]
+  },
+  "enclosure": {
+   "standoffs": 2,
+   "screw": "M3",
+   "openings": [
+    "front"
+   ],
+   "headroom": 13.0
+  },
+  "channel": {
+   "awg22_mm": 0.644,
+   "carbonPlaOhmCm": 30.0,
+   "length_mm": "44 to 48"
+  },
+  "source": "tests/electronics/test_electronics.py of this add-on"
+ },
+ "calls": [
+  {
+   "tool": "doc_new",
+   "arguments": {
+    "name": "ElectronicsModel"
+   },
+   "expect": "a new empty document"
+  },
+  {
+   "tool": "kicad_import",
+   "arguments": {
+    "path": "<session folder>/test.kicad_pcb"
+   },
+   "expect": "FIXTURE: write the BOARD text of tests/electronics/test_electronics.py to that path first (a 50 x 30 x 1.6 mm two-layer board, one corner rounded r 3, two M3 mounting holes, a USB-C connector J1 over the near edge, a tall capacitor C1, R1 with no height). board \"PCB test\", size [50, 30], thickness 1.6, copperLayers 2, holes 3 (two 3.2 mm, one 2.2 mm), tall refs C1 and J1, noHeight.refs including R1, edgeConnectors (J1 on the front), bodies [PCB test, C1 …, J1 …], moved (the offset that put the board's middle on the origin; -125 in x); the board's volume 50·30·1.6 − (9 − π·9/4)·1.6 − π·(2·1.6² + 1.1²)·1.6 ≈ 2365.9 within 1"
+  },
+  {
+   "tool": "kicad_import",
+   "arguments": {
+    "path": "<session folder>/missing.kicad_pcb"
+   },
+   "expect": "REFUSED not_found: path is not a file"
+  },
+  {
+   "tool": "kicad_import",
+   "arguments": {
+    "path": "<session folder>/notes.kicad_pcb"
+   },
+   "expect": "FIXTURE: a file holding only \"(not_a_board)\". REFUSED invalid_input: \"notes.kicad_pcb: not a KiCad board …\" (it was an error without a refusal before this pass)"
+  },
+  {
+   "tool": "board_enclosure",
+   "arguments": {},
+   "expect": "bodies [box, lid] round the board, standoffs { screw \"M3\", at 2 places }, openings [{ side \"front\", for \"J1\" }], headroom 13 (the 11 mm capacitor + 2), standoff, outside, sound both true, printerFit"
+  },
+  {
+   "tool": "board_enclosure",
+   "arguments": {
+    "board": "PCB nothing"
+   },
+   "expect": "REFUSED not_found, listing PCB test"
+  },
+  {
+   "tool": "printed_channel",
+   "arguments": {
+    "body": "<the enclosure box's label from the reply above>",
+    "path": [
+     [
+      -20,
+      -19,
+      1
+     ],
+     [
+      20,
+      -19,
+      1
+     ]
+    ],
+    "section": {
+     "shape": "round",
+     "size": 1.2
+    },
+    "fill": "wire",
+    "awg": 26
+   },
+   "expect": "pick a path inside the box's floor or a wall from its outside and the board's box (the floor is 2 mm thick: a 1.2 mm channel does not fit with the 0.2 allowance — expect either a channel with ends [blind, blind], removed > 0, conductor.wire { awg 26, diameter 0.405, fits, ohms }, or REFUSED failed \"leaves the part unsound\" / \"cut nothing\" saying to move the path). The box is a plain Part solid, so it is not refused as parametric"
+  },
+  {
+   "tool": "part_primitive",
+   "arguments": {
+    "kind": "box",
+    "size": [
+     60,
+     30,
+     20
+    ],
+    "at": [
+     100,
+     0,
+     0
+    ],
+    "name": "Block"
+   },
+   "expect": "a Part::Box, volume 36000"
+  },
+  {
+   "tool": "printed_channel",
+   "arguments": {
+    "body": "Block",
+    "path": [
+     [
+      100,
+      15,
+      10
+     ],
+     [
+      130,
+      15,
+      10
+     ],
+     [
+      130,
+      30,
+      10
+     ]
+    ],
+    "section": {
+     "shape": "round",
+     "size": 2.0
+    },
+    "fill": "filament"
+   },
+   "expect": "NEW: REFUSED invalid_state — Block is a parametric object (Part::Box): FreeCAD would rebuild it and lose the channel; names part_transform { copy: true }. Volume still 36000"
+  },
+  {
+   "tool": "part_transform",
+   "arguments": {
+    "body": "Block",
+    "op": "move",
+    "by": [
+     0,
+     60,
+     0
+    ],
+    "copy": true,
+    "name": "Block plain"
+   },
+   "expect": "a plain Part solid copy, 60 mm along y"
+  },
+  {
+   "tool": "printed_channel",
+   "arguments": {
+    "body": "Block plain",
+    "path": [
+     [
+      100,
+      75,
+      10
+     ],
+     [
+      130,
+      75,
+      10
+     ],
+     [
+      130,
+      90,
+      10
+     ]
+    ],
+    "section": {
+     "shape": "round",
+     "size": 2.0
+    },
+    "fill": "filament",
+    "awg": 22
+   },
+   "expect": "ends [open, open], length between 44 and 48 (the 1 mm run-outs and the rounded corner), bodies [Block plain, Block plain trace], conductor { fill \"filament\", resistivityOhmCm 30, ohms ≈ 30 x (length/10) / (π x 0.01), wire { awg 22, diameter 0.644 } }, sound true; the channel is still there after a recompute (volume lower by removed)"
+  },
+  {
+   "tool": "printed_channel",
+   "arguments": {
+    "body": "Block plain",
+    "path": [
+     [
+      100,
+      75,
+      4
+     ],
+     [
+      160,
+      75,
+      4
+     ]
+    ],
+    "awg": 99
+   },
+   "expect": "REFUSED invalid_input: awg is 10 to 40 — said before anything is cut (it was said after the cut before this pass)"
+  },
+  {
+   "tool": "printed_channel",
+   "arguments": {
+    "body": "Block plain",
+    "path": [
+     [
+      300,
+      300,
+      300
+     ],
+     [
+      320,
+      300,
+      300
+     ]
+    ]
+   },
+   "expect": "REFUSED failed: the channel cut nothing, the path runs outside the part"
+  },
+  {
+   "tool": "pcb_order_package",
+   "arguments": {
+    "files": [
+     "<session folder>/test-F_Cu.gbr",
+     "<session folder>/test-B_Cu.gbr",
+     "<session folder>/test-Edge_Cuts.gbr",
+     "<session folder>/test.drl",
+     "<session folder>/test-bom.csv",
+     "<session folder>/test-pos.csv"
+    ],
+    "board": "PCB test",
+    "vendor": "jlcpcb"
+   },
+   "expect": "FIXTURE: the six files as tests/electronics/test_electronics.py test_3_order writes them (its GERBER text; \"x\" for the others). gerberZip, package (ORDER.md inside), orderSheet, vendor \"JLCPCB\" or its name, board { size [50, 30], layers 2, thickness 1.6 }, files { kind: count }, drc (a result with kicad-cli on PATH, else \"not run: …\")"
+  },
+  {
+   "tool": "pcb_order_package",
+   "arguments": {
+    "files": [
+     "<session folder>/test-bom.csv"
+    ],
+    "vendor": "jlcpcb"
+   },
+   "expect": "REFUSED invalid_input: no Gerber among the files"
+  }
+ ],
+ "notCovered": [
+  "kicad_import heights, minHeight, centre: false",
+  "board_enclosure skip and openings",
+  "pcb_order_package for pcbway and oshpark, and its DRC (needs kicad-cli on PATH)",
+  "printed_channel fill paint and a square section"
+ ]
+}

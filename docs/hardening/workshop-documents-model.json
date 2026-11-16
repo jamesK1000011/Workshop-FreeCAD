@@ -1,0 +1,331 @@
+{
+ "tutorial": "Basic_TechDraw_Tutorial.md: a page from the default template, a view of the part, its length dimensions, then a projection group at 2:1 — done here by drawing_make in one call, on the tutorial's own part.",
+ "reference": "FreeCAD/Examples: Basic_TechDraw_Tutorial_Example_Files/Basic_TechDraw_Tutorial.fcstd",
+ "expected": {
+  "partWidth_mm": 53,
+  "source": "the tutorial's text (\"the work piece is 53 mm wide\"; its isometric view reads 43.27 for the same edge, which is why drawing_make dimensions only the straight views) and Pad.Length 53 in the answer file",
+  "answerFileObjects": {
+   "PartDesign::Body": 1,
+   "TechDraw::DrawPage": 2,
+   "TechDraw::DrawViewDimension": 3,
+   "TechDraw::DrawProjGroupItem": 4
+  },
+  "drawingMake": {
+   "viewsByDefault": [
+    "front",
+    "top",
+    "right",
+    "iso"
+   ],
+   "overallDimensions": 3,
+   "tolerance_mm": 0.05
+  },
+  "patentFigures": {
+   "numeralOfTheOneBody": 10,
+   "paper": "A4 portrait"
+  },
+  "pagesAddedByThisModel": "2 by drawing_make + 2 by patent_figures (the files-only calls add none)"
+ },
+ "calls": [
+  {
+   "tool": "doc_open",
+   "arguments": {
+    "path": "<FreeCAD/Examples>/Basic_TechDraw_Tutorial_Example_Files/Basic_TechDraw_Tutorial.fcstd"
+   },
+   "expect": "the tutorial's answer file open (put the real folder in place of <FreeCAD/Examples>): one PartDesign Body (Pad 53 mm long, two Pockets, two Mirrored) and the tutorial's own two TechDraw pages (Page, Page001); errors none"
+  },
+  {
+   "tool": "session_state",
+   "arguments": {},
+   "expect": "bodies: one, the Body; note its box — one of its sizes is 53 mm (the tutorial: \"the work piece is 53 mm wide\")"
+  },
+  {
+   "tool": "drawing_make",
+   "arguments": {
+    "bodies": [
+     "Body"
+    ],
+    "name": "Tutorial part",
+    "file": "tutorial-drawing"
+   },
+   "expect": "a NEW page \"Tutorial part drawing\" beside the tutorial's two: views front, top, right, iso; paper A4 or A3 and a standard scale (the tutorial uses 2:1 on A4 for its projection group); projection and projectionFrom; page { views 4, viewsReadyIn, extentDimensions 3 (or fewer with page.notOnPage saying why), extents each { view, axis, dimension, measured, value } with one value 53, template, titleBlockEmptied, viewsInExport, exportScene [show, activate, paint, redraw, process] }; files { svg, pdf, dxf } named tutorial-drawing.*, filesFrom all \"TechDraw page\" with the window up; health ok (no view left undrawn, nothing red)"
+  },
+  {
+   "tool": "td_list",
+   "arguments": {},
+   "expect": "the new page listed with its 4 views and its dimensions (TechDraw's own objects): it is editable with the td_ tools"
+  },
+  {
+   "tool": "drawing_make",
+   "arguments": {
+    "bodies": [
+     "Body"
+    ],
+    "views": [
+     "front",
+     "top",
+     "right"
+    ],
+    "section": "front",
+    "sectionLabel": "B",
+    "holes": true,
+    "hidden": true,
+    "paper": "A3",
+    "name": "Tutorial section",
+    "file": "tutorial-section",
+    "titleBlock": {
+     "title": "Tutorial part",
+     "partNumber": "T-001",
+     "revision": "A",
+     "generalTolerance": "ISO 2768-m"
+    }
+   },
+   "expect": "another page: section { view \"front\", label \"B-B\", plane, cutFaces ≥ 1, cutLineIn (top or right) }, page.section (a TechDraw Section view in place of the plain front view), holes [] or the part's round holes with labels (\"⌀…\"), calloutsOff / holeTable where no view sees one end on, page.titleBlock listing the template keys filled (title, part number, revision, tolerance, scale, date) and titleBlockEmptied the sample texts emptied; paper \"A3\""
+  },
+  {
+   "tool": "drawing_make",
+   "arguments": {
+    "bodies": [
+     "Body"
+    ],
+    "page": false,
+    "dimensions": false,
+    "file": "tutorial-files-only"
+   },
+   "expect": "no page added (techdrawPage null, pageNote or no page key), files from \"Workshop's sheet writer: no TechDraw page\"; the document's object count is unchanged"
+  },
+  {
+   "tool": "drawing_make",
+   "arguments": {
+    "bodies": [
+     "Body"
+    ],
+    "views": [
+     "front",
+     "side"
+    ]
+   },
+   "expect": "REFUSED invalid_input: side is not a view, listing the seven"
+  },
+  {
+   "tool": "drawing_make",
+   "arguments": {
+    "bodies": [
+     "Body"
+    ],
+    "section": "iso"
+   },
+   "expect": "REFUSED invalid_input: a section is a straight view, not iso"
+  },
+  {
+   "tool": "drawing_make",
+   "arguments": {
+    "bodies": [
+     "Body"
+    ],
+    "scale": 0
+   },
+   "expect": "REFUSED invalid_input: scale is a number over 0"
+  },
+  {
+   "tool": "drawing_make",
+   "arguments": {
+    "bodies": [
+     "Body"
+    ],
+    "views": [
+     "front"
+    ],
+    "dims": [
+     {
+      "view": "top",
+      "kind": "length"
+     }
+    ]
+   },
+   "expect": "REFUSED invalid_input: dims.0 names a view that is not drawn"
+  },
+  {
+   "tool": "patent_figures",
+   "arguments": {
+    "bodies": [
+     "Body"
+    ],
+    "views": [
+     "iso",
+     "front"
+    ],
+    "name": "tutorial"
+   },
+   "expect": "CHANGES the document (a changing tool since this pass): figures [{ fig 1, view iso, page \"tutorial FIG. 1\", svg, pdf, filesFrom }, { fig 2, view front … }], numerals { Body: 10 }, list (tutorial_numerals.md); two new TechDraw pages on the blank A4 portrait template, each with one view and a balloon \"10\" without a bubble; one undo step; health present"
+  },
+  {
+   "tool": "patent_figures",
+   "arguments": {
+    "bodies": [
+     "Body"
+    ],
+    "views": [
+     "top"
+    ],
+    "name": "tutorial-files",
+    "page": false
+   },
+   "expect": "a read (reads { page: [false] }): files only, no page added, no undo step, no health"
+  },
+  {
+   "tool": "patent_figures",
+   "arguments": {
+    "bodies": [
+     "Body"
+    ],
+    "numerals": {
+     "Body": 0
+    }
+   },
+   "expect": "REFUSED invalid_input: numerals.Body is a whole number over 0"
+  },
+  {
+   "tool": "patent_draft",
+   "arguments": {
+    "title": "Bracket with mirrored pockets",
+    "field": "mechanical fasteners",
+    "name": "tutorial"
+   },
+   "expect": "draft (a .md path), numerals { Body: … } and figures 1 from the last patent_figures (the files-only one), adjoining [], note that it is a draft for an attorney"
+  },
+  {
+   "tool": "patent_draft",
+   "arguments": {
+    "title": ""
+   },
+   "expect": "REFUSED invalid_input: title is what the invention is"
+  },
+  {
+   "tool": "part_primitive",
+   "arguments": {
+    "kind": "box",
+    "size": [
+     80,
+     80,
+     3
+    ],
+    "at": [
+     -20,
+     -20,
+     -3
+    ],
+    "name": "Base plate"
+   },
+   "expect": "a second body under the part (not from the tutorial: drawing_exploded needs two)"
+  },
+  {
+   "tool": "drawing_exploded",
+   "arguments": {
+    "steps": [
+     {
+      "title": "Plate",
+      "add": [
+       "Base plate"
+      ]
+     },
+     {
+      "title": "Bracket",
+      "add": [
+       "Body"
+      ],
+      "note": "Sits on the plate."
+     }
+    ],
+    "name": "tutorial",
+    "title": "Tutorial assembly"
+   },
+   "expect": "manual (tutorial_assembly.md), steps [{ step 1, adds [{ item 1, part \"Base plate\", qty 1 }], svg }, { step 2 … }], bom 2 items with size, explode (0.6 of the largest size), route saying Workshop's own exploded shapes with routeNote (the parts are in no FreeCAD Assembly): nothing added to the document; warnings only if the Body does not lie over the plate"
+  },
+  {
+   "tool": "drawing_exploded",
+   "arguments": {
+    "steps": [
+     {
+      "add": [
+       "Body"
+      ]
+     },
+     {
+      "add": [
+       "Body"
+      ]
+     }
+    ]
+   },
+   "expect": "REFUSED invalid_input: steps.1 — Body goes in at step 1 already"
+  },
+  {
+   "tool": "drawing_exploded",
+   "arguments": {
+    "steps": [
+     {
+      "add": [
+       "Body"
+      ]
+     }
+    ],
+    "direction": "sideways"
+   },
+   "expect": "REFUSED invalid_input: direction is up or out"
+  },
+  {
+   "tool": "library_pack",
+   "arguments": {
+    "bodies": [
+     "Body"
+    ],
+    "license": "CC0-1.0",
+    "name": "tutorial-pack",
+    "provider": "documents"
+   },
+   "expect": "pack (a .zip in the session's folder), files (Body's .step and .stl, README, LICENSE), license \"CC0-1.0\", parts [{ files, size }], bytes, by \"Workshop Documents\"; no personal (no path or user name in the STEP header)"
+  },
+  {
+   "tool": "library_pack",
+   "arguments": {
+    "bodies": [
+     "Body"
+    ],
+    "license": "MIT",
+    "provider": "documents"
+   },
+   "expect": "REFUSED invalid_input: author is needed for MIT"
+  },
+  {
+   "tool": "library_pack",
+   "arguments": {
+    "bodies": [
+     "Body"
+    ],
+    "license": "CC-BY-4.0",
+    "author": "A. Maker",
+    "provider": "documents",
+    "credits": [
+     {
+      "title": "Original bracket",
+      "author": "B. Other",
+      "license": "CC-BY-NC-4.0"
+     }
+    ]
+   },
+   "expect": "REFUSED invalid_input: the credited part's non-commercial licence does not allow CC-BY-4.0"
+  },
+  {
+   "tool": "history_undo",
+   "arguments": {},
+   "expect": "takes back the last changing call's objects (the Base plate or a page, whichever was last)"
+  }
+ ],
+ "notCovered": [
+  "drawing_make dims with fits (H7) and holeFits: the tutorial's part needs its hole picked by a query first (shape_query); tests/documents/test_drawing_page_dims.py covers the placing",
+  "drawing_exploded in a FreeCAD Assembly (the Exploded View and its TechDraw page): the tutorial has no assembly; asmtd's assembly model makes one to run it on",
+  "library_pack through ScanRuler-FreeCAD's service (provider auto with that add-on installed)",
+  "the headless route (no window): PDF and SVG then come from Workshop's sheet writer and filesFrom says so"
+ ]
+}

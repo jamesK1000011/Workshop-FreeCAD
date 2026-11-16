@@ -1,0 +1,260 @@
+{
+ "tutorial": "None of FreeCAD's wiki tutorials covers these generators (they are Workshop's own: the open Gridfinity profile, 42 mm cells and 7 mm units). The model makes one of each and checks the sizes the profile and the generators' own parameter tables give.",
+ "reference": null,
+ "expected": {
+  "bin_2x1x4_size": [
+   83.5,
+   41.5,
+   32.4
+  ],
+  "baseplate_2x2_size": [
+   84,
+   84,
+   4.65
+  ],
+  "magnetBaseplate_1x2": {
+   "magnets": 8,
+   "hole": 6.2,
+   "height": 7.65
+  },
+  "projectBox": {
+   "outside": [
+    80,
+    60,
+    30
+   ],
+   "inside": [
+    76,
+    56,
+    28
+   ],
+   "pilotWith0.3": 2.8,
+   "lidHoleWith0.3": 3.7
+  },
+  "binMagnets": 8,
+  "source": "tests/parts/test_parts_agent.py and tests/make/test_tools.py of this add-on (the same figures)"
+ },
+ "calls": [
+  {
+   "tool": "doc_new",
+   "arguments": {
+    "name": "PartsModel"
+   },
+   "expect": "a new empty document"
+  },
+  {
+   "tool": "gen_make",
+   "arguments": {
+    "params": {
+     "x": 2,
+     "y": 1,
+     "units": 4,
+     "magnets": true,
+     "dividersX": 1,
+     "label": 10
+    },
+    "measure": true
+   },
+   "expect": "made false; parts[0].size [83.5, 41.5, 32.4] (2 x 42 − 0.5, 42 − 0.5, 4 x 7 + the 4.4 lip); values with every default filled in; session_state lists no body"
+  },
+  {
+   "tool": "gen_make",
+   "arguments": {
+    "params": {
+     "x": 2,
+     "y": 1,
+     "units": 4,
+     "magnets": true,
+     "dividersX": 1,
+     "label": 10
+    },
+    "name": "Bin"
+   },
+   "expect": "bodies [\"Bin\"], sound { Bin: true }, parts[0].size the same, printerFit \"none, so holes are assumed to print 0.2 mm small\", encased { what \"8 6x2 magnets\", pauseAt, note }, step; a plain Part solid (Part::Feature) at the origin; health ok"
+  },
+  {
+   "tool": "gen_make",
+   "arguments": {
+    "params": {
+     "x": 0
+    }
+   },
+   "expect": "REFUSED invalid_input: x and its range 1 to 10"
+  },
+  {
+   "tool": "gen_make",
+   "arguments": {
+    "params": {
+     "cells": 2
+    }
+   },
+   "expect": "REFUSED invalid_input: cells is not known, listing the keys"
+  },
+  {
+   "tool": "gen_make",
+   "arguments": {
+    "generator": "project_box"
+   },
+   "expect": "REFUSED invalid_input: gen_make makes gridfinity_bin only, gen_part the rest"
+  },
+  {
+   "tool": "body_check",
+   "arguments": {
+    "body": "Bin"
+   },
+   "expect": "valid, closed, one solid"
+  },
+  {
+   "tool": "gen_part",
+   "arguments": {
+    "generator": "gridfinity_baseplate",
+    "params": {
+     "x": 2,
+     "y": 2
+    },
+    "measure": true
+   },
+   "expect": "made false; parts[0].size [84, 84, 4.65]"
+  },
+  {
+   "tool": "gen_part",
+   "arguments": {
+    "generator": "gridfinity_baseplate",
+    "params": {
+     "x": 2,
+     "y": 2
+    },
+    "name": "Plate"
+   },
+   "expect": "bodies [\"Plate\"], pockets 4, movedBy (put 10 mm clear beside the bin, +X), sound true; volume well under 84 x 84 x 4.65 x 0.4 (a frame)"
+  },
+  {
+   "tool": "gen_part",
+   "arguments": {
+    "generator": "gridfinity_baseplate",
+    "params": {
+     "x": 1,
+     "y": 2,
+     "style": "magnets"
+    },
+    "name": "Magnet plate"
+   },
+   "expect": "magnets { count 8, hole 6.2 (6 mm + 0.2 with no calibration) }, parts[0].size z 7.65 (3.0 floor + 4.65)"
+  },
+  {
+   "tool": "gen_part",
+   "arguments": {
+    "generator": "gridfinity_baseplate",
+    "params": {
+     "style": "magnets",
+     "floor": 2.5
+    }
+   },
+   "expect": "REFUSED invalid_input: floor and its range 2.6 to 10"
+  },
+  {
+   "tool": "fit",
+   "arguments": {
+    "action": "calibrate",
+    "hole": 0.3,
+    "shaft": 0
+   },
+   "expect": "calibration { hole 0.3, shaft 0 }"
+  },
+  {
+   "tool": "gen_part",
+   "arguments": {
+    "generator": "project_box",
+    "params": {
+     "length": 80,
+     "width": 60,
+     "height": 30,
+     "bosses": true
+    },
+    "name": "Box"
+   },
+   "expect": "bodies [\"Box\", \"Box lid\"], printerFit \"calibrated\", outside [80, 60, 30], inside [76, 56, 28], bosses { screw \"M3\", pilot 2.8 (2.5 + 0.3), lidHole 3.7 (3.4 + 0.3), at 4 places }, lid { plate 2, lip 3, clearance 0.2, at, note }, sound both true"
+  },
+  {
+   "tool": "gen_part",
+   "arguments": {
+    "generator": "board_box",
+    "params": {
+     "board": [
+      50,
+      30
+     ],
+     "holes": [
+      [
+       4,
+       4
+      ],
+      [
+       46,
+       26
+      ]
+     ],
+     "openings": [
+      {
+       "side": "front",
+       "at": 25,
+       "width": 9,
+       "height": 3.5,
+       "z": 0
+      }
+     ]
+    },
+    "name": "Board box"
+   },
+   "expect": "bodies [\"Board box\", \"Board box lid\"], outside, inside, boardAt, standoffs { screw \"M3\", at 2 places, pilot 2.8 }, openings 1, lid, sound both true"
+  },
+  {
+   "tool": "gen_part",
+   "arguments": {
+    "params": {
+     "x": 2
+    }
+   },
+   "expect": "REFUSED invalid_input: generator is one of gridfinity_baseplate, project_box, board_box"
+  },
+  {
+   "tool": "setup",
+   "arguments": {
+    "action": "add",
+    "type": "print",
+    "bodies": [
+     "Bin"
+    ],
+    "settings": {
+     "layerHeight": 0.2
+    }
+   },
+   "expect": "added S1"
+  },
+  {
+   "tool": "hw_pauses",
+   "arguments": {
+    "body": "Bin"
+   },
+   "expect": "pauses [{ ids [\"gen_make\"], note \"Insert 8 6x2 magnets\", afterLayer, z }], count 1"
+  },
+  {
+   "tool": "mass_properties",
+   "arguments": {
+    "body": "Bin"
+   },
+   "expect": "encased [{ what \"6x2 magnets\", count 8, mass ≈ 3.39 g (8 x π·3²·2 x 7.5 g/cm³) }], bodyMass, as \"printed: …\""
+  },
+  {
+   "tool": "part_review",
+   "arguments": {
+    "body": "Bin"
+   },
+   "expect": "process \"printed\", a verdict, printing.pauses with the magnets' pause"
+  }
+ ],
+ "notCovered": [
+  "gen_part board_box openings on every side and its range refusals (tests/parts/test_parts_agent.py)",
+  "the task panels behind the same generators (Workshop_Parts_… commands): window only"
+ ]
+}

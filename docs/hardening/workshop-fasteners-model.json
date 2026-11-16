@@ -1,0 +1,266 @@
+{
+ "tutorial": "Fasteners_Workbench.md (the wiki's page for the add-on: select a hole's round edge, add a screw, change its parameters, flip, move, generate the BOM) on a plate with PartDesign Holes; the page gives no sizes, so the 80 x 40 x 10 bracket of the Make model is used. These tools are listed only when Fasteners Workbench is installed.",
+ "reference": null,
+ "expected": {
+  "hole_M6_medium_mm": 6.6,
+  "counterbore_M6": {
+   "diameter": 11.0,
+   "depth": 6.4
+  },
+  "printDefaults": {
+   "nut": [
+    1.03,
+    0.1
+   ],
+   "screw": [
+    0.99,
+    -0.05
+   ]
+  },
+  "labels": "M6x16-Screw, M3x10-Screw: per size, not counting up at each recompute",
+  "note": "The lengths and BOM wording are Fasteners Workbench's own; its source was not among this pass's references, so those expectations are from Workshop's bridge code and tests/fasteners/, not from Fasteners' tables."
+ },
+ "calls": [
+  {
+   "tool": "doc_new",
+   "arguments": {
+    "name": "FastenersModel"
+   },
+   "expect": "a new empty document"
+  },
+  {
+   "tool": "pd_body_new",
+   "arguments": {
+    "name": "Bracket"
+   },
+   "expect": "a PartDesign Body"
+  },
+  {
+   "tool": "sketch_new",
+   "arguments": {
+    "plane": "XY",
+    "name": "Base"
+   },
+   "expect": "a sketch on XY"
+  },
+  {
+   "tool": "sketch_add",
+   "arguments": {
+    "sketch": "Base",
+    "items": [
+     {
+      "kind": "rectangle",
+      "corner": [
+       0,
+       0
+      ],
+      "size": [
+       80,
+       40
+      ]
+     }
+    ]
+   },
+   "expect": "an 80 x 40 rectangle"
+  },
+  {
+   "tool": "pd_pad",
+   "arguments": {
+    "sketch": "Base",
+    "length": 10
+   },
+   "expect": "volume 32000"
+  },
+  {
+   "tool": "fit",
+   "arguments": {
+    "action": "calibrate",
+    "hole": 0,
+    "shaft": 0
+   },
+   "expect": "no printer allowance: the Holes keep FreeCAD's ISO 273 sizes"
+  },
+  {
+   "tool": "hw_hole",
+   "arguments": {
+    "body": "Bracket",
+    "kind": "clearance",
+    "size": "M6",
+    "at": [
+     10,
+     20,
+     10
+    ]
+   },
+   "expect": "a 6.6 mm through Hole"
+  },
+  {
+   "tool": "fastener_types",
+   "arguments": {
+    "query": "socket cap"
+   },
+   "expect": "count ≥ 1, types including { type \"ISO4762\", kind, what }, source naming Fasteners Workbench"
+  },
+  {
+   "tool": "fastener_types",
+   "arguments": {
+    "type": "ISO4762"
+   },
+   "expect": "sizes including \"M3\" and \"M6\", hasLength true"
+  },
+  {
+   "tool": "fastener_types",
+   "arguments": {
+    "type": "ISO4762",
+    "size": "M6"
+   },
+   "expect": "lengths (a list of the lengths M6 comes in, \"16\" among them), hole (pass and tap hole diameters)"
+  },
+  {
+   "tool": "fastener_types",
+   "arguments": {
+    "type": "ISO99999"
+   },
+   "expect": "REFUSED not_found, with near names when there are any"
+  },
+  {
+   "tool": "fastener_add",
+   "arguments": {
+    "type": "ISO4762",
+    "length": 16,
+    "edges": [
+     {
+      "body": "Bracket",
+      "near": [
+       10,
+       20,
+       10
+      ]
+     }
+    ]
+   },
+   "expect": "made[0] { type \"ISO4762\", size \"M6\" (matched to the 6.6 mm edge), length 16 (or \"16\"), thread \"simple\", matchOuter true, attachedTo \"Bracket.EdgeN\", edgeDiameter 6.6, label \"M6x16-Screw\", bom \"ISO4762 Screw M6x16\" or Fasteners' wording, hole \"kept\" }; health ok"
+  },
+  {
+   "tool": "fastener_add",
+   "arguments": {
+    "type": "ISO4762",
+    "size": "M3",
+    "length": 10,
+    "at": [
+     100,
+     0,
+     0
+    ]
+   },
+   "expect": "a loose screw at [100, 0, 0]: no attachedTo, label \"M3x10-Screw\""
+  },
+  {
+   "tool": "fastener_add",
+   "arguments": {
+    "type": "ISO4762",
+    "edges": [
+     {
+      "body": "Bracket",
+      "near": [
+       40,
+       20,
+       10
+      ]
+     }
+    ]
+   },
+   "expect": "REFUSED invalid_input: no round edge of Bracket within 1 mm of that point, listing the nearest"
+  },
+  {
+   "tool": "fastener_list",
+   "arguments": {},
+   "expect": "fasteners [2], bom [{ item …M3x10, qty 1 }, { item …M6x16, qty 1 }], no warnings; a read (no undo step)"
+  },
+  {
+   "tool": "fastener_set",
+   "arguments": {
+    "objects": [
+     "M6x16-Screw"
+    ],
+    "length": 20
+   },
+   "expect": "changed[0].length 20, the same object name; its label follows the size (\"M6x20-Screw\")"
+  },
+  {
+   "tool": "fastener_set",
+   "arguments": {
+    "objects": [
+     "M3x10-Screw"
+    ],
+    "label": "Spare screw"
+   },
+   "expect": "changed[0].label \"Spare screw\", kept after doc recompute"
+  },
+  {
+   "tool": "fastener_set",
+   "arguments": {},
+   "expect": "REFUSED invalid_input: objects are needed"
+  },
+  {
+   "tool": "hw_hole",
+   "arguments": {
+    "body": "Bracket",
+    "kind": "counterbore",
+    "size": "M6",
+    "at": [
+     30,
+     20,
+     10
+    ],
+    "screw": true
+   },
+   "expect": "the Hole as before (cut \"ISO 4762\", 11 x 6.4) and screw { … } : an ISO4762 M6 in it, its length from the hole (a through hole 10 mm: the nearest length), or screwNote saying why not"
+  },
+  {
+   "tool": "hw_hole",
+   "arguments": {
+    "body": "Bracket",
+    "kind": "clearance",
+    "size": "M3",
+    "at": [
+     70,
+     30,
+     10
+    ]
+   },
+   "expect": "a later PartDesign feature: it renumbers the Body's edges, which is what the keeper is for"
+  },
+  {
+   "tool": "fastener_list",
+   "arguments": {},
+   "expect": "each attached fastener says hole \"kept\" or \"reattached\" (never silently on another edge); a lost one is under warnings"
+  },
+  {
+   "tool": "fastener_list",
+   "arguments": {
+    "sheet": true
+   },
+   "expect": "sheet (a spreadsheet's label) and by (\"Fasteners' Generate BOM\" with the window up, else Workshop's in the same layout); this call changes the document"
+  },
+  {
+   "tool": "fastener_print",
+   "arguments": {},
+   "expect": "mode (standard | 3dprint), nut [1.03, 0.1] and screw [0.99, -0.05] unless the person changed them, formula, source; nothing is set"
+  },
+  {
+   "tool": "fastener_print",
+   "arguments": {
+    "mode": "printing"
+   },
+   "expect": "REFUSED invalid_input: mode is standard or 3dprint"
+  }
+ ],
+ "notCovered": [
+  "fastener_set restore: needs a file saved where Fasteners Workbench was not loaded",
+  "fastener_set type, edge, invert, offset, match (tests/fasteners/test_bridge.py)",
+  "fastener_print set: it changes the person's preference for every document; set it only on their word",
+  "fastener_add thread real: slow",
+  "adoption of fasteners made with Fasteners' own buttons (tests/fasteners/test_keep.py)"
+ ]
+}

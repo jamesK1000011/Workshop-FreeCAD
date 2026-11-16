@@ -63,9 +63,21 @@ def _host():
         hooks.register_reviewer(handlers.review)
 
 
+def _health():
+    """Make's reading in Agent Link's shared health check (services.py
+    holds it and imports no Agent Link)."""
+    from agentlink import health
+
+    health.register(services.HEALTH_OWNER, services.health_reading)
+
+
 try:
     _register()
 except Exception:  # noqa: BLE001 — an Agent Link without these hooks: the tools still load
+    pass
+try:
+    _health()
+except Exception:  # noqa: BLE001 — an Agent Link before the shared health check: the tools still load
     pass
 try:
     _host()

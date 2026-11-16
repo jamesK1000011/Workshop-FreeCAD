@@ -83,6 +83,21 @@ class Thread(unittest.TestCase):
         add_body(cls.session, "Wide", Part.makeBox(20, 20, 10).cut(Part.makeCylinder(3.5, 10, FreeCAD.Vector(10, 10, 0))))
         add_body(cls.session, "Rod", Part.makeCylinder(5, 30))
 
+    def _pd_plate(self, label):
+        """A PartDesign Body: a 20 x 20 x 10 box with a 5 mm hole through it."""
+        import FreeCAD
+
+        doc = self.session.doc
+        body = doc.addObject("PartDesign::Body", "Body")
+        body.Label = label
+        box = body.newObject("PartDesign::AdditiveBox", "Box")
+        box.Length, box.Width, box.Height = 20, 20, 10
+        bore = body.newObject("PartDesign::SubtractiveCylinder", "Bore")
+        bore.Radius, bore.Height = 2.5, 10
+        bore.Placement = FreeCAD.Placement(FreeCAD.Vector(10, 10, 0), FreeCAD.Rotation())
+        doc.recompute()
+        return body
+
     def test_1_lookup(self):
         err, r = self.call("thread_lookup", {"size": "M3"})
         self.assertFalse(err, r)
@@ -141,6 +156,70 @@ class Thread(unittest.TestCase):
         self.assertEqual([o.Label for o in self.session.bodies()], ["Plate", "Wide", "Rod"])
         err, u = self.call("history_undo")
         self.assertAlmostEqual(self.session.body("Plate").Shape.Volume, before, places=3)
+
+    def test_5_in_a_partdesign_body_it_is_a_hole_that_stays(self):
+        # A shape written into a Body is gone at its next recompute (the
+        # Body takes its tip's shape again): the thread was answered as cut
+        # and was not there. In a Body it is FreeCAD's own Hole, kept.
+        body = self._pd_plate("PdPlate")
+        before = body.Shape.Volume
+        self.assertAlmostEqual(before, 20 * 20 * 10 - 3.14159265 * 2.5 ** 2 * 10, delta=0.5)
+        err, r = self.call("thread_cut", {"body": "PdPlate", "faces": {"near": [12.5, 10, 5]}, "size": "M6", "mode": "modelled"})
+        self.assertFalse(err, r)
+        self.assertEqual(r["route"], "PartDesign Hole")
+        self.assertGreater(r["removed"], 1.0)
+        self.session.doc.recompute()
+        body.recompute(True)
+        self.assertLess(body.Shape.Volume, before - 1.0)
+        self.assertEqual(body.Tip.TypeId, "PartDesign::Hole")
+        self.assertTrue(body.Tip.Threaded and body.Tip.ModelThread)
+        self.assertEqual(body.Tip.Name, r["thread"]["feature"])
+        self.assertEqual(len([o for o in self.session.doc.Objects if o.Name.startswith("AgentLinkThread")]), 0)
+        err, u = self.call("history_undo")
+        self.assertAlmostEqual(body.Shape.Volume, before, places=3)
+
+    def test_6_cosmetic_in_a_moved_body(self):
+        # The face is picked on the Body's shape (its Placement in it); the
+        # Hole's sketch is in the Body's own frame.
+        import FreeCAD
+
+        body = self._pd_plate("PdMoved")
+        body.Placement = FreeCAD.Placement(FreeCAD.Vector(100, 0, 0), FreeCAD.Rotation(FreeCAD.Vector(0, 0, 1), 90))
+        self.session.doc.recompute()
+        # (10, 10) of the Body is (100 - 10, 10) of the document after the quarter turn
+        err, r = self.call("thread_cut", {"body": "PdMoved", "faces": {"near": [90, 12.5, 5]}, "size": "M6"})
+        self.assertFalse(err, r)
+        self.assertEqual((r["route"], r["thread"]["mode"]), ("PartDesign Hole", "cosmetic"))
+        self.assertAlmostEqual(r["thread"]["holeDiameter"], 5.0, places=2)
+        self.assertTrue(r["sound"], r)
+        self.assertAlmostEqual(body.Tip.Shape.Volume, 20 * 20 * 10 - 3.14159265 * 2.5 ** 2 * 10, delta=0.5)
+
+    def test_7_a_parametric_part_is_refused_not_lost(self):
+        # A Part::Cut takes its own shape again at the recompute: refused,
+        # with the plain copy to work on.
+        doc = self.session.doc
+        box = doc.addObject("Part::Box", "PBox")
+        box.Length, box.Width, box.Height = 20, 20, 10
+        cyl = doc.addObject("Part::Cylinder", "PCyl")
+        cyl.Radius, cyl.Height = 2.5, 10
+        import FreeCAD
+
+        cyl.Placement = FreeCAD.Placement(FreeCAD.Vector(10, 10, 0), FreeCAD.Rotation())
+        cut = doc.addObject("Part::Cut", "Drilled")
+        cut.Base, cut.Tool = box, cyl
+        cut.Label = "Drilled"
+        doc.recompute()
+        before = cut.Shape.Volume
+        err, r = self.call("thread_cut", {"body": "Drilled", "faces": {"near": [12.5, 10, 5]}, "size": "M6", "mode": "modelled"})
+        self.assertTrue(err, r)
+        self.assertEqual(r["error"]["code"], "invalid_state")
+        self.assertIn("part_transform", r["error"]["message"])
+        self.assertAlmostEqual(cut.Shape.Volume, before, places=6)
+        self.assertEqual(len([o for o in doc.Objects if o.Name.startswith("AgentLinkThread")]), 0)
+        err, r = self.call("hw_hole", {"body": "Drilled", "kind": "clearance", "size": "M3", "at": [4, 4, 10]})
+        self.assertTrue(err, r)
+        self.assertEqual(r["error"]["code"], "invalid_state")
+        self.assertIn("pd_clone", r["error"]["message"])
 
 
 if __name__ == "__main__":

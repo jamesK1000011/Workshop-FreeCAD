@@ -117,6 +117,29 @@ class EmbedTools(unittest.TestCase):
         self.assertEqual([e["id"] for e in lst["embeds"]], ["E1", "E2"])
         self.assertEqual(lst["dropped"]["ids"], [w["id"]])
 
+    def test_5_a_parametric_part_is_refused_not_lost(self):
+        # A Part::Box takes its own shape again at the recompute: the pocket
+        # was answered as cut and was gone. Refused, naming the plain copy.
+        box = self.session.doc.addObject("Part::Box", "PBox")
+        box.Label = "PBox"
+        box.Length, box.Width, box.Height = 40, 40, 10
+        self.session.doc.recompute()
+        err, a = self.call("setup", {"action": "add", "type": "print", "bodies": ["PBox"], "settings": {"layerHeight": 0.2}})
+        self.assertFalse(err, a)
+        err, r = self.call("hw_embed", {"body": "PBox", "kind": "magnet", "size": "6x2", "at": [20, 20, 3]})
+        self.assertTrue(err, r)
+        self.assertEqual(r["error"]["code"], "invalid_state")
+        self.assertIn("part_transform", r["error"]["message"])
+        self.assertAlmostEqual(box.Shape.Volume, 16000.0, places=3)
+        err, lst = self.call("hw_embed_list", {"body": "PBox"})
+        self.assertEqual(lst["embeds"], [])
+        err, r = self.call("mass_ballast", {"body": "PBox", "mass": 40, "cut": True})
+        self.assertTrue(err, r)
+        self.assertEqual(r["error"]["code"], "invalid_state")
+        err, r = self.call("mass_ballast", {"body": "PBox", "mass": 40})
+        self.assertFalse(err, r)
+        self.assertFalse(r["cut"])
+
 
 if __name__ == "__main__":
     unittest.main()
