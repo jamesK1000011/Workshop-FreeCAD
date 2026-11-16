@@ -444,7 +444,7 @@ def _view_frame(v, box):
     edges = list(v.getVisibleEdges() or [])
     if not edges:
         return None
-    bb = Part.makeCompound(edges).BoundBox
+    bb = _edges_box(edges) or Part.makeCompound(edges).BoundBox
     w, h = box[2] - box[0], box[3] - box[1]
     if max(w, h) < 1e-9:
         return None
@@ -457,6 +457,27 @@ def _view_frame(v, box):
             fr = (s, sx, sy, bb.Center.x - s * sx * cx, bb.Center.y - s * sy * cy)
             best = min(best or (math.inf, fr), (_fit_score(fr, pts, box), fr))
     return best[1]
+
+
+def _edges_box(edges):
+    """The drawn edges' extents from points on them: a B-spline's own
+    BoundBox takes in its poles, which lie off the line, and threw the
+    fitted frame (its scale and centre) off. None when no edge can be
+    sampled."""
+    xs, ys = [], []
+    for e in edges:
+        try:
+            pts = e.discretize(Number=32)
+        except Exception:  # noqa: BLE001
+            continue
+        xs += [p.x for p in pts]
+        ys += [p.y for p in pts]
+    if not xs:
+        return None
+    import types
+
+    return types.SimpleNamespace(XLength=max(xs) - min(xs), YLength=max(ys) - min(ys),
+                                 Center=types.SimpleNamespace(x=(max(xs) + min(xs)) / 2, y=(max(ys) + min(ys)) / 2))
 
 
 def _fit_score(fr, pts, box):
@@ -509,36 +530,90 @@ def _to_view(fr, p2):
     return (s * sx * p2[0] + tx, s * sy * p2[1] + ty)
 
 
+def _edge_ends(v, verts):
+    """The indices of the view's vertices that are ends of its drawn edges.
+    TechDraw's vertex list also holds the centre of every circle and arc
+    it draws (a B-spline TechDraw draws as an arc too), and a flat arc's
+    centre lies far outside the part: picked as an extreme it measured
+    55.5 for a 47 mm high stem. All of them when the edges cannot be read."""
+    ends = []
+    for e in _edges(v):
+        for p in getattr(e, "Vertexes", None) or ():
+            q = getattr(p, "Point", p)
+            ends.append((q.x, q.y))
+    if not ends:
+        return list(range(len(verts)))
+    out = [k for k, p in enumerate(verts) if any(abs(p.x - x) < 1e-3 and abs(p.y - y) < 1e-3 for x, y in ends)]
+    return out or list(range(len(verts)))
+
+
+def extent_pairs(verts, ends, horizontal, mm, scale=1.0):
+    """The vertex pairs to try for an overall size, best first: the
+    extremes along the axis in the view's own 2D coordinates among the
+    edges' ends, then among all vertices, then any pair of edge ends whose
+    distance along the axis is the size (at the view's scale or 1:1; the
+    lowest first). Each pair (lo, hi) of vertex indices, at most five."""
+    key = (lambda k: verts[k].x) if horizontal else (lambda k: verts[k].y)
+    out = []
+
+    def add(pair):
+        if pair not in out and pair[0] != pair[1] and abs(key(pair[1]) - key(pair[0])) > 1e-6:
+            out.append(pair)
+
+    for pool in (ends, range(len(verts))):
+        pool = list(pool)
+        if len(pool) >= 2:
+            add((min(pool, key=key), max(pool, key=key)))
+    srt = sorted(ends, key=key)
+    for want in {mm * scale, mm}:
+        for a in srt:
+            for b in srt:
+                d = key(b) - key(a)
+                if d > 0 and abs(d - want) <= max(0.01, 0.002 * want):
+                    add((a, b))
+                    break
+    return out[:5]
+
+
 def _extent_dim(doc, page, v, horizontal, mm):
     """A DistanceX (or DistanceY) dimension of view v between its two
-    extreme drawn vertices along that axis, kept only when TechDraw
-    measures the part's size mm. {dim, dimension, measured} or {why}."""
+    extreme drawn vertices along that axis (ends of drawn edges, never a
+    circle's or arc's centre), kept only when TechDraw measures the part's
+    size mm; when the extremes measure otherwise, the next pairs of
+    extent_pairs, each checked the same way. {dim, dimension, measured}
+    or {why}."""
     verts = _vertices(v)
     if len(verts) < 2:
         return {"why": "the view has no vertices yet (TechDraw had not drawn it)"}
-    key = (lambda k: verts[k].x) if horizontal else (lambda k: verts[k].y)
-    lo = min(range(len(verts)), key=key)
-    hi = max(range(len(verts)), key=key)
-    if abs(key(hi) - key(lo)) < 1e-6:
-        return {"why": "its extreme vertices are one point"}
     try:
-        dim = doc.addObject("TechDraw::DrawViewDimension", "Dimension")
-        dim.Type = "DistanceX" if horizontal else "DistanceY"
-        dim.MeasureType = "Projected"
-        dim.References2D = [(v, f"Vertex{lo}"), (v, f"Vertex{hi}")]
-        page.addView(dim)
-        doc.recompute()
-        raw = float(dim.getRawValue())
-    except Exception as e:  # noqa: BLE001
-        return {"why": f"TechDraw refused it: {e}"}
-    if abs(raw - mm) > max(0.01, 0.002 * mm):
+        sv = float(getattr(v, "Scale", 1.0) or 1.0)
+    except Exception:  # noqa: BLE001
+        sv = 1.0
+    pairs = extent_pairs(verts, _edge_ends(v, verts), horizontal, mm, sv)
+    if not pairs:
+        return {"why": "its extreme vertices are one point"}
+    first = None
+    for lo, hi in pairs:
+        try:
+            dim = doc.addObject("TechDraw::DrawViewDimension", "Dimension")
+            dim.Type = "DistanceX" if horizontal else "DistanceY"
+            dim.MeasureType = "Projected"
+            dim.References2D = [(v, f"Vertex{lo}"), (v, f"Vertex{hi}")]
+            page.addView(dim)
+            doc.recompute()
+            raw = float(dim.getRawValue())
+        except Exception as e:  # noqa: BLE001
+            return {"why": f"TechDraw refused it: {e}"}
+        if abs(raw - mm) <= max(0.05, 0.002 * mm):
+            return {"dim": dim, "dimension": dim.Name, "measured": round(raw, 4), "value": round(mm, 4)}
+        first = raw if first is None else first
         try:
             page.removeView(dim)
             doc.removeObject(dim.Name)
         except Exception:  # noqa: BLE001
             pass
-        return {"why": f"TechDraw measured {raw:.4g} between the view's extreme vertices, not {mm:.4g}: left off"}
-    return {"dim": dim, "dimension": dim.Name, "measured": round(raw, 4), "value": round(mm, 4)}
+    return {"why": f"TechDraw measured {first:.4g} between the view's extreme vertices, not {mm:.4g}"
+                   + (f" (and no other pair of its vertices measured it, {len(pairs)} tried)" if len(pairs) > 1 else "") + ": left off"}
 
 
 def match_circle(circles, centre, radius, frames):
@@ -546,8 +621,11 @@ def match_circle(circles, centre, radius, frames):
     the view may hold its geometry (frames: functions from the part's 2D
     point to the view's, with the scale they apply), the circle of that
     radius (within 10%) whose centre is nearest, within half its radius.
-    None when no frame finds one."""
-    for to_view, k in frames:
+    None when no frame finds one. A frame may carry its own radius
+    tolerance as a third item (the view's own scale is exact: 2%)."""
+    for fr in frames:
+        to_view, k = fr[0], fr[1]
+        rtol = fr[2] if len(fr) > 2 else 0.1
         try:
             c = to_view(centre)
         except Exception:  # noqa: BLE001
@@ -555,7 +633,7 @@ def match_circle(circles, centre, radius, frames):
         r = radius * k
         best = None
         for i, (x, y, rr) in enumerate(circles):
-            if abs(rr - r) > 0.1 * r + 1e-6:
+            if abs(rr - r) > rtol * r + 1e-6:
                 continue
             d = math.hypot(x - c[0], y - c[1])
             if d <= 0.5 * r + 1e-6 and (best is None or d < best[0]):
@@ -606,6 +684,7 @@ def _page_dim(doc, page, by_view, view_frames, drawn, sp, at=None, H=None):
     bx = drawn[view]["box"]
     tol = max(0.05, 0.002 * fr[0] * max(bx[2] - bx[0], bx[3] - bx[1]))
     refs = []
+    sized = None
     if sp["type"] in ("Diameter", "Radius"):
         circles, idx = [], []
         for i, e in enumerate(_edges(v)):
@@ -625,14 +704,33 @@ def _page_dim(doc, page, by_view, view_frames, drawn, sp, at=None, H=None):
         p3 = sp.get("centre3")
         sv = float(getattr(v, "Scale", 1.0) or 1.0)
         if p3 is not None and hasattr(v, "projectPoint"):
+            # TechDraw draws the part centred on its bounding box's centre;
+            # projectPoint projects about the origin, so the hole's centre
+            # is taken from the box's centre first (the earlier try without
+            # it found a hole only in a view whose part sat on the origin).
             try:
                 q = v.projectPoint(V(*p3))
-                for k in (sv, 1.0):
-                    for fy in (1, -1):
-                        tries.append((lambda _p, q=q, k=k, fy=fy: (q.x * k, fy * q.y * k), k))
+                o = _source_centre(v)
+                qo = v.projectPoint(o) if o is not None else None
+                for base in ([q.x - qo.x, q.y - qo.y] if qo is not None else None, [q.x, q.y]):
+                    if base is None:
+                        continue
+                    for k in (sv, 1.0):
+                        for fy in (1, -1):
+                            tries.append((lambda _p, b=base, k=k, fy=fy: (b[0] * k, fy * b[1] * k), k, 0.02))
             except Exception:  # noqa: BLE001
                 pass
         hit = match_circle(circles, sp["centre"], sp["radius"], tries)
+        if hit is None:
+            # Not where any frame puts the hole: a circle of its size (the
+            # view's scale or 1:1, within 2%), the one nearest where the
+            # fitted frame puts it, said so in a warning.
+            c = _to_view(fr, sp["centre"])
+            same = [i for i, (x, y, rr) in enumerate(circles)
+                    if any(abs(rr - sp["radius"] * k) <= 0.02 * sp["radius"] * k + 1e-6 for k in {sv, 1.0, fr[0]})]
+            if same:
+                hit = min(same, key=lambda i: math.hypot(circles[i][0] - c[0], circles[i][1] - c[1]))
+                sized = "placed on the view's circle of that size nearest the hole (its place did not match): check it is the hole meant"
         if hit is not None:
             refs = [(v, f"Edge{idx[hit]}")]
     else:
@@ -680,7 +778,26 @@ def _page_dim(doc, page, by_view, view_frames, drawn, sp, at=None, H=None):
     except Exception as e:
         return {"why": f"TechDraw refused it: {e}"}
     ok = abs(raw - sp["value"]) <= max(0.01, 0.002 * sp["value"])
-    return {"dimension": dim.Name, "measured": round(raw, 4), **({} if ok else {"warning": f"TechDraw measures {raw:.4g}, not {sp['value']:.4g}: check its references in the GUI"})}
+    warn = None if ok else f"TechDraw measures {raw:.4g}, not {sp['value']:.4g}: check its references in the GUI"
+    if sized:
+        warn = f"{warn}; {sized}" if warn else sized
+    return {"dimension": dim.Name, "measured": round(raw, 4), **({"warning": warn} if warn else {})}
+
+
+def _source_centre(v):
+    """The centre of the bounding box of what view v draws (TechDraw
+    centres its geometry there), or None."""
+    bb = None
+    for o in list(getattr(v, "Source", None) or []):
+        try:
+            b = o.Shape.BoundBox
+        except Exception:  # noqa: BLE001
+            continue
+        if bb is None:
+            bb = FreeCAD.BoundBox(b)
+        else:
+            bb.add(b)
+    return V(bb.Center.x, bb.Center.y, bb.Center.z) if bb is not None else None
 
 
 def _brief(sp):

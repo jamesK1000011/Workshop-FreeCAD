@@ -22,6 +22,16 @@ Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
 
 ### Fixed
 
+- `drawing_make`: the overall heights and the hole callouts reach the
+  TechDraw page. TechDraw keeps every circle's and arc's centre among a
+  view's vertices; a flat arc's centre outside the part was taken as the
+  extreme (the stem's 47 mm height measured 55.5 and was left off). Sizes
+  now run between ends of drawn edges, the next measuring pair tried
+  before giving up. Holes were looked for about the origin while TechDraw
+  centres the part on its bounding box, and the fitted frame took in a
+  B-spline's poles: now projected about the part's centre at the view's
+  scale (radius within 2%), the frame fitted on points along the edges,
+  and a callout placed only by its size warned.
 - `drawing_make` puts every dimension and hole callout on the TechDraw page.
   A TypeError ("list indices must be integers or slices, not str": each
   view's fitted frame, kept by view name, was overwritten by the first

@@ -107,5 +107,113 @@ OUT["res"] = res
         self.assertEqual(res["dimensions"], [])
 
 
+class LiveStem(unittest.TestCase):
+    """The stem on f7a5078 (102 x 49 x 47, 1:1): the front's height read
+    55.5 and the top's 54.68 (an arc's centre, which TechDraw keeps among
+    the view's vertices, picked as the extreme), and five of six hole
+    callouts found "no circle there" (the frame fitted on a B-spline's
+    poles; projectPoint taken about the origin, not the part's centre)."""
+
+    EXT = r"""
+import types
+from workshop_documents.handlers import drawing as D
+P = lambda x, y: types.SimpleNamespace(x=x, y=y)
+corners = [(-51, -23.5), (51, -23.5), (51, 23.5), (-51, 23.5)]
+class View:
+    Scale = 1.0
+    def __init__(self, verts, edges):
+        self.verts, self.edges = verts, edges
+    def getVertexByIndex(self, i):
+        if i >= len(self.verts): raise IndexError(i)
+        return types.SimpleNamespace(Point=P(*self.verts[i]))
+    def getEdgeByIndex(self, i):
+        if i >= len(self.edges): raise IndexError(i)
+        a, b = self.edges[i]
+        return types.SimpleNamespace(Vertexes=[types.SimpleNamespace(Point=P(*a)), types.SimpleNamespace(Point=P(*b))])
+class Dim:
+    Name = "Dimension"
+    def getRawValue(self):
+        (v, a), (_, b) = self.References2D
+        i, j = int(a[6:]), int(b[6:])
+        k = 0 if self.Type == "DistanceX" else 1
+        return abs(v.verts[j][k] - v.verts[i][k])
+removed = []
+doc = types.SimpleNamespace(addObject=lambda t, n: Dim(), recompute=lambda: None, removeObject=removed.append)
+page = types.SimpleNamespace(addView=lambda d: None, removeView=lambda d: None)
+"""
+
+    def test_an_arc_centre_is_never_the_extreme(self):
+        out = run(self.EXT + r"""
+# A flat arc on the top edge: its centre 32 up, among the vertices (and
+# listed before the corners, as TechDraw's own order may have it).
+verts = [(0, 32)] + corners
+edges = [(corners[i], corners[(i + 1) % 4]) for i in range(4)]
+got = D._extent_dim(doc, page, View(verts, edges), False, 47)
+OUT["got"] = [got.get("measured"), [r[1] for r in got["dim"].References2D] if "dim" in got else got]
+OUT["x"] = D._extent_dim(doc, page, View(verts, edges), True, 102).get("measured")
+OUT["removed"] = len(removed)
+""")
+        self.assertEqual(out["got"][0], 47)  # before: 55.5, left off
+        self.assertNotIn("Vertex0", out["got"][1])
+        self.assertEqual(out["x"], 102)
+        self.assertEqual(out["removed"], 0)  # the right pair first time
+
+    def test_edges_unread_the_next_pair_that_measures_it(self):
+        out = run(self.EXT + r"""
+verts = [(0, 31.18)] + corners  # no edges read: every vertex a candidate
+got = D._extent_dim(doc, page, View(verts, []), False, 47)
+OUT["got"] = got.get("measured")
+OUT["removed"] = len(removed)
+bad = D._extent_dim(doc, page, View(verts, []), False, 60)
+OUT["bad"] = bad["why"]
+""")
+        self.assertEqual(out["got"], 47)
+        self.assertEqual(out["removed"], 1)  # the extremes tried, measured 54.68, taken off
+        self.assertIn("not 60", out["bad"])
+
+    CIRC = PAGE + r"""
+# The front view as TechDraw holds it: centred on the part's bounding box
+# centre (51, 24.5, 23.5), y turned over; projectPoint about the origin.
+c3 = (51.0, 24.5, 23.5)
+holes3 = {"⌀21": (51.0, 0.0, 23.5, 10.5), "2× ⌀8": (20.0, 0.0, 10.0, 4.0), "4× ⌀6": (85.0, 0.0, 35.0, 3.0)}
+td = [(x - c3[0], -(z - c3[2]), r) for x, _y, z, r in holes3.values()]
+front = View("Front", td)
+front.projectPoint = lambda p: types.SimpleNamespace(x=p[0], y=p[2])
+D._source_centre = lambda v: c3
+# The frame fitted on a B-spline's poles: scale 1.17, centre off.
+D._view_frame = lambda v, box: (1.17, 1, 1, 0.0, 4.25)
+made = [("front", front)]
+def hsp(item, p):
+    x, y, z, r = p
+    return {"view": "front", "type": "Diameter", "centre": (x - 51, z - 23.5), "centre3": [x, y, z], "radius": r, "value": 2 * r, "label": item}
+"""
+
+    def test_holes_found_about_the_parts_centre(self):
+        out = run(self.CIRC + r"""
+specs = [hsp(k, p) for k, p in holes3.items()]
+done, missed = D._page_dims(doc, page, made, drawn, specs)
+OUT["done"] = [(d["item"], d["measured"], d.get("warning")) for d in done]
+OUT["refs"] = [r[1] for d in added for r in d.References2D]
+OUT["missed"] = missed
+""")
+        self.assertEqual(out["missed"], [])  # before: "no vertex or circle of the view there"
+        self.assertEqual(out["done"], [["⌀21", 21.0, None], ["2× ⌀8", 8.0, None], ["4× ⌀6", 6.0, None]])
+        self.assertEqual(out["refs"], ["Edge0", "Edge1", "Edge2"])
+
+    def test_a_circle_of_its_size_when_no_frame_places_it(self):
+        out = run(self.CIRC + r"""
+front.projectPoint = None
+del front.projectPoint
+sp_ = hsp("2× ⌀8", holes3["2× ⌀8"]); sp_.pop("centre3")
+sp2 = {**hsp("⌀9", holes3["2× ⌀8"]), "radius": 4.5, "value": 9.0}; sp2.pop("centre3")
+done, missed = D._page_dims(doc, page, made, drawn, [sp_, sp2])
+OUT["done"] = [(d["item"], d["measured"], d.get("warning", "")) for d in done]
+OUT["missed"] = [m["item"] for m in missed]
+""")
+        self.assertEqual([d[:2] for d in out["done"]], [["2× ⌀8", 8.0]])
+        self.assertIn("check it is the hole meant", out["done"][0][2])
+        self.assertEqual(out["missed"], ["⌀9"])  # no circle of that size: still left off, said
+
+
 if __name__ == "__main__":
     unittest.main()
