@@ -8,6 +8,8 @@ Screws, bolts, nuts, washers, heat-set inserts, PEM parts, pins and retaining ri
 
 ## Putting one in
 - On holes: `fastener_add { type, edges: ["Plate.Edge7", …] }` puts one on each round edge. Leave `size` out and it matches the hole: `match: "outer"` for a pass hole (the screw goes through), `"inner"` for a tap hole (the thread bites). `invert` flips it, `offset` (mm) lifts it off the face.
+- Pick an edge by a point on it: `edges: [{ body: "Stem", near: [x, y, z] }]` takes the round edge nearest that point (within 1 mm).
+- A `size` given wins over the hole. Given on a counterbore's wall, the screw goes on the bore's edge at the counterbore's floor, where its head sits. The answer says so (`attachNote`) and gives the edge's diameter.
 - Loose: `fastener_add { type, size, length, at: [x, y, z] }`.
 - `length` takes the nearest length Fasteners has. `thread: "real"` models the thread. That's slow: use it for a render or a printed thread, not for fit checks.
 - From a hole Workshop makes: `hw_hole { …, screw: true }` or `screw: { type, length }`. The screw goes in the hole, its length taken from the plate (less a counterbore). A nut trap's screw comes from the far side. An insert's screw is as long as the insert is deep, so add the thickness of what it clamps.

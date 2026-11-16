@@ -35,7 +35,7 @@
   },
   "fastener_add": {
    "group": "fasteners",
-   "description": "A Fasteners Workbench part (screw, nut, washer, insert …): type (ISO4762 …), size (M3; left out on edges: matched to the hole), length (mm, the nearest it has), thread simple|real; edges [\"Plate.Edge7\"] attach one to each round edge (match outer: pass hole, inner: tap hole; invert, offset mm), else loose at [x,y,z]. Answers each one made: type, size, length, where, attached to. Fasteners Workbench: Shai Seger; screw_maker: Ulrich Brammer.",
+   "description": "A Fasteners Workbench part (screw, nut, washer, insert …): type (ISO4762 …), size (M3, which wins over the hole; left out on edges: matched to the hole), length (mm, the nearest it has), thread simple|real; edges [\"Plate.Edge7\" or { body, near: [x,y,z] }] attach one to each round edge (match outer: pass hole, inner: tap hole; invert, offset mm) — a size given on a counterbore's wall goes on the bore's edge at its floor, and says so — else loose at [x,y,z]. Answers each one made: type, size, length, where, attached to (and that edge's diameter). Fasteners Workbench: Shai Seger; screw_maker: Ulrich Brammer.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -57,9 +57,8 @@
      },
      "edges": {
       "type": "array",
-      "items": {
-       "type": "string"
-      }
+      "items": {},
+      "description": "Round edges: \"Plate.Edge7\", or { body, near: [x, y, z] } the round edge nearest a point (within 1 mm)."
      },
      "at": {
       "type": "array",

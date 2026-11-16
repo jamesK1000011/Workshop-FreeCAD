@@ -3,6 +3,9 @@
 ## A drawing sheet
 - `drawing_make` gives SVG, PDF and DXF files and a TechDraw page with the same views. Ask which projection the person works in: first angle (ISO, Europe) or third angle (ASME, North America).
 - Only the overall sizes are dimensioned. Holes, slots and fits want dimensions placed in TechDraw by the person, on the page made.
+- `file` can be a full path: its folder is made, and the PDF, SVG and DXF share its name without the extension.
+- `holes: true` calls out each round hole seen end on. FreeCAD's own Holes are called out as they are made: size or thread, THRU or DEEP, CBORE or CSK.
+- The title block gives the material by its name, never by its id.
 - `scale` is refused when it does not fit; leave it out for the largest standard scale that does.
 
 ## An assembly manual

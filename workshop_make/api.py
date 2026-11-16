@@ -82,15 +82,20 @@ def stack(items, target=None):
     return out
 
 
-def _through(shape, at, d):
+def _through(shape, at, d, frame=None):
     """How much material a through hole at `at` going `d` passes, mm (the
-    line's length inside the solid), or None when it cannot be read."""
+    line's length inside the solid), or None when it cannot be read. at and
+    d are global; frame: the placement the shape's coordinates are in (a
+    Body inside an App::Part: the Part's)."""
     try:
         import FreeCAD
         import Part
 
         p = FreeCAD.Vector(*at)
         v = FreeCAD.Vector(d)
+        if frame is not None:
+            inv = frame.inverse()
+            p, v = inv.multVec(p), inv.Rotation.multVec(v)
         v.normalize()
         reach = shape.BoundBox.DiagonalLength * 2
         inside = shape.common(Part.makeLine(p - v * 1e-3, p + v * reach))
@@ -131,12 +136,16 @@ def hole(doc, body, kind, size="M3", at=None, direction="-z", depth="through", f
         except ValueError as e:
             raise Refused(str(e))
         before = pd.Shape.Volume if not pd.Shape.isNull() else 0.0
-        through = _through(pd.Shape, at, dvec) if depth == "through" and at else None
+        through = _through(pd.Shape, at, dvec, frame=pdhole.shape_frame(pd)) if depth == "through" and at else None
         try:
             names, sizes = pdhole.make(doc, pd, kind, size, list(at) if at else None, dvec, depth, fit, cal, face=face, sketch=sk)
         except pdhole.Failed as e:
             raise Refused(str(e), "failed")
-        doc.recompute()
+        except Refused:
+            raise
+        except Exception as e:  # noqa: BLE001 — FreeCAD's own words, in a sentence
+            raise Refused(f"FreeCAD's Hole could not be made at {list(at) if at else 'the sketch'}: {pdhole.sentence(e)}. Nothing was kept.", "failed")
+        pdhole.settle(doc, [pd])
         s = geo.soundness(pd.Shape)
         return {"body": pd.Label, "kind": kind, "size": size, "sizes": sizes, "printerFit": said, "allowance": float(cal.get("hole", 0.0)),
                 "depth": depth, **({"through": through} if through else {}), "removed": round(before - pd.Shape.Volume, 2),

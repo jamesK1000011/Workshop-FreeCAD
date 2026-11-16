@@ -83,7 +83,7 @@
      },
      "file": {
       "type": "string",
-      "description": "The files' name, without extension."
+      "description": "Where the files go: a name (in the session's folder), or a path — absolute (its folder made) or under the session's folder; an extension given is dropped, and the PDF, SVG and DXF share the stem."
      },
      "dims": {
       "type": "array",
@@ -93,7 +93,7 @@
       "description": "Feature dimensions: [{ view, kind: length (a, b, along h|v, offset mm) | diameter | radius (a round edge), fit \"H7\" or plus/minus mm, label }]; a and b a point [x,y,z] or a query { body, kind, type, radius, near } (a circle's centre, an edge's middle)."
      },
      "holes": {
-      "description": "true: every round hole seen end on in the top view called out by size (\"4× ⌀3.4\"); or the view's name."
+      "description": "true: every round hole seen end on in the top view called out by size (\"4× ⌀3.4\"); FreeCAD's own Holes as made (\"2× ⌀6.6 THRU CBORE ⌀11 DEEP 6.4\", a thread's size); or the view's name."
      },
      "holeFits": {
       "type": "object",

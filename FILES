@@ -66,6 +66,7 @@ tests/electronics/test_icons.py
 tests/electronics/test_taskpanels.py
 tests/fasteners/_fwb.py
 tests/fasteners/test_bridge.py
+tests/fasteners/test_stem_findings.py
 tests/make/_fc.py
 tests/make/_stubs.py
 tests/make/_threadtable.py
@@ -93,6 +94,7 @@ tests/make/test_printmass.py
 tests/make/test_report_line.py
 tests/make/test_services.py
 tests/make/test_slice.py
+tests/make/test_stem_findings.py
 tests/make/test_thread.py
 tests/make/test_threemf.py
 tests/make/test_tools.py
@@ -113,6 +115,7 @@ tests/safetynet/test_with_agentlink.py
 tests/test_families.py
 tests/test_files.py
 tests/test_loads.py
+tests/test_matname.py
 tests/test_narrow.py
 tests/test_placement.py
 tests/test_release.py
@@ -123,6 +126,7 @@ tools/gen_readme_tools.py
 workshop/__init__.py
 workshop/agentlink_families.py
 workshop/layout.py
+workshop/matname.py
 workshop/narrow.py
 workshop/placement.py
 workshop/stale.py
