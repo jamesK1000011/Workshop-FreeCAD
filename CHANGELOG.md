@@ -22,6 +22,22 @@ Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
 
 ### Fixed
 
+- `drawing_make`: the exported PDF and SVG hold the views again. A view
+  keeps its old lines readable while TechDraw works new ones out on another
+  thread, so the wait ("has it edges") passed at once, and the wait then
+  recomputed every view, starting its lines afresh just before the export:
+  the PDF held the frame, title block and dimensions floating on white.
+  Every view is now waited for until it is neither touched nor waiting and
+  has edges (a touched one recomputed once, a ready one never), before the
+  dimensions and again before the export, with `page.viewsReadyIn` or
+  `page.viewsNotReady`; a page with a view not drawn is not exported, and
+  the SVG is checked for the views' lines (`page.viewsInExport`), exported
+  once more after a further wait, else the sheet writer's files used.
+- `drawing_make`: hole callouts no longer overlap. Each callout's text is
+  tested against every earlier callout's at the TechDraw page's font size
+  (now set, 3.5 mm) with a margin, and its leaders against theirs (no
+  crossing, none through a text); a later one goes higher, to the other
+  side, or at 30 or 60 degrees until clear.
 - `drawing_make`: the overall heights and the hole callouts reach the
   TechDraw page. TechDraw keeps every circle's and arc's centre among a
   view's vertices; a flat arc's centre outside the part was taken as the
