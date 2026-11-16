@@ -8,6 +8,7 @@
 
 ## after a crash or a hang
 - `app_recover` lists each document's saved copies, newest first. `action auto` opens the newest that opens, beside the person's file as "<label> (recovered HH:MM)" — their file is untouched.
+- Pass `auto` only the documents open at the crash (the heartbeat's or hidden.json's list) and `since` (the crash time). A "(recovered …)" copy among them comes back only from changes made in it after it opened; one nobody changed (or `modified: false`) is not recovered again and is named in `notRecoveredAgain` — its original's copies are under `list`. Never recover a copy of a copy. Temporary recovered copies older than the crash that FreeCAD opened again, unchanged, are closed.
 - Saving a recovered copy over the file is the person's call: `accept { document, confirm: "save over <file name>" }` with their own words.
 
 ## settings
