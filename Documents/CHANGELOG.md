@@ -28,6 +28,18 @@ The first tagged release, 0.2.0 (the version in `package.xml`), is being prepare
 
 ### Changed
 
+- Exploded Drawing builds on FreeCAD 1.x Assembly where the parts are in
+  one: the manual's moves become the Assembly's own Exploded View
+  (Assembly_CreateView's Exploded View and Move objects), editable there,
+  and an ordinary TechDraw page of it with TechDraw balloons per item and
+  the bill of materials. Step pictures, balloons, BOM and the manual stay;
+  outside an Assembly the steps keep Workshop's own exploded shapes and
+  `route` says so.
+- Patent Figures: each figure is also an ordinary TechDraw page in patent
+  style (blank A4 portrait template, visible lines only, numerals as
+  TechDraw balloons without a bubble or arrowhead, FIG. label as an
+  annotation, inside the same margins), editable in TechDraw; PDF and SVG
+  are its exports where TechDraw can write them. Patent Draft unchanged.
 - The Report view says each command's result in a sentence (the drawing's
   paper, scale, TechDraw page and files; the manual's steps; the pack's
   size), not the tool's fields.

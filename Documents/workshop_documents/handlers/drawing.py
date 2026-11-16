@@ -25,7 +25,7 @@ from workshop_documents import sheets
 from workshop_documents import records as store
 from workshop_documents.td_wait import wait_views as _wait_views
 
-from .. import views
+from .. import fcexplode, views
 from ._lent import Refusal
 
 # Lent by the family layer when Agent Link binds these handlers (lend()); alone
@@ -234,7 +234,7 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
         return None, f"the TechDraw page could not be made here ({e}); the files stand on their own"
 
 
-def _export_page(page, out_dir, base):
+def _export_page(page, out_dir, base, kinds=("dxf", "pdf", "svg")):
     """The page's own exports, as TechDraw's File ▸ Export does them: DXF
     always (TechDraw.writeDXFPage), PDF and SVG with the GUI up
     (TechDrawGui). ({kind: path}, {kind: why not})."""
@@ -244,16 +244,19 @@ def _export_page(page, out_dir, base):
     except Exception:  # noqa: BLE001
         pass
     p = os.path.join(out_dir, f"{base}.dxf")
-    try:
-        TechDraw.writeDXFPage(page, p)
-        if os.path.isfile(p) and os.path.getsize(p) > 0:
-            paths["dxf"] = p
-        else:
-            why["dxf"] = "TechDraw wrote nothing"
-    except Exception as e:  # noqa: BLE001
-        why["dxf"] = f"TechDraw could not write it ({e})"
+    if "dxf" in kinds:
+        try:
+            TechDraw.writeDXFPage(page, p)
+            if os.path.isfile(p) and os.path.getsize(p) > 0:
+                paths["dxf"] = p
+            else:
+                why["dxf"] = "TechDraw wrote nothing"
+        except Exception as e:  # noqa: BLE001
+            why["dxf"] = f"TechDraw could not write it ({e})"
     gui = getattr(FreeCAD, "GuiUp", False)
     for k, fn in (("pdf", "exportPageAsPdf"), ("svg", "exportPageAsSvg")):
+        if k not in kinds:
+            continue
         if not gui:
             why[k] = "TechDraw exports it with FreeCAD's window only"
             continue
@@ -550,6 +553,110 @@ def title_block_grid(sheet, fields, margin=10.0, width=130.0):
         sheet.text(cx + 1.5, cy + 2.4, 1.6, names[k])
         sheet.text(cx + 1.5, cy + cell_h - 1.4, 2.6, str(fields[k])[:30])
     return (x0, y0, x1, y1)
+
+
+# ---- TechDraw pieces the manual and patent pages share --------------------------------
+
+def _page(doc, label, paper, blank=False):
+    """An ordinary TechDraw page on TechDraw's own template (blank: the
+    blank one, as patent sheets carry no title block)."""
+    page = doc.addObject("TechDraw::DrawPage", "Page")
+    page.Label = label
+    tpl = doc.addObject("TechDraw::DrawSVGTemplate", "Template")
+    if blank:
+        base = os.path.join(FreeCAD.getResourceDir(), "Mod", "TechDraw", "Templates")
+        hits = glob.glob(os.path.join(base, "**", BLANK[paper]), recursive=True)
+        path = hits[0] if hits else None
+    else:
+        path, _t = _template(paper)
+    if path:
+        tpl.Template = path
+    page.Template = tpl
+    return page
+
+
+def _view(doc, page, source, view, scale, x, y, label, line_art=False):
+    """A TechDraw view of source looking as views.VIEWS[view] does, at the
+    page point (x, y) from the top left (mm). line_art: visible edges only
+    (no hidden, smooth or seam lines), as patent figures are drawn."""
+    z, xd = views.VIEWS[view]
+    v = doc.addObject("TechDraw::DrawViewPart", "View")
+    page.addView(v)
+    v.Label = label
+    v.Source = source
+    v.Direction = V(*z)
+    v.XDirection = V(*xd)
+    v.ScaleType = "Custom"
+    v.Scale = scale
+    v.X = x
+    v.Y = page_height(page) - y
+    if line_art:
+        for prop in ("HardHidden", "SmoothHidden", "SeamHidden", "IsoHidden", "SmoothVisible", "SeamVisible", "IsoVisible"):
+            try:
+                setattr(v, prop, False)
+            except Exception:  # noqa: BLE001 — a property this release lacks
+                pass
+    return v
+
+
+def page_height(page):
+    try:
+        return float(page.Template.Height)
+    except Exception:  # noqa: BLE001
+        return 297.0
+
+
+def balloon_at(p3, centre3, view, scale, lift):
+    """(origin, label) for a TechDraw balloon: the point p3 on the part and
+    the label lift (dx, dy) mm on the paper from it, both in the view's own
+    coordinates (from its centre, the shape's box centre TechDraw centres
+    the view on, model mm, y up)."""
+    px, py = views.point(p3, view)
+    cx, cy = views.point(centre3, view)
+    ox, oy = px - cx, py - cy
+    return (ox, oy), (ox + lift[0] / scale, oy + lift[1] / scale)
+
+
+def _balloon(doc, page, view, origin, at, text, plain=False):
+    """A TechDraw balloon on view: text at `at`, its lead line to origin.
+    plain: no bubble and no arrowhead (a patent's reference numeral)."""
+    b = doc.addObject("TechDraw::DrawViewBalloon", "Balloon")
+    b.SourceView = view
+    b.OriginX, b.OriginY = origin
+    b.X, b.Y = at
+    b.Text = str(text)
+    if plain:
+        for prop, val in (("BubbleShape", "None"), ("EndType", "None")):
+            try:
+                setattr(b, prop, val)
+            except Exception:  # noqa: BLE001 — a value this release names otherwise
+                pass
+    page.addView(b)
+    return b
+
+
+def _note(doc, page, lines, x, y, size=None):
+    """A TechDraw annotation: lines of text at the page point (x, y) from
+    the top left, mm."""
+    t = doc.addObject("TechDraw::DrawViewAnnotation", "Annotation")
+    page.addView(t)
+    t.Text = [str(x_) for x_ in lines]
+    if size:
+        try:
+            t.TextSize = size
+        except Exception:  # noqa: BLE001
+            pass
+    t.X = x
+    t.Y = page_height(page) - y
+    return t
+
+
+def _shapes_box(shapes):
+    bb = shapes[0].BoundBox
+    for sh in shapes[1:]:
+        bb.add(sh.BoundBox)
+    return bb
+
 
 
 # ---- drawing_make ----------------------------------------------------------------------
@@ -931,6 +1038,73 @@ def drawing_exploded(s, a):
             apart.append(o.Label)
     if apart:
         out["warnings"] = [f"{', '.join(apart)} lie apart from the parts before them, not where they go: each part is lifted over its place in the document, so put them there first (object_set Placement — a lid printed top down turns over about X), then again. view_render shows where they are."]
+    out.update(_exploded_in_assembly(s, a, steps, order, seen, explode, direction, mid, item_of, items))
+    return out
+
+
+OWN_ROUTE = "Workshop's own exploded shapes"
+
+
+def _exploded_in_assembly(s, a, steps, order, seen, explode, direction, mid, item_of, items):
+    """Where the parts are in a FreeCAD Assembly: the whole manual as its own
+    Exploded View (step k's parts moved k − 1 explode lengths up, or out
+    from the middle from step 2 on), editable in the Assembly, and an
+    ordinary TechDraw page of it with a balloon an item and the bill of
+    materials. Else the step pictures stand alone, and the answer says so."""
+    asm = fcexplode.assembly_of(s.doc, order)
+    if asm is None:
+        return {"route": OWN_ROUTE, "routeNote": "The parts are in no FreeCAD Assembly, so the steps are drawn from Workshop's own exploded shapes; put them in an Assembly for its own Exploded View, editable there."}
+    offsets, by_label, labels = {}, {}, []
+    for o in order:
+        k = seen[o.Label]
+        by_label[o.Label] = o
+        if direction == "up":
+            off = (0.0, 0.0, explode * k)
+        else:
+            c = o.Shape.BoundBox.Center
+            d = V(c.x - mid.x, c.y - mid.y, 0)
+            u = d.normalize() * explode if d.Length > 1e-6 else V(0, 0, explode)
+            off = (u.x, u.y, u.z) if k else (0.0, 0.0, 0.0)
+        offsets[o.Label] = off
+    labels = [[s.body(b).Label for b in st["add"]] for st in steps]
+    moves = [m for m in fcexplode.plan(labels, offsets) if any(abs(x) > 1e-9 for x in m[2])]
+    title = a.get("title") or a.get("name") or "Assembly"
+    view, why = fcexplode.make_view(s.doc, asm, moves, by_label, f"{title} exploded")
+    if view is None:
+        return {"route": OWN_ROUTE, "routeNote": why}
+    out = {"route": "FreeCAD Assembly Exploded View", "explodedView": view.Label, "assembly": asm.Label, "moves": len(moves)}
+    if not a.get("page", True):
+        return out
+    try:
+        moved = []
+        for o in order:
+            sh = o.Shape.copy()
+            sh.translate(V(*offsets[o.Label]))
+            moved.append(sh)
+        bb = _shapes_box(moved)
+        W, H = sheets.PAPER["A4"]
+        d = views.project(moved, "iso")
+        bw, bh = d["box"][2] - d["box"][0], d["box"][3] - d["box"][1]
+        fit = min((W - 120) / max(bw, 1e-6), (H - 90) / max(bh, 1e-6))
+        scale = next((x for x in sheets.SCALES if x <= fit), sheets.SCALES[-1])
+        page = _page(s.doc, f"{title} exploded", "A4")
+        v = _view(s.doc, page, [view], "iso", scale, (W - 90) / 2, (H - 45) / 2, "Exploded")
+        _wait_views([v])
+        done = set()
+        for o in order:
+            it = item_of[o.Label]
+            if it in done:
+                continue
+            done.add(it)
+            p3 = o.Shape.BoundBox.Center + V(*offsets[o.Label])
+            origin, at = balloon_at(p3, bb.Center, "iso", scale, (14, 12))
+            _balloon(s.doc, page, v, origin, at, it)
+        rows = ["ITEM   PART   QTY"] + [f"{it['item']}   {it['part']}   {len(it['bodies'])}" for it in items]
+        _note(s.doc, page, rows, W - 80, 20)
+        s.doc.recompute()
+        out["page"] = page.Label
+    except Exception as e:  # noqa: BLE001 — the Exploded View stands without it
+        out["pageNote"] = f"the TechDraw page could not be made here ({e})"
     return out
 
 
@@ -1005,11 +1179,27 @@ def patent_figures(s, a):
             sheet.line([(lx + dx / dl * 3.5, ly + dy / dl * 3.5), (px, py)], "thin")
         sheet.text(centre[0], H - bottom - 8, 6, f"FIG. {k}", "middle")
         fp = os.path.join(s.out_dir, f"{base}_fig{k}")
-        with open(fp + ".svg", "w", encoding="utf-8") as f:
-            f.write(sheet.svg())
-        with open(fp + ".pdf", "wb") as f:
-            f.write(sheet.pdf())
-        figs.append({"fig": k, "view": v, "svg": fp + ".svg", "pdf": fp + ".pdf"})
+        fig = {"fig": k, "view": v}
+        got, frm = {}, {}
+        if a.get("page", True):
+            pg, note = _patent_page(s, objs, shapes, v, k, scale, centre, numerals, f"{a.get('name') or 'Patent'} FIG. {k}")
+            if pg is not None:
+                fig["page"] = pg.Label
+                got, why = _export_page(pg, s.out_dir, os.path.basename(fp), ("pdf", "svg"))
+                frm = {kk: "TechDraw page" for kk in got}
+                frm.update({kk: f"Workshop's sheet writer: {w}" for kk, w in why.items()})
+            else:
+                fig["pageNote"] = note
+        if "svg" not in got:
+            with open(fp + ".svg", "w", encoding="utf-8") as f:
+                f.write(sheet.svg())
+            frm.setdefault("svg", "Workshop's sheet writer: no TechDraw page")
+        if "pdf" not in got:
+            with open(fp + ".pdf", "wb") as f:
+                f.write(sheet.pdf())
+            frm.setdefault("pdf", "Workshop's sheet writer: no TechDraw page")
+        fig.update({"svg": fp + ".svg", "pdf": fp + ".pdf", "filesFrom": frm})
+        figs.append(fig)
     lines = [f"# Reference numerals — {a.get('name') or 'figures'}", ""]
     lines += [f"- FIG. {f['fig']} is {views.WORDS[f['view']]}." for f in figs]
     lines += [""] + [f"- {num} — {lbl}" for lbl, num in sorted(numerals.items(), key=lambda t: t[1])]
@@ -1017,10 +1207,40 @@ def patent_figures(s, a):
     with open(np_, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
     s._patent = {"name": a.get("name"), "numerals": numerals, "figures": [{"fig": f["fig"], "view": f["view"]} for f in figs]}
-    out = {"figures": figs, "numerals": numerals, "list": np_, "note": "Black line art, no shading or hidden lines, on A4 within the USPTO's margins; numerals 3.5 mm high with lead lines to a face of each part."}
+    out = {"figures": figs, "numerals": numerals, "list": np_, "note": "Black line art, no shading or hidden lines, on A4 within the USPTO's margins; numerals 3.5 mm high with lead lines to a face of each part. "
+           "Each figure is an ordinary TechDraw page (page), its numerals TechDraw balloons with no bubble, editable in TechDraw; the files are its exports where TechDraw can write them (filesFrom)."}
     if unseen:
         out["notSeenIn"] = unseen
     return out
+
+
+def _patent_page(s, objs, shapes, view, k, scale, centre, numerals, label):
+    """FIG. k as an ordinary TechDraw page in patent style: A4 portrait,
+    TechDraw's blank template (no title block), visible lines only, each
+    part's numeral a TechDraw balloon with no bubble and no arrowhead, the
+    figure's label a TechDraw annotation, inside the 37 CFR 1.84 margins the
+    files keep. (page, None) or (None, why not)."""
+    try:
+        W, H = sheets.PAPER["A4P"]
+        page = _page(s.doc, label, "A4P", blank=True)
+        v = _view(s.doc, page, objs, view, scale, centre[0], centre[1], f"FIG. {k}", line_art=True)
+        _wait_views([v])
+        c3 = _shapes_box(shapes).Center
+        for o in objs:
+            others = [x.Shape for x in objs if x is not o]
+            p = views.visible_point(o.Shape, others, view)
+            if p is None:
+                continue
+            px, py = views.point(p, view)
+            cx, cy = views.point(c3, view)
+            ang = math.atan2(py - cy, px - cx)
+            origin, at = balloon_at(p, c3, view, scale, (14 * math.cos(ang), 14 * math.sin(ang)))
+            _balloon(s.doc, page, v, origin, at, numerals[o.Label], plain=True)
+        _note(s.doc, page, [f"FIG. {k}"], centre[0], H - 10.0 - 8, size=6)
+        s.doc.recompute()
+        return page, None
+    except Exception as e:  # noqa: BLE001 — the files stand without it
+        return None, f"the TechDraw page could not be made here ({e})"
 
 
 # ---- patent_draft ----------------------------------------------------------------------
