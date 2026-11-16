@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<title>SafetyNet_Workbench</title>
+<defs></defs>
+<path d="M58.31,22.42 A28,28 0 0 0 41.58,5.69 L36.45,19.78 A13,13 0 0 1 44.22,27.55 Z" fill="#cc0000"/>
+<path d="M41.58,5.69 A28,28 0 0 0 22.42,5.69 L27.55,19.78 A13,13 0 0 1 36.45,19.78 Z" fill="#eeeeec"/>
+<path d="M22.42,5.69 A28,28 0 0 0 5.69,22.42 L19.78,27.55 A13,13 0 0 1 27.55,19.78 Z" fill="#cc0000"/>
+<path d="M5.69,22.42 A28,28 0 0 0 5.69,41.58 L19.78,36.45 A13,13 0 0 1 19.78,27.55 Z" fill="#eeeeec"/>
+<path d="M5.69,41.58 A28,28 0 0 0 22.42,58.31 L27.55,44.22 A13,13 0 0 1 19.78,36.45 Z" fill="#cc0000"/>
+<path d="M22.42,58.31 A28,28 0 0 0 41.58,58.31 L36.45,44.22 A13,13 0 0 1 27.55,44.22 Z" fill="#eeeeec"/>
+<path d="M41.58,58.31 A28,28 0 0 0 58.31,41.58 L44.22,36.45 A13,13 0 0 1 36.45,44.22 Z" fill="#cc0000"/>
+<path d="M58.31,41.58 A28,28 0 0 0 58.31,22.42 L44.22,27.55 A13,13 0 0 1 44.22,36.45 Z" fill="#eeeeec"/>
+<circle cx="32" cy="32" r="28" fill="none" stroke="#a40000" stroke-width="2"/>
+<circle cx="32" cy="32" r="13" fill="none" stroke="#a40000" stroke-width="2"/>
+<path d="M7.56,23.16 A26,26 0 0 1 23.16,7.56" fill="none" stroke="#ef2929" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.9"/>
+</svg>

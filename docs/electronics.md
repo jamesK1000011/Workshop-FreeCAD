@@ -1,0 +1,143 @@
+<!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
+# Workshop Electronics
+
+> **Written before the combine (15 Nov 2026).** This part is now inside the one Workshop add-on. Where each command sits now (FreeCAD's own workbenches, the Make workbench, Tools ▸ SafetyNet) is in the [README](../README.md#where-things-are). The install and uninstall notes below are out of date; the README has the current ones. What the part does, its Python API and its agent tools are the same.
+
+
+> Not affiliated with or endorsed by the FreeCAD project or the FPA; FreeCAD is the FPA's trademark. Get FreeCAD itself from [freecad.org](https://freecad.org).
+
+Workshop Electronics brings your circuit board into FreeCAD so the parts
+round it fit. It reads a KiCad board file without KiCad: the outline,
+cut-outs, mounting holes, and the tall parts with their heights. From that it
+can make an enclosure round the board, with standoffs under the holes and
+openings for the connectors on its edges. It packs a board for ordering from
+JLCPCB, PCBWay or OSH Park (it uploads and orders nothing), and it cuts
+channels inside printed parts for wire or conductive traces, with their
+resistance. It is for makers putting a board in a box, and for people who
+let an AI agent do that with them.
+
+<!-- screenshot: the Workshop Electronics workbench with a KiCad board read in and an enclosure round it -->
+
+You do not need to know Python. You do not need KiCad or an agent.
+
+## Install
+
+You need FreeCAD 1.0 or newer.
+
+**With the Addon Manager (custom repository).** This installs all four
+Workshop add-ons (Parts, Make, Electronics, Documents) together.
+
+1. Open **Edit ▸ Preferences ▸ Addon Manager**.
+2. Under **Custom repositories**, add
+   `https://github.com/jamesK1000011/Workshop-FreeCAD` with branch `main`.
+3. Open **Tools ▸ Addon manager**, find **Workshop for FreeCAD**, and click
+   **Install**.
+4. Restart FreeCAD.
+
+**As part of Agent Link.** The Agent Link extension for Claude Desktop
+installs Workshop Electronics for you, on its own, as
+`Mod/WorkshopElectronics`. Nothing else to do.
+
+**By hand.** Put this `Electronics` folder in FreeCAD's `Mod` folder as
+`WorkshopElectronics` and restart FreeCAD.
+
+Use one way, not two: the same workbench installed twice shows up twice.
+
+## What you see in FreeCAD
+
+**The Workshop Electronics workbench.** Pick it from the workbench list. Its
+**Electronics** toolbar and menu have:
+
+- **KiCad Board…**: read a `.kicad_pcb` (KiCad 5 to 9) into the document as a
+  solid: its outline, cut-outs and mounting holes.
+
+<!-- screenshot: the Electronics toolbar -->
+
+**The KiCad board task panel.** The button opens a panel in the **Tasks**
+tab, like FreeCAD's own tools. Type the board file's path or click
+**Browse…**; a line under it says what the board is (size, layers, holes) as
+soon as it is read. **OK** adds the board as one undo step; **Cancel** leaves
+the document as it was.
+
+<!-- screenshot: the KiCad board task panel with a board's summary line -->
+
+The enclosure, the order package and printed channels are made from Python
+or by an agent (below).
+
+**From Python or a macro:**
+
+```python
+from workshop_electronics import api
+board = api.read_board("~/boards/sensor.kicad_pcb")
+api.add_board(App.ActiveDocument, board)
+```
+
+## What an agent can do with it
+
+When Agent Link for FreeCAD is installed, an agent gets these tools. The list
+is generated from the tool definitions (`workshop_electronics/data/tools.json`)
+by `tools/gen_readme_tools.py`.
+
+<!-- tool list as it was; the README has the current one -->
+| Tool | Group | What it does |
+|---|---|---|
+| `kicad_import` | electronics | Read a KiCad board. |
+| `board_enclosure` | electronics | An enclosure round an imported board, placed round it. |
+| `pcb_order_package` | electronics | Package a board for ordering. |
+| `printed_channel` | electronics | Cut a channel inside a body along path for wire or a conductive trace. |
+
+
+## Alone or with Agent Link
+
+| | Alone | With Agent Link |
+|---|---|---|
+| Workbench, KiCad board task panel | Yes | Yes |
+| Python API (`workshop_electronics.api`) | Yes | Yes |
+| Agent tools above | No | Yes |
+
+Workshop Electronics needs no other add-on; it has its own enclosure maker
+and reads Workshop Make's printer fit from the document if there is one. It
+never imports Agent Link: only `workshop_electronics/agentlink_families.py`
+and `fam_electronics.py` do, and only Agent Link loads them.
+
+## Data
+
+The board houses' rules (`workshop_electronics/data/pcb-vendors.json`) are a
+data file with a schema, each entry with its source and date, under CC BY
+4.0 (`LICENSE-DATA`). Check the board house's own pages before you order.
+Your own entries go in `~/.config/workshop_electronics/pcb-vendors.json`;
+updates never touch that folder, and your entries win.
+
+## Uninstall and privacy
+
+Installed with Workshop for FreeCAD through the Addon Manager, it is removed
+with it (Tools ▸ Addon manager ▸ Workshop for FreeCAD ▸ Uninstall). Installed
+by Agent Link or by hand, delete the `WorkshopElectronics` folder from FreeCAD's `Mod`
+folder and restart FreeCAD. The parts it made stay in your documents.
+
+Workshop Electronics has no telemetry. It makes no network connection on its own. KiCad boards are read from your disk, without KiCad. With Agent Link, what the agent
+reads goes to the AI provider your MCP client uses, under that provider's
+terms.
+
+## For developers
+
+```
+AGENTLINK_HOME=$(mktemp -d) PYTHONPATH=. python3 -m unittest discover -s tests
+python3 tools/gen_readme_tools.py   # refresh the tool list above
+```
+
+## Licence
+
+LGPL-2.1-or-later (`LICENSE`); the data files are CC BY 4.0 (`LICENSE-DATA`,
+`LICENSES/CC-BY-4.0.txt`). Each file's licence is stated in its header or in
+`REUSE.toml`.
+
+## Credits
+
+- KiCad is the KiCad project's; its board files are read here without any
+  KiCad code.
+- Icons are hand-drawn in FreeCAD's icon style. Their designs follow glyphs
+  from [Tabler Icons](https://tabler.io/icons) (MIT) and
+  [Pictogrammers Material Design Icons](https://pictogrammers.com) (Apache-2.0).
+  See `workshop_electronics/icons/CREDITS.md` and the texts in `LICENSES/`.
+- FreeCAD's own icons are used by name from FreeCAD.

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<title>SafetyNet_Recover</title>
+<defs><linearGradient id="SafetyNet_Recover_g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eeeeec"/><stop offset="1" stop-color="#babdb6"/></linearGradient></defs>
+<path d="M6,4 H34 L44,14 V54 H6 Z" fill="url(#SafetyNet_Recover_g1)" stroke="#555753" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M8,52 V6 H33" fill="none" stroke="#eeeeec" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.9"/>
+<path d="M34,4 V14 H44" fill="#d3d7cf" stroke="#555753" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M12,20 H34 M12,28 H38 M12,36 H26" fill="none" stroke="#888a85" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.8"/>
+<path d="M59.97,38.19 A17,17 0 0 0 49.81,28.03 L46.74,36.48 A8,8 0 0 1 51.52,41.26 Z" fill="#cc0000"/>
+<path d="M49.81,28.03 A17,17 0 0 0 38.19,28.03 L41.26,36.48 A8,8 0 0 1 46.74,36.48 Z" fill="#eeeeec"/>
+<path d="M38.19,28.03 A17,17 0 0 0 28.03,38.19 L36.48,41.26 A8,8 0 0 1 41.26,36.48 Z" fill="#cc0000"/>
+<path d="M28.03,38.19 A17,17 0 0 0 28.03,49.81 L36.48,46.74 A8,8 0 0 1 36.48,41.26 Z" fill="#eeeeec"/>
+<path d="M28.03,49.81 A17,17 0 0 0 38.19,59.97 L41.26,51.52 A8,8 0 0 1 36.48,46.74 Z" fill="#cc0000"/>
+<path d="M38.19,59.97 A17,17 0 0 0 49.81,59.97 L46.74,51.52 A8,8 0 0 1 41.26,51.52 Z" fill="#eeeeec"/>
+<path d="M49.81,59.97 A17,17 0 0 0 59.97,49.81 L51.52,46.74 A8,8 0 0 1 46.74,51.52 Z" fill="#cc0000"/>
+<path d="M59.97,49.81 A17,17 0 0 0 59.97,38.19 L51.52,41.26 A8,8 0 0 1 51.52,46.74 Z" fill="#eeeeec"/>
+<circle cx="44" cy="44" r="17" fill="none" stroke="#a40000" stroke-width="2"/>
+<circle cx="44" cy="44" r="8" fill="none" stroke="#a40000" stroke-width="2"/>
+<path d="M29.90,38.90 A15,15 0 0 1 38.90,29.90" fill="none" stroke="#ef2929" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.9"/>
+</svg>

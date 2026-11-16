@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<title>SafetyNet_Macros</title>
+<path d="M10,4 H40 L52,16 V60 H10 Z" fill="#eeeeec" stroke="#555753" stroke-width="2" stroke-linejoin="round"/>
+<path d="M40,4 V16 H52" fill="#d3d7cf" stroke="#555753" stroke-width="2" stroke-linejoin="round"/>
+<path d="M16,22 H40 M16,30 H34 M16,38 H28" fill="none" stroke="#888a85" stroke-width="2" stroke-linecap="round"/>
+<path d="M34,36 L58,48 L34,60 Z" fill="#73d216" stroke="#4e9a06" stroke-width="2" stroke-linejoin="round"/>
+</svg>

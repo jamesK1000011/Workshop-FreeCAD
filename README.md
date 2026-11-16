@@ -3,18 +3,33 @@
 
 > Not affiliated with or endorsed by the FreeCAD project or the FreeCAD project association (FPA); FreeCAD is the FPA's trademark. Get FreeCAD itself from [freecad.org](https://freecad.org).
 
-FreeCAD add-ons for making things. Each folder is an add-on of its own, with
-its own workbench, task panels and Python API, and works with no other
-add-on installed. When
+One FreeCAD add-on for making things. Each feature sits in the FreeCAD
+workbench it belongs to, beside the FreeCAD tool it builds on. Only what
+FreeCAD has no place for gets a workbench of its own, the small **Make**
+workbench. Everything works with no other add-on installed. When
 [Agent Link for FreeCAD](https://github.com/jamesK1000011/AgentLink-FreeCAD) is
 installed, the same functions are also tools an AI agent can call.
 
-| Add-on | What it does |
+It brings together what used to be five add-ons: Workshop Parts, Make,
+Electronics and Documents, and SafetyNet. Each part's own notes (its Python
+API, data files and agent tools) are in [docs/](docs/): [Parts](docs/parts.md),
+[Make](docs/make.md), [Electronics](docs/electronics.md),
+[Documents](docs/documents.md), [SafetyNet](docs/safetynet.md).
+
+## Where things are
+
+| Feature | Where |
 |---|---|
-| [Workshop Parts](Parts/README.md) | Standard parts made to size: Gridfinity bins and baseplates, project boxes with lids, enclosures round a circuit board. |
-| [Workshop Make](Make/README.md) | Getting a part made: setups, a printability check and one verdict, fits and hardware holes for your printer, threads, parts encased mid-print, mass, slicing, printers on the network, and output for laser, waterjet and mill. |
-| [Workshop Electronics](Electronics/README.md) | KiCad boards read without KiCad, enclosures round them, PCB order packages, channels for wire inside printed parts. |
-| [Workshop Documents](Documents/README.md) | Drawing sheets, assembly manuals, patent figures and a draft, and library packs to share. |
+| Gridfinity bin and baseplate, project box, board box | **Standard Parts** dropdown in Part (beside the primitives) and Part Design (beside the additive primitives); Part ▸ Primitives menu |
+| Hole for hardware (printer allowance, nut trap, insert and magnet pockets) | Part Design, its own button right after Hole |
+| Thread lookup | Part Design menu, after Hole for hardware |
+| DFM check, part review, mass properties | **Make Checks** dropdown beside Check Geometry in Part Design; Mass properties also beside Measure in the menu |
+| Drawing (a TechDraw page in one click) | TechDraw, after the page buttons |
+| Exploded drawing, patent figures, patent draft | TechDraw menu, after Drawing |
+| KiCad board | File menu, after Import |
+| Library pack | File menu, after Export |
+| Checkpoint, restore, recovered copies, settings history and rollback, macros, clean up copies | **Tools ▸ SafetyNet** in every workbench; Recovered Copies also in the File menu |
+| Setups, fit sizes and printer calibration, encased hardware and pauses, slicing, cut and mill export, printers; the Make panel (Setups, Materials, Fits, Review) and the Manual panel | The **Make** workbench |
 
 ## Install
 
@@ -22,52 +37,143 @@ You need FreeCAD 1.0 or newer.
 
 - **Addon Manager:** add `https://github.com/jamesK1000011/Workshop-FreeCAD`
   (branch `main`) under **Edit ▸ Preferences ▸ Addon Manager ▸ Custom
-  repositories**, then install **Workshop for FreeCAD**. You get Parts, Make,
-  Electronics and Documents together.
-- **Agent Link:** the Agent Link extension for Claude Desktop installs each
-  add-on on its own (`Mod/WorkshopParts`, `Mod/WorkshopMake`,
-  `Mod/WorkshopElectronics`, `Mod/WorkshopDocuments`).
-- **By hand:** copy the folders you want into FreeCAD's `Mod` folder under
-  those names.
+  repositories**, then install **Workshop**.
+- **Agent Link:** the Agent Link extension for Claude Desktop installs it as
+  `Mod/Workshop`. It sets aside the older separate folders (`WorkshopParts`,
+  `WorkshopMake`, `WorkshopElectronics`, `WorkshopDocuments`, `SafetyNet`)
+  for you.
+- **By hand:** copy this repository into FreeCAD's `Mod` folder as
+  `Workshop`.
 
-Use one way, not two. Each add-on's README says what you see in FreeCAD and
-what an agent can do with it.
+Use one way, not two. If you had the separate add-ons or SafetyNet
+installed, remove them first: two copies would show every command twice.
 
 ## Uninstall
 
-- **Addon Manager**: Tools ▸ Addon manager ▸ Workshop for FreeCAD ▸
-  Uninstall, then restart FreeCAD. This removes all four.
-- **Installed by Agent Link or by hand**: delete the add-on folders from
-  FreeCAD's `Mod` folder (`WorkshopParts`, `WorkshopMake`,
-  `WorkshopElectronics`, `WorkshopDocuments`) and restart FreeCAD.
-- **Your files** are yours to keep or delete: what the add-ons write goes
-  beside the open document, or to `~/Workshop` when it has not been saved.
+- **Addon Manager**: Tools ▸ Addon manager ▸ Workshop ▸ Uninstall, then
+  restart FreeCAD.
+- **Installed by Agent Link or by hand**: delete `Workshop` from FreeCAD's
+  `Mod` folder and restart FreeCAD.
+- **Your files** are yours to keep or delete. What the add-on writes goes
+  beside the open document, or to `~/Workshop` when the document hasn't been
+  saved. SafetyNet's checkpoints, copies and logs are under `~/AgentLink`.
+  Its one setting group is `Mod/SafetyNet` in FreeCAD's parameters.
 
 ## Privacy
 
-No add-on here has telemetry, and none sends anything anywhere on its own.
-The one network use is Workshop Make's printer connection: when you ask it
-to, it talks to printers on your own network (OctoPrint, Moonraker,
-PrusaLink) at the addresses you give it. Their keys and passwords are kept
-in a file only your user can read, and are never shown back. Library packs
-from Workshop Documents are scrubbed of personal details before they are
-written. With Agent Link, what the agent reads goes to the AI provider your
-MCP client uses, under that provider's terms.
+There's no telemetry, and nothing is sent anywhere on its own. The one
+network use is the printer connection: when you ask it to, it talks to
+printers on your own network (OctoPrint, Moonraker, PrusaLink) at the
+addresses you give it. Their keys and passwords are kept in a file only your
+user can read, and are never shown back. Library packs are scrubbed of
+personal details before they're written. A macro runs only after you've
+approved it yourself. With Agent Link, what the agent reads goes to the AI
+provider your MCP client uses, under that provider's terms.
 
-## Tests
+## What an agent can do with it
 
-CI runs each add-on alone, then with Agent Link beside it:
+With Agent Link installed, these are the tools (names unchanged from the
+separate add-ons):
+
+<!-- tools:begin (generated by tools/gen_readme_tools.py) -->
+| Tool | Group | What it does |
+|---|---|---|
+| `gen_make` | parts | Make a Gridfinity bin to size. |
+| `gen_part` | parts | Make a standard part to size, each piece its own body. |
+| `fit` | fits | Fits for made parts. |
+| `hw_hole` | fits | A hole for hardware in a body, FreeCAD's own Hole where it can be. |
+| `thread_lookup` | thread | Thread sizes from FreeCAD's own tables, mm. |
+| `thread_identify` | thread | What thread a hole or shaft is. |
+| `thread_cut` | thread | Thread a hole with FreeCAD's PartDesign Hole. |
+| `hw_embed` | embed | Encase a bought part mid-print. |
+| `hw_embed_list` | embed | The parts encased in a body. |
+| `hw_unembed` | embed | Take an encased part out by id. |
+| `hw_pauses` | embed | Every pause a body's print needs. |
+| `setup` | make | How each part is made, recorded. |
+| `part_spec` | make | The limits every part must meet, kept with the document. |
+| `dfm_check` | make | Is a body printable as it stands, with its print setup's nozzle and printer. |
+| `part_review` | make | One verdict on a part, pass, fix or unknown, after every change. |
+| `slice` | make | Slice a body in a print setup with the slicer on this computer. |
+| `mass_calibrate` | mass | Calibrate mass to a weighed print. |
+| `mass_properties` | mass | Each body's mass in its material. |
+| `mass_target` | mass | How far a body is from a target mass and/or centre of mass. |
+| `mass_ballast` | mass | Lay out closed upright ballast pockets inside a body, minWall clear of every surface, to reach a target mass … |
+| `slicer_presets` | slice | The person's own slicer presets, as data. |
+| `slice_with` | slice | Slice a body in a print setup with slicer prusaslicer, orcaslicer or bambustudio, by its command line. |
+| `slice_read` | slice | Read an OrcaSlicer or Bambu Studio project back. |
+| `slice_open` | slice | Open a project in the slicer's own window for the person. |
+| `printer_add` | printer | Keep a printer on the network by name. |
+| `printer_list` | printer | The printers kept. |
+| `printer_status` | printer | A printer's state now. |
+| `printer_send` | printer | Upload a G-code file to a printer. |
+| `printer_pause` | printer | Pause the printer's job. |
+| `printer_stop` | printer | Stop the printer's job. |
+| `cut_check` | cut | Can a body in a cut setup be cut from sheet. |
+| `cut_export` | cut | The flat profiles of one or more sheet bodies laid out on the sheet by FreeCAD's BIM Nest where BIM is here … |
+| `mill_check` | mill | Can a body in a mill setup be milled. |
+| `mill_export` | mill | STEP of a milled body and its setup sheet by FreeCAD's CAM. |
+| `fea_frame` | strength | A frame of straight members by beam elements. |
+| `kicad_import` | electronics | Read a KiCad board. |
+| `board_enclosure` | electronics | An enclosure round an imported board, placed round it. |
+| `pcb_order_package` | electronics | Package a board for ordering. |
+| `printed_channel` | electronics | Cut a channel inside a body along path for wire or a conductive trace. |
+| `drawing_make` | drawing | A drawing of bodies as a normal TechDraw page, editable in TechDraw, laid out in one call. |
+| `drawing_exploded` | drawing | An assembly manual. |
+| `patent_figures` | drawing | Patent-style figures FIG. |
+| `patent_draft` | drawing | A Markdown draft of a patent description and a claims skeleton from the bodies. |
+| `library_pack` | share | Pack bodies to share. |
+| `history_checkpoint` | core | Save a copy of the document now, to come back to with history_restore or measure from with history_diff. |
+| `history_restore` | core | Go back to a checkpoint. |
+| `macro_save` | safety | Save this session's changing calls as a FreeCAD macro. |
+| `macro_list` | safety | The macros in FreeCAD's macro folder, each approved, changed or not approved. |
+| `macro_show` | safety | One macro's text, its named sizes and how many calls it makes, and whether it is approved. |
+| `macro_approve` | safety | The person approves a macro to be run by Agent Link. |
+| `macro_unapprove` | safety | Take a macro off the approved list. |
+| `macro_run` | safety | Run an approved macro as FreeCAD's Macro dialog runs it. |
+| `app_recover` | safety | Documents back after a crash or a hang. |
+| `pref_history` | safety | The settings changes Agent Link made, newest first. |
+| `pref_rollback` | safety | Put FreeCAD's settings back as they were before a change. |
+<!-- tools:end -->
+
+## For developers
+
+Each part is its own Python package with its own API: `workshop_parts.api`,
+`workshop_make.api`, `workshop_electronics.api`, `workshop_documents.api`,
+and `safetynet`. `workshop/` is the add-on's own layer: the placement table
+(`workshop/placement.py`), the one `agentlink_families` module, and the
+helper files Agent Link vendors. The design is in
+[docs/combine-design.md](docs/combine-design.md). Tests, with no FreeCAD
+needed:
 
 ```
 AGENTLINK_HOME=$(mktemp -d) python3 -m unittest discover -s tests
-cd Parts && AGENTLINK_HOME=$(mktemp -d) PYTHONPATH=. python3 -m unittest discover -s tests
+for d in parts make electronics documents safetynet; do AGENTLINK_HOME=$(mktemp -d) PYTHONPATH=. python3 -m unittest discover -s tests/$d; done
+python3 tools/gen_readme_tools.py   # the tool list above
 ```
 
-## Licence and history
+## Licence
 
-LGPL-2.1-or-later (`LICENSE`); the data files are CC BY 4.0 (`LICENSE-DATA`).
-Each add-on carries its own `LICENSE`, `LICENSES/`, `REUSE.toml` and
-`CHANGELOG.md`; `CHANGELOG.md` here covers the suite as the Addon Manager
-installs it. Parts moved here from Agent Link for FreeCAD on 14 Nov 2026;
-its history before that is in that repository (`agentlink/gridfinity.py`,
-`agentlink/boxes.py` and `agentlink/families/parts.py` up to commit c954763).
+LGPL-2.1-or-later (`LICENSE`). The data files are CC BY 4.0 (`LICENSE-DATA`,
+`LICENSES/CC-BY-4.0.txt`). Each file's licence is in its header or in
+`REUSE.toml`. Parts moved here from Agent Link for FreeCAD on 14 Nov 2026;
+its earlier history is in that repository (`agentlink/gridfinity.py`,
+`agentlink/boxes.py` and `agentlink/families/parts.py`, up to commit
+c954763). SafetyNet came from SafetyNet-FreeCAD (up to commit 25ca601), under
+the same licence. Each part's changelog up to the combine is in
+`CHANGELOG.md`.
+
+## Credits
+
+- The Make panel is inspired by the panels of ScanRuler by Stefan Hermann
+  (CNC Kitchen).
+- The Gridfinity profile follows the open Gridfinity system by Zack Freedman.
+- Thread, fit and hardware sizes follow the published standards each data
+  entry names. Fits follow ISO 286.
+- KiCad is the KiCad project's. Its board files are read here without any
+  KiCad code.
+- Drawings are TechDraw pages, made with FreeCAD's own drawing workbench.
+- Icons are hand-drawn in FreeCAD's icon style. Their designs follow glyphs
+  from [Tabler Icons](https://tabler.io/icons) (MIT) and
+  [Pictogrammers Material Design Icons](https://pictogrammers.com) (Apache-2.0).
+  See each `icons/CREDITS.md` and the texts in `LICENSES/`.
+- FreeCAD's own icons are used by name from FreeCAD.
