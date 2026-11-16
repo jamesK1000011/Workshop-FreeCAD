@@ -60,7 +60,11 @@ def slice_with(s, a):
         if v and not os.path.isfile(v):
             raise ToolError("not_found", f"profiles.{k}: {v} is not a file.")
     settings = {k: v for k, v in setup.items() if k not in ("id", "name", "type", "bodies")}
-    mat = store.materials(s.doc).get(o.Label) or "pla"
+    # A filament given for this slice only (material) is used and not recorded.
+    given = str(a.get("material") or "").strip().lower()
+    if given and given not in DENSITY:
+        raise ToolError("invalid_input", f"material {a.get('material')!r}: a filament id, one of {', '.join(DENSITY)} (for this slice only; material_set records a body's own).")
+    mat = given or store.materials(s.doc).get(o.Label) or "pla"
     settings["filament"] = mat.split("-")[0]
     settings["density"] = DENSITY.get(mat, 1.24)
     settings["volume"] = printability.PRINTERS.get(setup.get("printer") or "generic", printability.PRINTERS["generic"])
@@ -100,6 +104,9 @@ def slice_with(s, a):
     }
     if a.get("overrides"):
         out["overrides"] = a["overrides"]
+    if given:
+        out["material"] = (f"{given} for this slice only (not recorded: material_set records it)" if not (profiles.get("filament") or profiles.get("config"))
+                           else f"{given} asked for, but the filament profile given (or the setup's presets) is what the slicer used")
     out.update(slicers.LAST)  # the slicer's warnings and plate statistics
     if len(stls) > 1:
         out["bodies"] = [o.Label] + [b.Label for b in others if b is not o]
