@@ -43,14 +43,28 @@ def _solid(o):
 PASSIVE = ("App::DocumentObjectGroup", "Spreadsheet::Sheet", "App::Part", "Assembly::AssemblyObject", "Assembly::JointGroup")
 
 
+def _builds_on(p):
+    """Whether p, in a part's InList, is the part built on from it (a
+    boolean, a mirror …: then p is the part, not what it uses). A hidden
+    user, or an add-on's helper or state object (a ScanRuler reverse-engineer
+    object, a Texturizer result, a group) only refers to the part: the part
+    stays a part (live on 1.1.3: the Body vanished from the list and Make's
+    New made an empty setup)."""
+    if getattr(p, "TypeId", "") in PASSIVE or not _solid(p):
+        return False
+    if str(getattr(p, "TypeId", "")).endswith("FeaturePython"):
+        return False  # an add-on's object refers to the part; both are listed
+    return getattr(p, "Visibility", True) is not False
+
+
 def bodies_in(doc):
-    """The parts a person would name: shown solids nothing else is built
+    """The parts a person would name: shown solids nothing shown is built
     from (a PartDesign Body, not its features)."""
     out = []
     for o in getattr(doc, "Objects", None) or []:
         if not _solid(o):
             continue
-        if any(getattr(p, "TypeId", "") not in PASSIVE and _solid(p) for p in getattr(o, "InList", [])):
+        if any(_builds_on(p) for p in getattr(o, "InList", [])):
             continue
         try:
             parent = o.getParentGeoFeatureGroup()

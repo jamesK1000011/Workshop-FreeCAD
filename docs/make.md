@@ -91,6 +91,11 @@ undo step.
 **The Make panel**, beside the model tree (**Make ▸ Make Panel**), with tabs:
 
 - **Setups**: each setup, its process and settings, and the parts in it.
+  **New** puts in the part you selected (a feature or sketch stands for its
+  Body), else the one you chose in the part list, else the active Body,
+  else the only part in the document (meshes and add-ons' helper objects
+  left out). With several parts and none of these it asks which, and makes
+  nothing; a setup with no part says "No part in this setup: pick one".
 - **Materials**: what each part is made of: Make's printing filaments and
   the material each process assumes. **Give to Part** also sets FreeCAD's
   own material on the part, so FreeCAD's Inspect Material agrees. A metal's

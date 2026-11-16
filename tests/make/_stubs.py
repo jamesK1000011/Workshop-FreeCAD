@@ -36,7 +36,7 @@ class W:
     def __init__(self, *a, **k):
         self._text = a[0] if a and isinstance(a[0], str) else ""
         self._ss, self._name, self.visible = "", "", True
-        for s in ("clicked", "returnPressed", "currentChanged", "itemClicked"):
+        for s in ("clicked", "returnPressed", "currentChanged", "itemClicked", "activated"):
             setattr(self, s, Signal())
     def __getattr__(self, k):
         if k.startswith("__"):

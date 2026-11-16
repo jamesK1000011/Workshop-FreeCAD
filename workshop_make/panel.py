@@ -106,6 +106,92 @@ def setup_rows(out, names):
 
 
 EMPTY_SETUPS = "No setups yet: Make ▸ New Setup…"
+NO_PART = "No part in this setup: pick one"
+
+
+def _in_body(o):
+    """o's PartDesign Body when o is a feature inside one, else o."""
+    try:
+        parent = o.getParentGeoFeatureGroup()
+    except Exception:  # noqa: BLE001
+        parent = None
+    if parent is not None and getattr(parent, "TypeId", "") == "PartDesign::Body":
+        return parent
+    return o
+
+
+def _helper(o):
+    """An add-on's helper or state object: a Python feature made from a
+    solid in the document (a ScanRuler reverse-engineer object, a Texturizer
+    result) rather than a part someone modelled."""
+    if not str(getattr(o, "TypeId", "")).endswith("FeaturePython"):
+        return False
+    return any(local_runner._solid(x) for x in getattr(o, "OutList", None) or [])
+
+
+def only_part(doc):
+    """The one part in the document, else None: the parts list
+    (runner.bodies_in), add-ons' helper objects left out; with none listed,
+    the one shown PartDesign Body with a solid. Meshes have no Shape and
+    are never parts."""
+    if doc is None:
+        return None
+    cands = local_runner.bodies_in(doc)
+    if len(cands) > 1:
+        cands = [o for o in cands if not _helper(o)]
+    if not cands:
+        cands = [o for o in getattr(doc, "Objects", None) or []
+                 if getattr(o, "TypeId", "") == "PartDesign::Body" and local_runner._solid(o)
+                 and getattr(o, "Visibility", True) is not False]
+    return cands[0] if len(cands) == 1 else None
+
+
+def new_setup_pick(doc, selected=(), chosen="", active=None):
+    """(part labels, message) for Make's New: the parts selected (a feature
+    stands for its Body; meshes and sketches are no part); else the part the
+    person chose in the part list; else the active PartDesign Body; else the
+    only part in the document. None of these: ([], a question naming the
+    parts), so no setup is made empty without a word."""
+    picked = []
+    for o in selected or ():
+        b = _in_body(o)
+        if local_runner._solid(b) and b.Label not in picked:
+            picked.append(b.Label)
+    if picked:
+        return picked, ""
+    names = [o.Label for o in local_runner.bodies_in(doc)] if doc is not None else []
+    if chosen and chosen in names:
+        return [chosen], ""
+    if active is not None and local_runner._solid(active):
+        return [active.Label], ""
+    one = only_part(doc)
+    if one is not None:
+        return [one.Label], ""
+    if names:
+        return [], "Which part? Pick one in the part list (" + ", ".join(names) + ") or select it, then New."
+    return [], "No part in the document: model one (or open one), then New."
+
+
+def _gui_pick(doc):
+    """(selected objects in doc, the active PartDesign Body) from the GUI;
+    nothing when there is no GUI."""
+    sel, active = [], None
+    try:
+        import FreeCADGui
+
+        sel = [o for o in list(FreeCADGui.Selection.getSelection())
+               if getattr(getattr(o, "Document", None), "Name", None) == getattr(doc, "Name", None)]
+    except Exception:  # noqa: BLE001
+        sel = []
+    try:
+        import FreeCADGui
+
+        a = FreeCADGui.ActiveDocument.ActiveView.getActiveObject("pdbody")
+        if getattr(a, "TypeId", "") == "PartDesign::Body" and getattr(a, "Document", None) is doc:
+            active = a
+    except Exception:  # noqa: BLE001
+        active = None
+    return sel, active
 
 
 def said(ok, out, good=""):
@@ -434,6 +520,13 @@ class SetupsTab(Tab):
         self.kind.setToolTip("How the part is made.")
         self.body = _combo()
         self.body.setToolTip("The part.")
+        # Only a part the person chose here counts as a pick: the list's
+        # first entry is no choice (New would put an arbitrary part in).
+        self.chosen = ""
+        try:
+            self.body.activated.connect(lambda *_: setattr(self, "chosen", self.body.currentText()))
+        except Exception:  # noqa: BLE001 — a combo without the signal
+            pass
         row.addWidget(self.kind, 1)
         row.addWidget(self.body, 1)
         self.lay.addLayout(row)
@@ -455,20 +548,36 @@ class SetupsTab(Tab):
         rows, none = setup_rows(out, names)
         self.none.setVisible(not rows)
         for sid, name, ps, sets in rows:
-            it = item([name, ps, sets])
+            it = item([name, ps, sets], {1: NO_PART} if ps == "—" else None)
             it.setData(0, QtCore.Qt.UserRole, sid)
             self.setups.addTopLevelItem(it)
-        self.say(True, out, ("In no setup (no process yet): " + ", ".join(none)) if none else "")
+        empty = [name for _sid, name, ps, _s in rows if ps == "—"]
+        line = ("In no setup (no process yet): " + ", ".join(none)) if none else ""
+        if empty:
+            line = f"{NO_PART} and Add to Setup ({', '.join(empty)})." + (" " + line if line else "")
+        self.say(True, out, line)
 
     def picked(self):
         it = self.setups.currentItem()
         return it.data(0, QtCore.Qt.UserRole) if it else None
 
     def new(self):
-        b = self.body.currentText()
-        ok, out = self.runner("setup", {"action": "add", "type": list(store.TYPES)[max(self.kind.currentIndex(), 0)], "bodies": [b] if b else []})
+        """A setup of the kind picked, with the part: the selected part(s),
+        else the one chosen in the part list, else the active Body, else the
+        only part; else it asks (new_setup_pick) and makes nothing."""
+        doc = self.doc_fn()
+        sel, active = _gui_pick(doc)
+        bodies, ask = new_setup_pick(doc, sel, self.chosen, active)
+        if not bodies:
+            self.fill()
+            self.say(False, {"error": {"message": ask}})
+            return
+        ok, out = self.runner("setup", {"action": "add", "type": list(store.TYPES)[max(self.kind.currentIndex(), 0)], "bodies": bodies})
         self.fill()
-        self.say(ok, out)
+        if ok and not ((out or {}).get("added") or {}).get("bodies"):
+            self.say(False, {"error": {"message": NO_PART}})
+            return
+        self.say(ok, out, ("New setup with " + ", ".join(bodies)) if ok else "")
 
     def add(self):
         sid, b = self.picked(), self.body.currentText()
