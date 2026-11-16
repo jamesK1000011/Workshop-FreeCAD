@@ -13,6 +13,14 @@ Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
 
 ### Fixed
 
+- Make panel, Setups ▸ New made a setup with no part when the document's
+  one Body was also referred to by an add-on's object (a ScanRuler
+  reverse-engineer object, a Texturizer result): the parts list left the
+  Body out. An add-on's Python feature or a hidden object that refers to a
+  part no longer takes it off the list, and New picks the selected part
+  (a feature stands for its Body), else the one chosen in the part list,
+  else the active Body, else the only part; else it asks which and makes
+  nothing. A setup with no part says "No part in this setup: pick one".
 - Hole for hardware: the printer allowance lasts. FreeCAD sets a sized
   Hole's diameter (and a screw standard's cut) again from its size and fit
   when the file is opened, so an M4 clearance answered as 4.7 read 4.5 in

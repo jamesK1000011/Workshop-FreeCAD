@@ -66,7 +66,7 @@ st = tabs["Setups"]
 st.fill()
 OUT["setup_rows"] = [r.texts for r in st.setups.rows]
 OUT["in_none"] = st.msg.text()
-st.body.setCurrentText("Lid"); st.new()
+st.body.setCurrentText("Lid"); st.body.activated.emit(1); st.new()
 st.setups.setCurrentItem(st.setups.rows[0]); st.add()
 st.setups.setCurrentItem(st.setups.rows[0]); st.remove()
 mt = tabs["Materials"]
@@ -314,6 +314,103 @@ for n, setups in (("none", []), ("some", [{"id": "S1", "type": "print", "name": 
 ''')
         self.assertEqual(out["none"], ["No setups yet: Make ▸ New Setup…", [True]])
         self.assertEqual(out["some"][1], [False])
+
+
+NEW_PICK = r'''
+from workshop_make import panel as P
+class Mesh:  # a Texturizer result: a mesh, no Shape
+    def __init__(self, label):
+        self.Label = self.Name = label
+        self.InList, self.OutList, self.Visibility, self.TypeId = [], [], True, "Mesh::Feature"
+    def getParentGeoFeatureGroup(self): return None
+def body_doc(extra=True):
+    body = Obj("Body"); body.TypeId = "PartDesign::Body"
+    pad = Obj("Pad"); pad.TypeId = "PartDesign::Pad"; pad.Visibility = False
+    pad.getParentGeoFeatureGroup = lambda: body
+    sketch = Obj("Sketch", solid=False); sketch.getParentGeoFeatureGroup = lambda: body
+    objs = [body, sketch, pad]
+    if extra:
+        # A ScanRuler reverse-engineer object: an add-on's Python feature
+        # made from the Body (shown, a solid); a hidden state object that
+        # refers to the Body too; a Texturizer mesh.
+        rev = Obj("ReverseEngineer"); rev.TypeId = "Part::FeaturePython"; rev.OutList = [body]
+        state = Obj("TexturizerState"); state.TypeId = "App::FeaturePython"; state.Visibility = False
+        body.InList = [rev, state]
+        objs += [rev, state, Mesh("Body_textured")]
+    d = Doc(()); d.Objects = objs
+    return d, body, pad, sketch
+calls = []
+def runner(tool, args):
+    calls.append([tool, args])
+    if args.get("action") == "add":
+        return True, {"added": {"id": "S1", "type": "print", "name": "Print", "bodies": list(args.get("bodies") or [])}, "setups": 1}
+    return True, {"setups": []}
+def press(doc, sel=(), active=None, choose=None, run=runner):
+    P._gui_pick = lambda d: (list(sel), active)
+    t = P.SetupsTab(runner=run, doc_fn=lambda: doc)
+    t.fill()
+    if choose:
+        t.body.setCurrentText(choose); t.body.activated.emit(0)
+    del calls[:]
+    t.new()
+    adds = [a["bodies"] for tool, a in calls if a.get("action") == "add"]
+    return [adds, t.msg.text()]
+d, body, pad, sketch = body_doc()
+OUT["nothing selected"] = press(d)
+OUT["pad selected"] = press(d, sel=[pad])
+OUT["sketch selected"] = press(d, sel=[sketch])
+OUT["active body"] = press(Doc(("Box", "Lid")), active=None)
+two = Doc(("Box", "Lid"))
+OUT["two, active Lid"] = press(two, active=two.Objects[1])
+OUT["two, chosen Box"] = press(two, choose="Box")
+OUT["two, both selected"] = press(two, sel=two.Objects)
+OUT["empty doc"] = press(Doc(()))
+d2, *_ = body_doc(extra=False)
+OUT["plain body"] = press(d2)
+OUT["listed"] = P.parts(d)
+OUT["empty answer"] = press(d, run=lambda tool, a: (True, {"added": {"id": "S1", "bodies": []}}) if a.get("action") == "add" else (True, {"setups": []}))
+t = P.SetupsTab(runner=lambda tool, a: (True, {"setups": [{"id": "S1", "type": "print", "name": "Print", "bodies": []}]}), doc_fn=lambda: d2)
+t.fill()
+OUT["empty row"] = [t.setups.rows[0].texts[1], t.setups.rows[0].tips.get(1), t.msg.text()]
+'''
+
+
+class NewSetupPicksThePart(unittest.TestCase):
+    # Live on 1.1.3: New with nothing selected, one Body (plus a Texturizer
+    # mesh and a ScanRuler reverse-engineer object), made a setup with no
+    # part (bodies: []).
+    @classmethod
+    def setUpClass(cls):
+        cls.out = run(NEW_PICK)
+
+    def test_the_only_body_with_add_on_objects_about(self):
+        self.assertEqual(self.out["nothing selected"][0], [["Body"]])
+        self.assertEqual(self.out["plain body"][0], [["Body"]])
+        self.assertIn("Body", self.out["listed"])
+
+    def test_a_selected_feature_stands_for_its_body(self):
+        self.assertEqual(self.out["pad selected"][0], [["Body"]])
+        self.assertEqual(self.out["sketch selected"][0], [["Body"]])
+        self.assertEqual(self.out["two, both selected"][0], [["Box", "Lid"]])
+
+    def test_active_body_then_the_persons_choice(self):
+        self.assertEqual(self.out["two, active Lid"][0], [["Lid"]])
+        self.assertEqual(self.out["two, chosen Box"][0], [["Box"]])
+
+    def test_asks_rather_than_making_an_empty_setup(self):
+        adds, msg = self.out["active body"]
+        self.assertEqual(adds, [])
+        self.assertIn("Which part?", msg)
+        self.assertIn("Box, Lid", msg)
+        self.assertEqual(self.out["empty doc"][0], [])
+        self.assertIn("No part in the document", self.out["empty doc"][1])
+
+    def test_an_empty_setup_is_said(self):
+        self.assertEqual(self.out["empty answer"][1], "No part in this setup: pick one")
+        row, tip, msg = self.out["empty row"]
+        self.assertEqual(row, "—")
+        self.assertEqual(tip, "No part in this setup: pick one")
+        self.assertIn("No part in this setup: pick one", msg)
 
 
 class TaskPanels(unittest.TestCase):
