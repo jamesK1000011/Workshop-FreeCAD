@@ -96,6 +96,7 @@ tests/make/test_printmass.py
 tests/make/test_report_line.py
 tests/make/test_services.py
 tests/make/test_slice.py
+tests/make/test_slice_material.py
 tests/make/test_stem_findings.py
 tests/make/test_thread.py
 tests/make/test_threemf.py
@@ -112,6 +113,7 @@ tests/safetynet/test_gui.py
 tests/safetynet/test_layout.py
 tests/safetynet/test_layout_placer.py
 tests/safetynet/test_macros.py
+tests/safetynet/test_pinned_free.py
 tests/safetynet/test_store.py
 tests/safetynet/test_with_agentlink.py
 tests/test_families.py
