@@ -155,6 +155,20 @@ OUT["none"] = D.hole_circle(None, [(0, 0)], 3.0)
         self.assertEqual(out["thread"], [None, [0, [0, 0, 1.25]]])
         self.assertIsNone(out["none"])
 
+    def test_a_diameter_is_only_called_out_on_a_whole_circle(self):
+        out = run(r'''
+import math
+from workshop_documents.handlers import drawing as D
+# A slot 6 wide: two R3 half arcs at its ends; a 6 mm hole drawn whole; a
+# 6 mm hole TechDraw drew as two halves; an R3 fillet's quarter.
+circles = [(0, 0, 3.0), (20, 0, 3.0), (40, 10, 3.0), (60, 10, 3.0), (60, 10, 3.0), (80, 0, 3.0)]
+turns = [math.pi, math.pi, 2 * math.pi, math.pi, math.pi, math.pi / 2]
+OUT["keep"] = D.full_circles(circles, turns)
+OUT["none"] = D.full_circles([], [])
+''')
+        self.assertEqual(out["keep"], [2, 3, 4])
+        self.assertEqual(out["none"], [])
+
     def test_the_view_keeps_its_drawn_circles(self):
         out = run(r'''
 import types
