@@ -175,7 +175,7 @@ class Sheet:
                 out += ["0", "LINE", "8", kind.upper(), "10", f"{x0:.4f}", "20", f"{H - y0:.4f}", "30", "0.0", "11", f"{x1:.4f}", "21", f"{H - y1:.4f}", "31", "0.0"]
         for x, y, size, text, anchor in self.texts:
             rot = 90 if anchor == "vertical" else 0
-            out += ["0", "TEXT", "8", "TEXT", "10", f"{x:.4f}", "20", f"{H - y:.4f}", "30", "0.0", "40", f"{size:g}", "1", text.replace("\u2300", "%%c").replace("\u00b1", "%%p").replace("\u00d7", "x"), "50", str(rot)]
+            out += ["0", "TEXT", "8", "TEXT", "10", f"{x:.4f}", "20", f"{H - y:.4f}", "30", "0.0", "40", f"{size:g}", "1", text.replace("\u2300", "%%c").replace("\u00b1", "%%p").replace("\u00d7", "x").replace("\u2334", "CBORE ").replace("\u2335", "CSK ").replace("\u21a7", "DEEP "), "50", str(rot)]
             if anchor in ("middle", "vertical", "end"):
                 out += ["72", "2" if anchor == "end" else "1", "11", f"{x:.4f}", "21", f"{H - y:.4f}", "31", "0.0"]
         out += ["0", "ENDSEC", "0", "EOF"]
@@ -194,49 +194,244 @@ GRID = {
 ISO_CELLS = [(1, -1), (-1, -1), (1, 1), (-1, 1), (2, -1), (2, 1)]
 
 
-def layout(sizes, paper, projection="first", scale=None, margin=10.0, title_h=18.0, gap=20.0):
-    """Views in their places on the paper: sizes {view: (w, h)} in model mm;
-    paper (W, H). Gives {scale, centres: {view: (x, y)}} in paper mm (y down)
-    at the largest standard scale that fits, or the scale given. A
-    ValueError says when it cannot fit."""
-    cells = {}
-    taken = set()
-    for v in sizes:
-        if v != "iso":
-            cells[v] = GRID[projection][v]
-            taken.add(cells[v])
-    if "iso" in sizes:
-        cells["iso"] = next(c for c in ISO_CELLS if c not in taken)
+# Room round each straight view on the paper, mm: its name above (LABEL);
+# below and to its right an overall dimension 10 mm off the outline, its
+# text, and room to stack one more 7 mm further out (DIM_ROOM); GAP between
+# neighbours' rooms.
+LABEL = 7.0
+DIM_OFF = 10.0
+DIM_STACK = 7.0
+DIM_ROOM = 19.0
+GAP = 8.0
+# How full a sheet may be (views with their rooms over the drawing area
+# the title block leaves): the largest standard scale up to this.
+FILL_MAX = 0.72
+STEP = 5.0
+
+
+def _hit(a, b, clear=0.0):
+    return a[0] < b[2] + clear and b[0] < a[2] + clear and a[1] < b[3] + clear and b[1] < a[3] + clear
+
+
+def _grid(sizes, projection, s):
+    """The straight views at scale s in their grid cells: ({view: (col,
+    row)}, column widths, row heights, cell rects relative to the grid's
+    top left) — each cell the view, its name above and its dimension room
+    below and right."""
+    cells = {v: GRID[projection][v] for v in sizes if v != "iso"}
     cols = sorted({c for (c, _) in cells.values()})
     rows = sorted({r for (_, r) in cells.values()})
-    cw = {c: max(sizes[v][0] for v in cells if cells[v][0] == c) for c in cols}
-    rh = {r: max(sizes[v][1] for v in cells if cells[v][1] == r) for r in rows}
-    W, H = paper
-    aw = W - 2 * margin - 2 * gap
-    ah = H - 2 * margin - title_h - 2 * gap
-    sw, sh = sum(cw.values()), sum(rh.values())
-    if sw <= 0 or sh <= 0:
-        raise ValueError("The views are empty: nothing to draw.")
-    fit = min((aw - gap * (len(cols) - 1)) / sw, (ah - gap * (len(rows) - 1)) / sh)
-    if scale is None:
-        scale = best_scale(fit)
-        if scale is None:
-            raise ValueError("Too big for the paper even at 1:100 — A3, or fewer views.")
-    elif scale > fit + 1e-9:
-        raise ValueError(f"scale: at most {fit:.3g} fits this paper ({best_scale(fit) and scale_text(best_scale(fit))} the largest standard one).")
-    tw = sum(cw.values()) * scale + gap * (len(cols) - 1)
-    th = sum(rh.values()) * scale + gap * (len(rows) - 1)
-    x0 = margin + gap + (aw - tw) / 2
-    y0 = margin + gap + (ah - th) / 2
-    cx, x = {}, x0
+    cw = {c: max(sizes[v][0] * s + DIM_ROOM for v in cells if cells[v][0] == c) for c in cols}
+    rh = {r: max(sizes[v][1] * s + DIM_ROOM + LABEL for v in cells if cells[v][1] == r) for r in rows}
+    xs, x = {}, 0.0
     for c in cols:
-        cx[c] = x + cw[c] * scale / 2
-        x += cw[c] * scale + gap
-    cy, y = {}, y0
+        xs[c] = x
+        x += cw[c] + GAP
+    ys, y = {}, 0.0
     for r in rows:
-        cy[r] = y + rh[r] * scale / 2
-        y += rh[r] * scale + gap
-    return {"scale": scale, "fit": fit, "centres": {v: (cx[c], cy[r]) for v, (c, r) in cells.items()}}
+        ys[r] = y
+        y += rh[r] + GAP
+    rects = {}
+    for v, (c, r) in cells.items():
+        w, h = sizes[v][0] * s, sizes[v][1] * s
+        # The view in its column's middle, at its row's top under its name.
+        vx = xs[c] + (cw[c] - DIM_ROOM - w) / 2
+        vy = ys[r] + LABEL + (rh[r] - LABEL - DIM_ROOM - h) / 2
+        rects[v] = (vx, vy - LABEL, vx + w + DIM_ROOM, vy + h + DIM_ROOM)
+    return cells, x - GAP if cols else 0.0, y - GAP if rows else 0.0, rects
+
+
+def _spots(area, w, h):
+    x0, y0, x1, y1 = area
+    nx, ny = int((x1 - x0 - w) // STEP), int((y1 - y0 - h) // STEP)
+    for i in range(nx + 1):
+        for j in range(ny + 1):
+            yield x0 + i * STEP, y0 + j * STEP
+
+
+def _arrange(sizes, area, block, projection, s, iso_scales):
+    """One try at scale s: None when it does not fit, else (centres, view
+    rects, cell rects, iso scale)."""
+    x0, y0, x1, y1 = area
+    cells, gw, gh, rel = _grid(sizes, projection, s)
+    if gw > x1 - x0 + 1e-9 or gh > y1 - y0 + 1e-9:
+        return None
+    # The grid where it clears the title block, nearest the middle of the
+    # band above the block (else of the whole area).
+    aim = ((x0 + x1) / 2, (y0 + (block[1] if block else y1)) / 2)
+    best = None
+    for gx, gy in _spots(area, gw, gh):
+        placed = {v: (gx + r[0], gy + r[1], gx + r[2], gy + r[3]) for v, r in rel.items()}
+        if block and any(_hit(r, block) for r in placed.values()):
+            continue
+        d = (gx + gw / 2 - aim[0]) ** 2 + (gy + gh / 2 - aim[1]) ** 2
+        if best is None or d < best[0]:
+            best = (d, placed)
+    if best is None:
+        return None
+    rects = best[1]
+    centres, outline = {}, {}
+    for v, r in rects.items():
+        w, h = sizes[v][0] * s, sizes[v][1] * s
+        vx, vy = r[0], r[1] + LABEL
+        centres[v] = (vx + w / 2, vy + h / 2)
+        outline[v] = (vx, vy, vx + w, vy + h)
+    si = None
+    if "iso" in sizes:
+        # The pictorial view in the room left, at the largest standard
+        # scale up to the views' (smaller is fine: it is not measured).
+        taken = list(rects.values()) + ([block] if block else [])
+        free_c = [c for c in ((cc, rr) for cc in {c for c, _ in cells.values()} for rr in {r for _, r in cells.values()}) if c not in cells.values()]
+        for t in iso_scales:
+            if t > s + 1e-9:
+                continue
+            w, h = sizes["iso"][0] * t, sizes["iso"][1] * t + LABEL
+            near = None
+            if free_c and rects:
+                # Aim at the empty grid cell (beside the front, over or under the side view).
+                fc = free_c[0]
+                col_x = [r for v, r in rects.items() if cells[v][0] == fc[0]]
+                row_y = [r for v, r in rects.items() if cells[v][1] == fc[1]]
+                ax = (min(r[0] for r in col_x) + max(r[2] for r in col_x)) / 2 if col_x else (x0 + x1) / 2
+                ay = (min(r[1] for r in row_y) + max(r[3] for r in row_y)) / 2 if row_y else (y0 + y1) / 2
+                near = (ax, ay)
+            near = near or ((x0 + x1) / 2, (y0 + y1) / 2)
+            got = None
+            for px, py in _spots(area, w, h):
+                r = (px, py, px + w, py + h)
+                if any(_hit(r, q, GAP / 2) for q in taken):
+                    continue
+                d = (px + w / 2 - near[0]) ** 2 + (py + h / 2 - near[1]) ** 2
+                if got is None or d < got[0]:
+                    got = (d, r)
+            if got is not None:
+                r = got[1]
+                rects["iso"] = r
+                outline["iso"] = (r[0], r[1] + LABEL, r[2], r[3])
+                centres["iso"] = ((r[0] + r[2]) / 2, (r[1] + LABEL + r[3]) / 2)
+                si = t
+                break
+        if si is None:
+            return None
+    return centres, outline, rects, si
+
+
+def layout(sizes, paper, projection="first", scale=None, margin=10.0, title_h=18.0, gap=None, area=None, block=None):
+    """Views in their places on the paper: sizes {view: (w, h)} in model mm;
+    paper (W, H). The straight views in their projection's grid, each with
+    room for its name above and its overall dimensions below and right
+    (outside the outline); the iso view in the room left, at its own
+    standard scale up to theirs. area: the drawing area (x0, y0, x1, y1;
+    else the frame at margin); block: the title block's (w, h) in the
+    area's bottom right corner (else a strip title_h high across).
+
+    {scale, scales: {view: scale}, centres: {view: (x, y)}, boxes: {view:
+    outline rect}, cells: {view: rect with its rooms}, fill} in paper mm (y
+    down), at the largest standard scale that fits and fills the area at
+    most FILL_MAX, or the scale given. A ValueError says when it cannot."""
+    W, H = paper
+    area = area or (margin, margin, W - margin, H - margin)
+    bw, bh = block if block else (area[2] - area[0], title_h)
+    brect = (area[2] - bw, area[3] - bh, area[2], area[3]) if bw > 0 and bh > 0 else None
+    if not sizes or any(w <= 0 or h <= 0 for w, h in sizes.values()):
+        raise ValueError("The views are empty: nothing to draw.")
+    room = (area[2] - area[0]) * (area[3] - area[1]) - (bw * bh if brect else 0.0)
+    tries = [scale] if scale is not None else SCALES
+    first_fit = None
+    for s in tries:
+        got = _arrange(sizes, area, brect, projection, s, SCALES)
+        if got is None:
+            continue
+        centres, outline, rects, si = got
+        fill = sum((r[2] - r[0]) * (r[3] - r[1]) for r in rects.values()) / room
+        out = {"scale": s, "fit": s, "scales": {v: (si if v == "iso" else s) for v in sizes}, "centres": centres, "boxes": outline,
+               "cells": rects, "fill": round(fill, 3), "area": area, "block": brect}
+        if scale is not None or fill <= FILL_MAX:
+            return out
+        first_fit = first_fit or out
+    if scale is not None:
+        fit = next((t for t in SCALES if _arrange(sizes, area, brect, projection, t, SCALES)), None)
+        raise ValueError(f"scale: {scale_text(scale)} does not fit this paper with room for the dimensions ({fit and scale_text(fit)} the largest standard one that does).")
+    if first_fit:
+        return first_fit
+    raise ValueError("Too big for the paper even at 1:100 — A3, or fewer views.")
+
+
+def choose(sizes, papers, projection="first", scale=None):
+    """The paper and layout: papers [(name, (W, H), area, block)] smallest
+    first. The largest standard scale any of them takes (each at most
+    FILL_MAX full); the smallest paper at that scale. (name, layout); a
+    ValueError when none fits."""
+    best, err = None, None
+    for name, paper, area, block in papers:
+        try:
+            L = layout(sizes, paper, projection, scale, area=area, block=block)
+        except ValueError as e:
+            err = e
+            continue
+        if L["fill"] > FILL_MAX and scale is None:
+            L = dict(L, crowded=True)
+        key = (0 if L.get("crowded") else 1, L["scale"])
+        if best is None or key > best[0]:
+            best = (key, name, L)
+    if best is None:
+        raise err or ValueError("nothing fits")
+    return best[1], best[2]
+
+
+def extent_dims(outline, axes, extent, sizes_seen=None):
+    """The overall dimensions, each once: for each straight view in order,
+    its horizontal extent under it and its vertical extent to its right
+    (axes: {view: (h axis, v axis)}), each DIM_OFF mm off the outline,
+    stacked DIM_STACK further out when a side has more. [(view, axis,
+    a, b, offset, mm)] in paper mm, for Sheet.dimension."""
+    done, out, side = set(), [], {}
+    for v, box in outline.items():
+        if v not in axes:
+            continue
+        ha, va = axes[v]
+        left, top, right, bottom = box
+        if ha not in done:
+            k = side.get((v, "below"), 0)
+            side[(v, "below")] = k + 1
+            out.append((v, ha, (left, bottom), (right, bottom), DIM_OFF + DIM_STACK * k, extent[ha]))
+            done.add(ha)
+        if va not in done:
+            k = side.get((v, "right"), 0)
+            side[(v, "right")] = k + 1
+            out.append((v, va, (right, bottom), (right, top), DIM_OFF + DIM_STACK * k, extent[va]))
+            done.add(va)
+    return out
+
+
+def free_spot(L, w, h):
+    """A top left corner for a w × h box (a hole table) in L's drawing
+    area clear of its views' cells and its title block: over the title
+    block first, then wherever is nearest the area's bottom right. None
+    when there is no room."""
+    area, block = L["area"], L.get("block")
+    taken = list(L["cells"].values()) + ([block] if block else [])
+    aim = (area[2], block[1] if block else area[3])
+    best = None
+    for x, y in _spots(area, w, h):
+        r = (x, y, x + w, y + h)
+        if any(_hit(r, q, 2.0) for q in taken):
+            continue
+        d = (x + w - aim[0]) ** 2 + (y + h - aim[1]) ** 2
+        if best is None or d < best[0]:
+            best = (d, (x, y))
+    return best[1] if best else None
+
+
+def text_box(t):
+    """A text's box on the paper (x0, y0, x1, y1), its width reckoned at
+    0.6 em a character."""
+    x, y, size, text, anchor = t
+    w = 0.6 * size * len(text)
+    if anchor == "vertical":
+        return (x - size, y - w / 2, x + 0.2 * size, y + w / 2)
+    x0 = {"middle": x - w / 2, "end": x - w}.get(anchor, x)
+    return (x0, y - size, x0 + w, y + 0.25 * size)
 
 
 def _esc(s):
@@ -246,4 +441,6 @@ def _esc(s):
 def _pdfstr(s):
     # WinAnsi has Ø, ± and × but no ⌀: the diameter sign is drawn as Ø.
     s = str(s).replace("\u2014", "-").replace("\u2013", "-").replace("\u2300", "\u00d8")
+    # Nor the ISO 129 hole symbols: counterbore, countersink and depth in words.
+    s = s.replace("\u2334", "CBORE ").replace("\u2335", "CSK ").replace("\u21a7", "DEEP ")
     return s.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")

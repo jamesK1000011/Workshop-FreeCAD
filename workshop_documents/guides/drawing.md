@@ -1,10 +1,12 @@
 # Drawing: sheets, manuals, patent figures
 
 ## A drawing sheet
-- `drawing_make` gives SVG, PDF and DXF files and a TechDraw page with the same views. Ask which projection the person works in: first angle (ISO, Europe) or third angle (ASME, North America).
+- `drawing_make` gives SVG, PDF and DXF files and a TechDraw page with the same views, on TechDraw's ISO 5457 template with its title block filled. Ask which projection the person works in: first angle (ISO, Europe) or third angle (ASME, North America). Left out, it follows TechDraw's preference, else inch units mean third angle; the answer says which (`projectionFrom`).
+- Paper and scale are chosen together: the largest standard scale (1:1, 2:1, 1:2 …) at which the views, with room for their dimensions, fill no more than about 70% of the sheet, and the smallest paper at that scale. The iso view may get a smaller scale of its own (said under its name). `fill` in the answer is how full the sheet is.
 - Only the overall sizes are dimensioned. Holes, slots and fits want dimensions placed in TechDraw by the person, on the page made.
 - `file` can be a full path: its folder is made, and the PDF, SVG and DXF share its name without the extension.
-- `holes: true` calls out each round hole seen end on. FreeCAD's own Holes are called out as they are made: size or thread, THRU or DEEP, CBORE or CSK.
+- `holes: true` calls out every round hole once per size, with a leader, in a view that sees it end on (front, then right, then top …). FreeCAD's own Holes are called out as they are made: size or thread, THRU or ↧ depth, ⌴ counterbore or ⌵ countersink (`4× ⌀8 THRU ⌴⌀13 ↧8.5`). Holes no drawn view sees end on go in a hole table on the sheet.
+- The title block's sample texts (names, numbers) are emptied, never filled with a made-up name. Give `drawnBy` only when the person tells you whose name goes there.
 - The title block gives the material by its name, never by its id.
 - `scale` is refused when it does not fit; leave it out for the largest standard scale that does.
 

@@ -11,6 +11,7 @@
 # files are written by sheets.py from Open CASCADE's exact hidden-line
 # removal (what TechDraw itself uses).
 
+import datetime
 import glob
 import math
 import os
@@ -57,54 +58,82 @@ def _num(v):
     return f"{v:.1f}".rstrip("0").rstrip(".")
 
 
-# TechDraw's own templates, a title block in each (ISO 7200) first; the
-# blank one only when this build has none.
-TITLED = {"A4": ("A4_Landscape_ISO7200TD.svg", "A4_LandscapeTD.svg", "A4_Landscape_ISO7200Pep.svg"),
-          "A3": ("A3_Landscape_ISO7200TD.svg", "A3_LandscapeTD.svg", "A3_Landscape_ISO7200Pep.svg"),
-          "A4P": ("A4_Portrait_ISO7200TD.svg", "A4_PortraitTD.svg")}
+# TechDraw's own templates with a title block, best first. FreeCAD 1.1
+# ships ISO 5457 ones (Templates/ISO/A3_Landscape_ISO5457_advanced.svg …)
+# and its TD ones (A3_Landscape_TD.svg); older builds had ISO 7200 names.
+# The blank one only when this build has none of them.
+TITLED = {"A4": ("A4_Landscape_ISO5457_advanced.svg", "A4_Landscape_ISO5457_minimal.svg", "A4_Landscape_TD.svg",
+                 "A4_Landscape_ISO7200TD.svg", "A4_LandscapeTD.svg", "A4_Landscape_ISO7200Pep.svg"),
+          "A3": ("A3_Landscape_ISO5457_advanced.svg", "A3_Landscape_ISO5457_minimal.svg", "A3_Landscape_TD.svg",
+                 "A3_Landscape_ISO7200TD.svg", "A3_LandscapeTD.svg", "A3_Landscape_ISO7200Pep.svg"),
+          "A4P": ("A4_Portrait_ISO5457_advanced.svg", "A4_Portrait_ISO5457_minimal.svg", "A4_Portrait_TD.svg",
+                  "A4_Portrait_ISO7200TD.svg", "A4_PortraitTD.svg")}
 BLANK = {"A4": "A4_Landscape_blank.svg", "A3": "A3_Landscape_blank.svg", "A4P": "A4_Portrait_blank.svg"}
 # Room the views leave at the foot of the sheet: TechDraw's title block,
 # or the files' own smaller one.
 TITLE_H = {True: 45.0, False: 18.0}
+# The drawing area (left, top, right, bottom margins, mm) and the title
+# block's (w, h) in its bottom right corner, by template family, measured
+# on FreeCAD 1.1.3's: ISO 5457 (a 20 mm filing margin; the block with its
+# material, tolerance and scale row and the projection symbol), TD.
+ROOM = {"ISO5457": ((20.0, 10.0, 10.0, 10.0), (180.0, 62.0)), "TD": ((10.0, 10.0, 10.0, 10.0), (142.0, 50.0)),
+        "ISO7200": ((20.0, 10.0, 10.0, 10.0), (180.0, 62.0)), None: ((10.0, 10.0, 10.0, 10.0), (130.0, 35.0))}
+# Fields of TechDraw's templates that hold sample text ("A. Nemesis",
+# "DN", "AAA"): emptied when nothing is given for them, never a made-up
+# name. Their language, document type and status stay as the template has them.
+KEEP_TEXT = ("LANGUAGE", "DOCUMENT_TYPE", "DOCUMENT_STATUS")
+
+
+def template_room(path, paper):
+    """(area rect (x0, y0, x1, y1), title block (w, h)) on the paper for a
+    template file (None: the files' own sheet, frame 10 mm, their grid block)."""
+    name = os.path.basename(path or "")
+    fam = "ISO5457" if "ISO5457" in name and "notitleblock" not in name else ("ISO7200" if "ISO7200" in name else ("TD" if "TD" in name else None))
+    (l, t, r, b), block = ROOM[fam]
+    W, H = sheets.PAPER[paper]
+    return (l, t, W - r, H - b), block
 
 
 def _template(paper):
     """(TechDraw's template for the paper, whether it has a title block):
     TechDraw's own default template (its preferences) when it is this
-    paper's, else its ISO 7200 one, else the blank one; (None, False) when
-    this build keeps none."""
+    paper's, else its ISO 5457 one, else the other titled ones, else the
+    blank one; (None, False) when this build keeps none. Localized copies
+    (Templates/ISO/localized/…) are passed over for the plain ones."""
     base = os.path.join(FreeCAD.getResourceDir(), "Mod", "TechDraw", "Templates")
     try:
         pref = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Mod/TechDraw/Files").GetString("TemplateFile", "")
     except Exception:  # noqa: BLE001
         pref = ""
     stem = {"A4": "A4_Landscape", "A3": "A3_Landscape", "A4P": "A4_Portrait"}[paper]
-    if pref and os.path.isfile(pref) and os.path.basename(pref).startswith(stem) and "blank" not in os.path.basename(pref).lower():
+    low = os.path.basename(pref).lower()
+    if pref and os.path.isfile(pref) and os.path.basename(pref).startswith(stem) and "blank" not in low and "notitleblock" not in low:
         return pref, True
-    for want in TITLED[paper]:
-        hits = glob.glob(os.path.join(base, "**", want), recursive=True)
-        if hits:
-            return hits[0], True
-    hits = glob.glob(os.path.join(base, "**", BLANK[paper]), recursive=True)
+    for local in (False, True):
+        for want in TITLED[paper]:
+            hits = sorted((h for h in glob.glob(os.path.join(base, "**", want), recursive=True) if ("localized" in h) == local), key=len)
+            if hits:
+                return hits[0], True
+    hits = sorted(glob.glob(os.path.join(base, "**", BLANK[paper]), recursive=True), key=lambda h: ("localized" in h, len(h)))
     return (hits[0], False) if hits else (None, False)
 
 
 # A title block field's name in TechDraw's templates (their EditableTexts
 # keys differ between templates), matched by the words in it.
 TEXT_KEYS = (
-    ("title", ("DRAWING_TITLE", "TITLE")),
+    ("title", ("DRAWING_TITLE", "FC-TITLE", "TITLE")),
     ("scale", ("SCALE", "FC-SC")),
-    ("material", ("MATERIAL",)),
-    ("partNumber", ("PART_NUMBER", "PARTNUMBER", "PN", "DN")),
+    ("material", ("PART_MATERIAL", "MATERIAL")),
+    ("partNumber", ("PART_NUMBER", "PARTNUMBER", "DRAWING_NUMBER", "PN", "DN")),
     ("revision", ("REVISION", "REV")),
-    ("drawnBy", ("AUTHOR_NAME", "AUTHOR", "DRAWN", "CREATOR")),
-    ("checkedBy", ("CHECKED", "APPROVED")),
-    ("date", ("DATE",)),
-    ("company", ("COMPANY", "OWNER", "ORGANISATION", "ORGANIZATION")),
+    ("drawnBy", ("AUTHOR_NAME", "AUTHOR", "DRAWN", "CREATOR", "DESIGNED_BY")),
+    ("checkedBy", ("CHECKED", "APPROVED", "APPROVAL")),
+    ("date", ("DATE_OF_ISSUE", "FC-DATE", "DATE")),
+    ("company", ("COMPANY", "LEGAL_OWNER_1", "OWNER", "ORGANISATION", "ORGANIZATION")),
     ("finish", ("FINISH", "SURFACE")),
-    ("generalTolerance", ("TOLERANCE", "GENERAL_TOL")),
+    ("generalTolerance", ("GENERAL_TOLERANCES", "TOLERANCE", "GENERAL_TOL")),
     ("projection", ("PROJECTION",)),
-    ("sheet", ("FC-SH", "SHEET")),
+    ("sheet", ("SHEET_NUMBER", "FC-SH", "SHEET")),
 )
 
 
@@ -177,7 +206,7 @@ def _write(s, base, sheet, kinds, folder=None):
     return paths
 
 
-def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn=None, section=None, fields=None):
+def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn=None, section=None, fields=None, scales=None, boxes=None, projection="first", table=None):
     """The drawing: a TechDraw page on TechDraw's own template, its title
     block filled, the views, section and dimensions TechDraw's own, all
     editable in TechDraw. (page, what was made) or (None, why not)."""
@@ -189,16 +218,26 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
         if path:
             tpl.Template = path
         page.Template = tpl
-        filled = {}
-        if fields:
-            try:
-                texts = dict(tpl.EditableTexts)
-                filled = template_texts(texts, fields)
-                if filled:
-                    texts.update(filled)
-                    tpl.EditableTexts = texts
-            except Exception:  # noqa: BLE001 — a template without fields
-                filled = {}
+        try:
+            page.ProjectionType = "Third angle" if projection == "third" else "First angle"
+        except Exception:  # noqa: BLE001 — an older TechDraw
+            pass
+        filled, emptied = {}, []
+        try:
+            texts = dict(tpl.EditableTexts)
+            filled = template_texts(texts, fields or {})
+            texts.update(filled)
+            if path and os.path.abspath(path).startswith(os.path.abspath(FreeCAD.getResourceDir())):
+                # FreeCAD's own template: its sample texts ("A. Nemesis",
+                # "DN", "AAA") emptied, never a name made up for them.
+                for k in texts:
+                    if k not in filled and not any(w in k.upper() for w in KEEP_TEXT) and texts[k]:
+                        texts[k] = ""
+                        emptied.append(k)
+            if filled or emptied:
+                tpl.EditableTexts = texts
+        except Exception:  # noqa: BLE001 — a template without fields
+            filled = {}
         H = sheets.PAPER[paper][1]
         made, dimmed = [], 0
         for view, (x, y) in placed:
@@ -210,7 +249,7 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
             v.Direction = V(*z)
             v.XDirection = V(*xd)
             v.ScaleType = "Custom"
-            v.Scale = scale
+            v.Scale = (scales or {}).get(view, scale)
             v.X = x
             v.Y = H - y
             made.append((view, v))
@@ -242,19 +281,48 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
                 sec_note = {"section": sv.Label}
             except Exception as e:
                 sec_note = {"sectionNote": f"the section view could not go on the page here ({e}); the files have it"}
-        if dims:
-            for view, v in made:
-                if view in ("front", "top"):
-                    for direction in (0, 1):
-                        try:
-                            if TechDraw.makeExtentDim(v, [], direction) is not None:
-                                dimmed += 1
-                        except Exception:  # an extent TechDraw cannot read headless: the files carry it
-                            pass
+        if dims and boxes:
+            # TechDraw's extent dimensions, the same ones the files carry,
+            # each outside its view: 10 mm under it or right of it (7 more
+            # for a second on that side), its text off the lines.
+            by = dict(made)
+            for view, axis, pa, pb, off, _mm in sheets.extent_dims(boxes, views.AXES, {"x": 1, "y": 1, "z": 1}):
+                v = by.get(view)
+                if v is None:
+                    continue
+                horizontal = abs(pa[1] - pb[1]) < 1e-9
+                bx = boxes[view]
+                try:
+                    dim = TechDraw.makeExtentDim(v, [], 0 if horizontal else 1)
+                    if dim is None:
+                        continue
+                    # X, Y: the text's place from the view's centre, on the page, y up.
+                    if horizontal:
+                        dim.X, dim.Y = 0.0, -((bx[3] - bx[1]) / 2 + off + 1.0)
+                    else:
+                        dim.X, dim.Y = (bx[2] - bx[0]) / 2 + off + 1.0, 0.0
+                    dimmed += 1
+                except Exception:  # an extent TechDraw cannot read headless: the files carry it
+                    pass
             doc.recompute()
-        out = {"views": len(made), "extentDimensions": dimmed, "template": os.path.basename(path) if path else None, **sec_note}
+        table_note = {}
+        if table:
+            # The holes no view sees end on, in a table on the page where
+            # the files have it.
+            try:
+                ann = doc.addObject("TechDraw::DrawViewAnnotation", "HoleTable")
+                page.addView(ann)
+                ann.Text = ["  ".join(r) for r in table["rows"]]
+                ann.TextSize = 3.0
+                ann.X, ann.Y = table["at"][0] + 2, H - table["at"][1] - 2
+                table_note = {"holeTable": ann.Label}
+            except Exception as e:  # noqa: BLE001
+                table_note = {"holeTableNote": f"the hole table could not go on the page here ({e}); the files have it"}
+        out = {"views": len(made), "extentDimensions": dimmed, "template": os.path.basename(path) if path else None, **sec_note, **table_note}
         if filled:
             out["titleBlock"] = sorted(filled)
+        if emptied:
+            out["titleBlockEmptied"] = sorted(emptied)
         if specs:
             try:
                 waited = _wait_views([v for _, v in made])
@@ -593,7 +661,7 @@ def _pd_holes(objs, view):
                 if str(getattr(f, "DepthType", "")) == "ThroughAll":
                     bits.append("THRU")
                 else:
-                    bits.append(f"DEEP {_num(float(f.Depth))}")
+                    bits.append(f"↧{_num(float(f.Depth))}")
                 cut = str(getattr(f, "HoleCutType", "None"))
                 cutd = float(getattr(f, "HoleCutDiameter", 0) or 0)
                 kind = None
@@ -601,10 +669,10 @@ def _pd_holes(objs, view):
                 # (ISO 4762 a counterbore; ISO 10642, 2009, 7046 a countersink).
                 if cut not in ("None", "") and any(w in cut for w in ("ountersink", "10642", "2009", "7046", "14582")):
                     kind = "countersink"
-                    bits.append(f"CSK ⌀{_num(cutd)} × {_num(float(getattr(f, 'HoleCutCountersinkAngle', 90)))}°")
+                    bits.append(f"⌵⌀{_num(cutd)} × {_num(float(getattr(f, 'HoleCutCountersinkAngle', 90)))}°")
                 elif cut not in ("None", ""):
                     kind = "counterbore"
-                    bits.append(f"CBORE ⌀{_num(cutd)} DEEP {_num(float(f.HoleCutDepth))}")
+                    bits.append(f"⌴⌀{_num(cutd)} ↧{_num(float(f.HoleCutDepth))}")
                 key = (dia, head, " ".join(bits))
                 g = out.setdefault(key, {"diameter": dia, "thread": head, "suffix": " ".join(bits), "cut": kind, "cutDiameter": round(cutd, 3) if kind else None,
                                          "centres": [], "features": []})
@@ -791,6 +859,84 @@ def _shapes_box(shapes):
 
 # ---- drawing_make ----------------------------------------------------------------------
 
+# The views a hole is called out in, best first: where its circle is seen true.
+HOLE_VIEWS = ("front", "right", "top", "left", "back", "bottom")
+AXIS_NAME = {"front": "Y", "back": "Y", "right": "X", "left": "X", "top": "Z", "bottom": "Z"}
+
+
+def hole_label(count, size, suffix=None):
+    """"4× ⌀8 THRU ⌴⌀13 ↧8.5": count (when more than one), size, how made."""
+    return (f"{count}× " if count > 1 else "") + str(size) + (f" {suffix}" if suffix else "")
+
+
+def hole_groups(objs, order, drawn_views):
+    """Every round hole of the bodies, grouped by how it is made, each
+    with the view it is called out in: the first of order drawn whose
+    direction is its axis (front before back), else view None and its
+    axis named, for the hole table. [{diameter, centres, view, axis,
+    thread, suffix, cut, cutDiameter, features}]."""
+    out, seen_axes = [], []
+    for v in order:
+        Z = views.frame(v)[0]
+        key = (round(abs(Z.x), 3), round(abs(Z.y), 3), round(abs(Z.z), 3))
+        if key in seen_axes:
+            continue
+        seen_axes.append(key)
+        pdh = _pd_holes(objs, v)
+        skip = []
+        for g in pdh:
+            for c in g["centres"]:
+                skip.append((g["diameter"], c))
+                if g["cutDiameter"]:
+                    skip.append((g["cutDiameter"], c))
+        found = [dict(g) for g in pdh] + [{"diameter": d, "centres": cs, "thread": None, "suffix": None, "cut": None, "cutDiameter": None, "features": []}
+                                          for d, cs in _holes(objs, v, skip)]
+        shown = v if v in drawn_views else next((w for w in drawn_views if w in AXIS_NAME and AXIS_NAME[w] == AXIS_NAME.get(v)), None)
+        for g in found:
+            g["view"] = shown
+            g["axis"] = AXIS_NAME.get(v, "?")
+            out.append(g)
+    return out
+
+
+def callout_leader(at, r, outline, k):
+    """A hole callout's leader from the circle (centre at, radius r on the
+    paper) out past the view's outline, the k-th in that view turned a
+    little more: (tip, elbow, tail end, text anchor). Up and to the left
+    or right, whichever side of the view the hole is nearer."""
+    left = at[0] <= (outline[0] + outline[2]) / 2
+    ang = math.radians(135 if left else 45)
+    tip = (at[0] + r * math.cos(ang), at[1] - r * math.sin(ang))
+    # Out at 45° until clear of the view's outline above it: 6 mm over its
+    # top, each further callout of the view 6 mm higher.
+    rise = max(6.0, tip[1] - outline[1] + 6.0 + 6.0 * k)
+    elbow = (tip[0] + (-rise if left else rise), tip[1] - rise)
+    tail = (elbow[0] + (-12 if left else 12), elbow[1])
+    return tip, elbow, tail, ("end" if left else "start")
+
+
+def default_projection(asked):
+    """(projection, where it came from): as asked; else TechDraw's own
+    preference (General ▸ ProjectionAngle: first, third); else third angle
+    when FreeCAD shows inch units (ASME), first angle (ISO) otherwise."""
+    if asked:
+        return asked, "asked"
+    try:
+        g = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Mod/TechDraw/General")
+        pa = g.GetInt("ProjectionAngle", -1)
+        if pa in (0, 1):
+            return ("first", "third")[pa], "TechDraw's preference"
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        schema = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Units").GetInt("UserSchema", 0)
+        if schema in (2, 3, 5, 7):
+            return "third", "inch units (ASME)"
+    except Exception:  # noqa: BLE001
+        pass
+    return "first", "ISO default"
+
+
 def drawing_make(s, a):
     objs = _bodies(s, a.get("bodies"))
     want = a.get("views") or ["front", "top", "right", "iso"]
@@ -798,7 +944,7 @@ def drawing_make(s, a):
     if bad:
         raise ToolError("invalid_input", f"views: {bad[0]} is not one — they are: {', '.join(views.VIEWS)}.")
     want = list(dict.fromkeys(want))
-    projection = a.get("projection", "first")
+    projection, proj_from = default_projection(a.get("projection"))
     if projection not in sheets.GRID:
         raise ToolError("invalid_input", "projection: first (ISO) or third (ASME).")
     paper = a.get("paper", "auto")
@@ -824,23 +970,19 @@ def drawing_make(s, a):
     sc = a.get("scale")
     if sc is not None and (not isinstance(sc, (int, float)) or sc <= 0):
         raise ToolError("invalid_input", "scale: a number over 0 — 0.5 for 1:2, 2 for 2:1. Left out, the largest standard scale that fits.")
-    tries = ["A4", "A3"] if paper == "auto" else [paper]
-    lay, err = None, None
-    for pp in tries:
-        # The views keep clear of the title block TechDraw's template has.
-        titled = bool(a.get("page", True)) and _template(pp)[1]
-        try:
-            got = sheets.layout(sizes, sheets.PAPER[pp], projection, sc, title_h=TITLE_H[titled])
-        except ValueError as e:
-            err = str(e)
-            continue
-        # auto: A3 only when A4 would need a smaller standard scale.
-        if lay is None or got["scale"] > lay[1]["scale"]:
-            lay = (pp, got)
-    if lay is None:
-        raise ToolError("invalid_input", err)
-    paper, L = lay
+    papers = []
+    for pp in (["A4", "A3"] if paper == "auto" else [paper]):
+        # The views keep clear of the title block the page's template has
+        # (the files' own smaller one without a page).
+        tpath = _template(pp)[0] if a.get("page", True) else None
+        area, block = template_room(tpath, pp)
+        papers.append((pp, sheets.PAPER[pp], area, block))
+    try:
+        paper, L = sheets.choose(sizes, papers, projection, sc)
+    except ValueError as e:
+        raise ToolError("invalid_input", str(e))
     scale = L["scale"]
+    scales = L["scales"]
     name = a.get("name") or (objs[0].Label if len(objs) == 1 else "Assembly")
     sheet = sheets.Sheet(*sheets.PAPER[paper], title=name)
     sheet.frame()
@@ -848,28 +990,28 @@ def drawing_make(s, a):
     for sh in shapes[1:]:
         bb.add(sh.BoundBox)
     extent = {"x": bb.XLength, "y": bb.YLength, "z": bb.ZLength}
-    done, dims = set(), []
+    dims = []
     for v in want:
         d = drawn[v]
         cx, cy = L["centres"][v]
+        sv = scales[v]
         lines = d["lines"]
         if v == sec_view:
             # The cut faces hatched 2.5 mm apart on the paper.
-            lines = lines + [("thin", [p, q]) for p, q in views.hatch(d["cut"], 2.5 / scale)]
-        sheet.place(lines, d["box"], (cx, cy), scale)
-        w, h = sizes[v][0] * scale, sizes[v][1] * scale
-        sheet.text(cx, cy - h / 2 - 4, 3.0, f"SECTION {sec_label}-{sec_label}" if v == sec_view else v.upper(), "middle")
-        if a.get("dimensions", True) and v in views.AXES:
-            ha, va = views.AXES[v]
-            left, right, top, bottom = cx - w / 2, cx + w / 2, cy - h / 2, cy + h / 2
-            if ha not in done:
-                sheet.dimension((left, bottom), (right, bottom), 8, _num(extent[ha]))
-                done.add(ha)
-                dims.append({"view": v, "axis": ha, "mm": round(extent[ha], 3)})
-            if va not in done:
-                sheet.dimension((right, bottom), (right, top), 8, _num(extent[va]))
-                done.add(va)
-                dims.append({"view": v, "axis": va, "mm": round(extent[va], 3)})
+            lines = lines + [("thin", [p, q]) for p, q in views.hatch(d["cut"], 2.5 / sv)]
+        sheet.place(lines, d["box"], (cx, cy), sv)
+        h = sizes[v][1] * sv
+        name_v = f"SECTION {sec_label}-{sec_label}" if v == sec_view else v.upper()
+        if v == "iso" and sv != scale:
+            name_v += f" ({sheets.scale_text(sv)})"
+        # The view's name over it: under it is where its dimension goes.
+        sheet.text(cx, cy - h / 2 - 3, 3.0, name_v, "middle")
+    if a.get("dimensions", True):
+        # Overall sizes once each, outside the outlines: 10 mm off, stacked 7.
+        boxes = {v: L["boxes"][v] for v in want if v in views.AXES}
+        for v, axis, pa, pb, off, mm in sheets.extent_dims(boxes, views.AXES, extent):
+            sheet.dimension(pa, pb, off, _num(mm))
+            dims.append({"view": v, "axis": axis, "mm": round(mm, 3)})
     section_out = None
     if sec_view:
         # The cutting plane seen edge on in another view: a chain line
@@ -955,43 +1097,59 @@ def drawing_make(s, a):
         else:
             raise ToolError("invalid_input", f"dims.{i}.kind: length, diameter or radius.")
         placed.append({"view": v, "kind": kind, "value": round(value, 4), "label": label})
-    # Every round hole seen end on, called out once per size: "4× ⌀3.4".
-    holes_out = []
+    # Every round hole called out once per size, in a view that sees it end
+    # on (its circle true): "4× ⌀8 THRU ⌴⌀13 ↧8.5". Holes no view drawn sees
+    # end on go in a hole table on the sheet.
+    holes_out, hole_table = [], []
     if a.get("holes"):
-        hv = a["holes"] if isinstance(a["holes"], str) else next((v for v in ("top", "front", "right") if v in drawn), want[0])
-        if hv not in drawn:
-            raise ToolError("invalid_input", f"holes: a view drawn ({', '.join(want)}), or true for the top.")
-        box, centre = drawn[hv]["box"], L["centres"][hv]
-        # FreeCAD's own Holes first, called out as they are made (size,
-        # thread, through or deep, counterbore or countersink); then every
-        # other round hole by its faces.
-        pdh = _pd_holes(objs, hv)
-        skip = []
-        for g in pdh:
-            for c in g["centres"]:
-                skip.append((g["diameter"], c))
-                if g["cutDiameter"]:
-                    skip.append((g["cutDiameter"], c))
-        found = [(g["diameter"], g["centres"], g) for g in pdh] + [(d, cs, None) for d, cs in _holes(objs, hv, skip)]
-        for k, (dia, centres, pd) in enumerate(found):
-            c0 = min(centres, key=lambda c: (views.point(c, hv)[0], -views.point(c, hv)[1]))
-            pa = _to_paper(views.point(c0, hv), box, centre, scale)
-            fit = (a.get("holeFits") or {}).get(str(dia)) or (a.get("holeFits") or {}).get(f"{dia:g}")
-            size = pd["thread"] if pd and pd["thread"] else _callout(dia, {"fit": fit}, diameter=True)
-            label = (f"{len(centres)}× " if len(centres) > 1 else "") + size + (f" {pd['suffix']}" if pd else "")
-            rp = dia / 2 * scale
-            ang = math.radians(135 + 20 * k)
-            tip = (pa[0] + rp * math.cos(ang), pa[1] - rp * math.sin(ang))
-            elbow = (tip[0] + 9 * math.cos(ang), tip[1] - 9 * math.sin(ang))
-            tail = (elbow[0] - 12, elbow[1])
+        if isinstance(a["holes"], str) and a["holes"] not in drawn:
+            raise ToolError("invalid_input", f"holes: a view drawn ({', '.join(want)}), or true for every view that sees them.")
+        order = [a["holes"]] if isinstance(a["holes"], str) else HOLE_VIEWS
+        groups = hole_groups(objs, order, [v for v in want if v not in ("iso", sec_view)] if not isinstance(a["holes"], str) else [a["holes"]])
+        fits = a.get("holeFits") or {}
+        per_view = {}
+        for g in groups:
+            dia = g["diameter"]
+            fit = fits.get(str(dia)) or fits.get(f"{dia:g}")
+            size = g["thread"] if g.get("thread") else _callout(dia, {"fit": fit}, diameter=True)
+            label = hole_label(len(g["centres"]), size, g.get("suffix"))
+            row = {"view": g["view"], "diameter": dia, "count": len(g["centres"]), "label": label,
+                   **({"from": "PartDesign Hole", "features": g["features"], **({"cut": g["cut"], "cutDiameter": g["cutDiameter"]} if g.get("cut") else {})}
+                      if g.get("features") else {"from": "its faces"})}
+            if g["view"] is None:
+                row["axis"] = g["axis"]
+                row["inTable"] = True
+                hole_table.append(row)
+                holes_out.append(row)
+                continue
+            hv = g["view"]
+            k = per_view.get(hv, 0)
+            per_view[hv] = k + 1
+            box, centre = drawn[hv]["box"], L["centres"][hv]
+            sv = scales[hv]
+            c0 = min(g["centres"], key=lambda c: (views.point(c, hv)[0], -views.point(c, hv)[1]))
+            pa = _to_paper(views.point(c0, hv), box, centre, sv)
+            tip, elbow, tail, anchor = callout_leader(pa, dia / 2 * sv, L["boxes"][hv], k)
             sheet.line([tip, elbow, tail], "dim")
             sheet.arrow(tip, elbow)
-            sheet.text(tail[0] - 1, tail[1] - 1, 3.0, label, "end")
-            holes_out.append({"view": hv, "diameter": dia, "count": len(centres), "label": label,
-                              **({"from": "PartDesign Hole", "features": pd["features"], **({"cut": pd["cut"], "cutDiameter": pd["cutDiameter"]} if pd["cut"] else {})} if pd else {"from": "its faces"})})
+            sheet.text(tail[0] + (1 if anchor == "start" else -1), tail[1] - 1, 3.0, label, anchor)
+            holes_out.append(row)
             over, under = _tolerance(dia, {"fit": fit}) if fit else (None, None)
             specs.append({"view": hv, "type": "Diameter", "centre": views.point(c0, hv), "radius": dia / 2, "value": dia,
-                          "fit": fit, "over": over, "under": under, "prefix": f"{len(centres)}× " if len(centres) > 1 else ""})
+                          "fit": fit, "over": over, "under": under, "prefix": f"{len(g['centres'])}× " if len(g["centres"]) > 1 else "",
+                          **({"label": label} if g.get("features") else {})})
+        if hole_table:
+            rows = [("HOLE", "QTY", "AXIS")] + [(r["label"].split("× ", 1)[-1], str(r["count"]), r["axis"]) for r in hole_table]
+            tw, th = 6 + 3.0 * 0.6 * max(len(r[0]) for r in rows) + 30, 6.0 * len(rows) + 2
+            at = sheets.free_spot(L, tw, th) or (L["area"][0] + 2, L["area"][1] + 2)
+            for i, (h_, q_, ax_) in enumerate(rows):
+                y = at[1] + 6.0 * (i + 1)
+                sheet.text(at[0] + 2, y, 3.0, h_)
+                sheet.text(at[0] + tw - 16, y, 3.0, q_)
+                sheet.text(at[0] + tw - 8, y, 3.0, ax_)
+            sheet.line([(at[0], at[1]), (at[0] + tw, at[1]), (at[0] + tw, at[1] + th), (at[0], at[1] + th)], "thin", closed=True)
+            sheet.line([(at[0], at[1] + 7.5), (at[0] + tw, at[1] + 7.5)], "thin")
+            hole_table = {"at": [round(at[0], 1), round(at[1], 1)], "rows": rows}
     tb = dict(a.get("titleBlock") or {})
     tb.setdefault("title", name)
     tb.setdefault("scale", sheets.scale_text(scale))
@@ -1003,13 +1161,15 @@ def drawing_make(s, a):
             # Its name (a FreeCAD library card's, not its UUID); the id kept apart.
             tb["material"] = material_shown(mat, s.doc).upper()
             tb["materialId"] = str(mat)
-    tb.setdefault("sheet", f"{paper}  mm")
+    tb.setdefault("sheet", "1 / 1")
+    tb.setdefault("date", datetime.date.today().isoformat())
     title_block_grid(sheet, tb)
     folder, base = out_place(s.out_dir, a.get("file"), name)
     page, made = (None, "not asked for")
     if a.get("page", True):
         page, made = _techdraw_page(s.doc, objs, [(v, L["centres"][v]) for v in want], scale, paper, f"{name} drawing", a.get("dimensions", True), specs, drawn,
-                                     {**section_out, "origin": sec_origin} if section_out else None, tb)
+                                     {**section_out, "origin": sec_origin} if section_out else None, tb, scales,
+                                     {v: L["boxes"][v] for v in want if v in views.AXES}, projection, hole_table or None)
     # The files are the page's own exports where TechDraw can write them;
     # Workshop's sheet writer (the same views by Open CASCADE's hidden-line
     # removal) writes the rest, and the answer says which is which.
@@ -1031,10 +1191,14 @@ def drawing_make(s, a):
         "paper": paper,
         "scale": sheets.scale_text(scale),
         "projection": projection,
-        "views": [{"view": v, "at": [round(c, 1) for c in L["centres"][v]], "size": [round(sizes[v][0] * scale, 1), round(sizes[v][1] * scale, 1)]} for v in want],
+        "projectionFrom": proj_from,
+        "fill": L["fill"],
+        "views": [{"view": v, "at": [round(c, 1) for c in L["centres"][v]], "size": [round(sizes[v][0] * scales[v], 1), round(sizes[v][1] * scales[v], 1)],
+                   **({"scale": sheets.scale_text(scales[v])} if scales[v] != scale else {})} for v in want],
         "dimensions": dims + placed,
         **({"section": section_out} if section_out else {}),
         **({"holes": holes_out} if a.get("holes") else {}),
+        **({"holeTable": hole_table} if hole_table else {}),
         "titleBlock": tb,
         "techdrawPage": page_label,
         "filesFrom": frm,

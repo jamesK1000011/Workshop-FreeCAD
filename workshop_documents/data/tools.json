@@ -5,7 +5,7 @@
  "entries": {
   "drawing_make": {
    "group": "drawing",
-   "description": "A drawing of bodies as a normal TechDraw page, editable in TechDraw (its template and title block, its views, section and dimensions), laid out in one call: standard views (front, top, right, iso by default; back, bottom, left too), first-angle (ISO) or third-angle (ASME) projection, at the largest standard scale that fits A4 or A3 (paper auto picks A3 only when it allows a bigger scale), overall sizes dimensioned once each (dimensions: false leaves them off), hidden: true dashes the hidden edges. Exports SVG, PDF and DXF to the output folder: the page's own TechDraw exports where TechDraw can write them (PDF and SVG need FreeCAD's window), Workshop's sheet writer for the rest (filesFrom says which); page: false writes the files only. dims adds feature dimensions with tolerances or ISO 286 fits (limits written in), holes calls out every round hole by size, titleBlock fills the template's title block. section: a straight view drawn as a full section (cut square to it through the middle, sectionAt mm towards the viewer; the cut faces hatched, the cutting line lettered sectionLabel, A, in a view that sees it edge on) — for bores, pockets and walls inside.",
+   "description": "A drawing of bodies as a normal TechDraw page, editable in TechDraw (its template and title block, its views, section and dimensions), laid out in one call: standard views (front, top, right, iso by default; back, bottom, left too), first-angle (ISO) or third-angle (ASME) projection (left out: TechDraw's own preference, else third angle with inch units, else first; the answer says which and why), at the largest standard scale (1:1, 2:1, 1:2 …) that fits A4 or A3 with room for the dimensions and fills the sheet at most about 70% (the smallest paper at that scale; the iso view at its own scale where it has less room), clear of the template's title block; overall sizes dimensioned once each, outside the views, 10 mm off the outline (dimensions: false leaves them off), hidden: true dashes the hidden edges. Exports SVG, PDF and DXF to the output folder: the page's own TechDraw exports where TechDraw can write them (PDF and SVG need FreeCAD's window), Workshop's sheet writer for the rest (filesFrom says which); page: false writes the files only. dims adds feature dimensions with tolerances or ISO 286 fits (limits written in), holes calls out every round hole, grouped by size and how it is made (\"4× ⌀8 THRU ⌴⌀13 ↧8.5\"), with a leader in a view that sees it end on (front, right, top …), and lists the ones no drawn view sees end on in a hole table on the sheet; titleBlock fills the template's title block (TechDraw's ISO 5457 template; its sample names and numbers emptied, never a name made up; the date today, the scale and tolerance filled). section: a straight view drawn as a full section (cut square to it through the middle, sectionAt mm towards the viewer; the cut faces hatched, the cutting line lettered sectionLabel, A, in a view that sees it edge on) — for bores, pockets and walls inside.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -54,7 +54,8 @@
       "enum": [
        "first",
        "third"
-      ]
+      ],
+      "description": "first (ISO) or third (ASME). Left out: TechDraw's preference (General ▸ projection angle), else third with inch units, else first."
      },
      "paper": {
       "type": "string",
@@ -93,7 +94,7 @@
       "description": "Feature dimensions: [{ view, kind: length (a, b, along h|v, offset mm) | diameter | radius (a round edge), fit \"H7\" or plus/minus mm, label }]; a and b a point [x,y,z] or a query { body, kind, type, radius, near } (a circle's centre, an edge's middle)."
      },
      "holes": {
-      "description": "true: every round hole seen end on in the top view called out by size (\"4× ⌀3.4\"); FreeCAD's own Holes as made (\"2× ⌀6.6 THRU CBORE ⌀11 DEEP 6.4\", a thread's size); or the view's name."
+      "description": "true: every round hole called out in a view that sees it end on (front, right, top …), grouped by size: \"4× ⌀3.4\"; FreeCAD's own Holes as made (\"2× ⌀6.6 THRU ⌴⌀11 ↧6.4\", a thread's size); holes no drawn view sees end on in a hole table. Or a view's name: only that view's."
      },
      "holeFits": {
       "type": "object",
