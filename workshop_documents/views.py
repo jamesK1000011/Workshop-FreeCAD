@@ -51,10 +51,21 @@ def point(p, view):
     return (p.dot(X), p.dot(Y))
 
 
-def _polys(comp, kind, out, deflection):
+def _polys(comp, kind, out, deflection, circles=None):
     if comp is None or comp.isNull():
         return
     for e in comp.Edges:
+        if circles is not None:
+            # A round edge drawn (a hole seen end on, or an arc of one):
+            # its centre and radius in the view, for callouts to land on.
+            try:
+                cu = e.Curve
+                if type(cu).__name__ == "Circle" or isinstance(cu, Part.Circle):
+                    c = (round(cu.Center.x, 4), round(cu.Center.y, 4), round(cu.Radius, 4))
+                    if c not in circles:
+                        circles.append(c)
+            except Exception:  # noqa: BLE001
+                pass
         try:
             pts = e.discretize(Deflection=deflection)
         except Exception:  # a degenerate edge HLR left: nothing to draw
@@ -65,7 +76,8 @@ def _polys(comp, kind, out, deflection):
 
 def project(shapes, view, hidden=False, deflection=0.02):
     """The view of shapes, each hiding the others: {lines: [(kind, [(x, y)
-    …])], box: (xmin, ymin, xmax, ymax)}. Kinds: visible, hidden (when
+    …])], box: (xmin, ymin, xmax, ymax), circles: [(cx, cy, r)] the round
+    edges drawn visible (whole or arcs)}. Kinds: visible, hidden (when
     asked), thin (the seams where faces meet smoothly)."""
     Z, X, _ = frame(view)
     algo = Part.HLRBRep.Algo()
@@ -75,9 +87,9 @@ def project(shapes, view, hidden=False, deflection=0.02):
     algo.update()
     algo.hide()
     hs = Part.HLRBRep.HLRToShape(algo)
-    lines = []
-    _polys(hs.vCompound(), "visible", lines, deflection)
-    _polys(hs.outLineVCompound(), "visible", lines, deflection)
+    lines, circles = [], []
+    _polys(hs.vCompound(), "visible", lines, deflection, circles)
+    _polys(hs.outLineVCompound(), "visible", lines, deflection, circles)
     _polys(hs.Rg1LineVCompound(), "thin", lines, deflection)
     if hidden:
         _polys(hs.hCompound(), "hidden", lines, deflection)
@@ -91,7 +103,7 @@ def project(shapes, view, hidden=False, deflection=0.02):
             b = sh.BoundBox
             pts += [point(V(x, y, z), view) for x in (b.XMin, b.XMax) for y in (b.YMin, b.YMax) for z in (b.ZMin, b.ZMax)]
         xs, ys = [p[0] for p in pts], [p[1] for p in pts]
-    return {"lines": lines, "box": (min(xs), min(ys), max(xs), max(ys))}
+    return {"lines": lines, "box": (min(xs), min(ys), max(xs), max(ys)), "circles": circles}
 
 
 def visible_point(shape, others, view, tries=8):
