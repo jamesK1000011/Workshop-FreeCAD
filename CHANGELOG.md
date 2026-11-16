@@ -84,6 +84,12 @@ bridge.
 
 ### Fixed
 
+- `drawing_make`'s TechDraw page after a second live look (the stem):
+  - The template was missing from the PDF and SVG: no frame, no title block. TechDraw 1.1.3 puts the template in the page's scene only when the page is first shown, so the page now opens as a tab in FreeCAD's window before it is exported. The SVG is then checked for the template; without it, the SVG and PDF come from Workshop's sheet writer (with its frame and title block), and `filesFrom` says so.
+  - The front view's overall sizes read 0 (`makeExtentDim` with no edges). Now each is a distance dimension between the view's two extreme drawn vertices along the axis, kept only when TechDraw measures the part's size; otherwise it is listed under `notOnPage`.
+  - Six of eight hole groups were "not on the page" though drawn. Circles are now matched by radius (within 10%) and centre (within half the radius), in the view's fitted frame or by its own projection of the hole's centre (`projectPoint`, scaled or not, y either way).
+  - Hole callouts: a pocket round a hole on the same centres is its counterbore, in one callout (`4× ⌀8 THRU ⌴⌀13 ↧8.5`). Each callout goes outside the view, moved up until its text clears every view and every text already placed. On the page its text sits there, horizontal on a reference line (ISO Referencing).
+
 - Screws from before the keeper (older documents, or made with Fasteners' own buttons) are adopted as the document opens and at each recompute. The hole comes from the edge they are on, and a label Fasteners counted up (`M8x25-Screw221`) goes back to the per-size scheme (`M8x25-Screw`, `M8x25-Screw 2`); a name someone gave stays. `fastener_list` gives each screw's `hole` (kept, reattached, lost) and `adopted`. Found live on the stem: its older screws still counted up.
 - `fastener_add { edges: [{ body, near }] }` also takes the hole's centre: a point within 1 mm of a round edge's centre (the nearest centre first, then the hole's outer rim). It was refused when the point was at the centre rather than on the edge.
 

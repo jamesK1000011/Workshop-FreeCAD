@@ -206,7 +206,8 @@ def _write(s, base, sheet, kinds, folder=None):
     return paths
 
 
-def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn=None, section=None, fields=None, scales=None, boxes=None, projection="first", table=None):
+def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn=None, section=None, fields=None, scales=None, boxes=None, projection="first", table=None,
+                   extents=None):
     """The drawing: a TechDraw page on TechDraw's own template, its title
     block filled, the views, section and dimensions TechDraw's own, all
     editable in TechDraw. (page, what was made) or (None, why not)."""
@@ -281,29 +282,40 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
                 sec_note = {"section": sv.Label}
             except Exception as e:
                 sec_note = {"sectionNote": f"the section view could not go on the page here ({e}); the files have it"}
+        extent_done, extent_missed = [], []
         if dims and boxes:
-            # TechDraw's extent dimensions, the same ones the files carry,
-            # each outside its view: 10 mm under it or right of it (7 more
-            # for a second on that side), its text off the lines.
+            # The overall sizes as TechDraw's own distance dimensions between
+            # the two extreme vertices of the view's drawn geometry along
+            # the axis, measured by TechDraw and checked against the part's
+            # size; each outside its view: 10 mm under it or right of it
+            # (7 more for a second on that side), its text off the lines.
+            # (makeExtentDim with no edges read 0 on 1.1.3.)
             by = dict(made)
-            for view, axis, pa, pb, off, _mm in sheets.extent_dims(boxes, views.AXES, {"x": 1, "y": 1, "z": 1}):
+            try:
+                _wait_views([v for _, v in made])
+            except Exception:  # noqa: BLE001
+                pass
+            for view, axis, pa, pb, off, mm in sheets.extent_dims(boxes, views.AXES, extents or {"x": 0, "y": 0, "z": 0}):
                 v = by.get(view)
                 if v is None:
                     continue
                 horizontal = abs(pa[1] - pb[1]) < 1e-9
                 bx = boxes[view]
+                got = _extent_dim(doc, page, v, horizontal, mm)
+                if got.get("dimension") is None:
+                    extent_missed.append({"view": view, "type": "DistanceX" if horizontal else "DistanceY", "value": round(mm, 4), "why": got["why"]})
+                    continue
+                dim = got.pop("dim")
                 try:
-                    dim = TechDraw.makeExtentDim(v, [], 0 if horizontal else 1)
-                    if dim is None:
-                        continue
                     # X, Y: the text's place from the view's centre, on the page, y up.
                     if horizontal:
                         dim.X, dim.Y = 0.0, -((bx[3] - bx[1]) / 2 + off + 1.0)
                     else:
                         dim.X, dim.Y = (bx[2] - bx[0]) / 2 + off + 1.0, 0.0
-                    dimmed += 1
-                except Exception:  # an extent TechDraw cannot read headless: the files carry it
+                except Exception:  # noqa: BLE001
                     pass
+                dimmed += 1
+                extent_done.append({"view": view, "axis": axis, **got})
             doc.recompute()
         table_note = {}
         if table:
@@ -319,6 +331,10 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
             except Exception as e:  # noqa: BLE001
                 table_note = {"holeTableNote": f"the hole table could not go on the page here ({e}); the files have it"}
         out = {"views": len(made), "extentDimensions": dimmed, "template": os.path.basename(path) if path else None, **sec_note, **table_note}
+        if extent_done:
+            out["extents"] = extent_done
+        if extent_missed:
+            out["notOnPage"] = list(extent_missed)
         if filled:
             out["titleBlock"] = sorted(filled)
         if emptied:
@@ -326,10 +342,10 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
         if specs:
             try:
                 waited = _wait_views([v for _, v in made])
-                done, missed = _page_dims(doc, page, made, drawn, specs)
+                done, missed = _page_dims(doc, page, made, drawn, specs, {vw: (x, y) for vw, (x, y) in placed}, H)
                 out["dimensions"] = done
                 if missed:
-                    out["notOnPage"] = missed
+                    out["notOnPage"] = out.get("notOnPage", []) + missed
                 if waited is not None:
                     out["viewsReadyIn"] = waited
             except Exception as e:  # the page stands without them
@@ -359,24 +375,55 @@ def _export_page(page, out_dir, base, kinds=("dxf", "pdf", "svg")):
         except Exception as e:  # noqa: BLE001
             why["dxf"] = f"TechDraw could not write it ({e})"
     gui = getattr(FreeCAD, "GuiUp", False)
-    for k, fn in (("pdf", "exportPageAsPdf"), ("svg", "exportPageAsSvg")):
+    if gui and any(k in kinds for k in ("pdf", "svg")):
+        # TechDraw puts the template (frame, title block) in the page's
+        # scene only when the page is first shown (1.1.3:
+        # ViewProviderPage::showMDIViewPage); a page never opened exported
+        # its views on white. Opened as a tab in FreeCAD's window.
+        try:
+            page.ViewObject.show()
+        except Exception:  # noqa: BLE001
+            pass
+    for k, fn in (("svg", "exportPageAsSvg"), ("pdf", "exportPageAsPdf")):
         if k not in kinds:
             continue
         if not gui:
             why[k] = "TechDraw exports it with FreeCAD's window only"
+            continue
+        if k == "pdf" and why.get("svg", "").startswith("TechDraw left the template out"):
+            why[k] = why["svg"]
             continue
         p = os.path.join(out_dir, f"{base}.{k}")
         try:
             import TechDrawGui
 
             getattr(TechDrawGui, fn)(page, p)
-            if os.path.isfile(p) and os.path.getsize(p) > 0:
-                paths[k] = p
-            else:
+            if not (os.path.isfile(p) and os.path.getsize(p) > 0):
                 why[k] = "TechDraw wrote nothing"
+            elif k == "svg" and not template_in_svg(p, page):
+                why[k] = "TechDraw left the template out of its export (no frame or title block in it)"
+            else:
+                paths[k] = p
         except Exception as e:  # noqa: BLE001
             why[k] = f"TechDraw could not write it ({e})"
     return paths, why
+
+
+def template_in_svg(path, page):
+    """Whether TechDraw's SVG export holds the page's template: one of its
+    title block's texts (as filled), or its frame's own words, is in it."""
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            text = f.read()
+    except OSError:
+        return False
+    want = []
+    try:
+        want = [str(v) for v in dict(page.Template.EditableTexts).values() if str(v).strip() and len(str(v)) > 2]
+    except Exception:  # noqa: BLE001
+        pass
+    want += ["tolerances", "Title", "Scale", "SCALE", "DRAWING"]
+    return any(w in text for w in want)
 
 
 # ---- dimensions on the TechDraw page ---------------------------------------------------
@@ -456,7 +503,63 @@ def _to_view(fr, p2):
     return (s * sx * p2[0] + tx, s * sy * p2[1] + ty)
 
 
-def _page_dims(doc, page, made, drawn, specs):
+def _extent_dim(doc, page, v, horizontal, mm):
+    """A DistanceX (or DistanceY) dimension of view v between its two
+    extreme drawn vertices along that axis, kept only when TechDraw
+    measures the part's size mm. {dim, dimension, measured} or {why}."""
+    verts = _vertices(v)
+    if len(verts) < 2:
+        return {"why": "the view has no vertices yet (TechDraw had not drawn it)"}
+    key = (lambda k: verts[k].x) if horizontal else (lambda k: verts[k].y)
+    lo = min(range(len(verts)), key=key)
+    hi = max(range(len(verts)), key=key)
+    if abs(key(hi) - key(lo)) < 1e-6:
+        return {"why": "its extreme vertices are one point"}
+    try:
+        dim = doc.addObject("TechDraw::DrawViewDimension", "Dimension")
+        dim.Type = "DistanceX" if horizontal else "DistanceY"
+        dim.MeasureType = "Projected"
+        dim.References2D = [(v, f"Vertex{lo}"), (v, f"Vertex{hi}")]
+        page.addView(dim)
+        doc.recompute()
+        raw = float(dim.getRawValue())
+    except Exception as e:  # noqa: BLE001
+        return {"why": f"TechDraw refused it: {e}"}
+    if abs(raw - mm) > max(0.01, 0.002 * mm):
+        try:
+            page.removeView(dim)
+            doc.removeObject(dim.Name)
+        except Exception:  # noqa: BLE001
+            pass
+        return {"why": f"TechDraw measured {raw:.4g} between the view's extreme vertices, not {mm:.4g}: left off"}
+    return {"dim": dim, "dimension": dim.Name, "measured": round(raw, 4), "value": round(mm, 4)}
+
+
+def match_circle(circles, centre, radius, frames):
+    """The index of the circle (cx, cy, r) that is the hole: for each way
+    the view may hold its geometry (frames: functions from the part's 2D
+    point to the view's, with the scale they apply), the circle of that
+    radius (within 10%) whose centre is nearest, within half its radius.
+    None when no frame finds one."""
+    for to_view, k in frames:
+        try:
+            c = to_view(centre)
+        except Exception:  # noqa: BLE001
+            continue
+        r = radius * k
+        best = None
+        for i, (x, y, rr) in enumerate(circles):
+            if abs(rr - r) > 0.1 * r + 1e-6:
+                continue
+            d = math.hypot(x - c[0], y - c[1])
+            if d <= 0.5 * r + 1e-6 and (best is None or d < best[0]):
+                best = (d, i)
+        if best is not None:
+            return best[1]
+    return None
+
+
+def _page_dims(doc, page, made, drawn, specs, at=None, H=None):
     """The dimensions and hole callouts asked for, on the TechDraw page as
     its own dimensions on the views' vertices and circles — measured by
     TechDraw, so they follow the part — each read back against the value the
@@ -481,17 +584,33 @@ def _page_dims(doc, page, made, drawn, specs):
         tol = max(0.05, 0.002 * fr[0] * max(drawn[view]["box"][2] - drawn[view]["box"][0], drawn[view]["box"][3] - drawn[view]["box"][1]))
         refs = []
         if sp["type"] in ("Diameter", "Radius"):
-            c = _to_view(fr, sp["centre"])
-            r = sp["radius"] * fr[0]
+            circles, idx = [], []
             for i, e in enumerate(_edges(v)):
                 cu = getattr(e, "Curve", None)
                 if isinstance(cu, (Part.Circle, Part.ArcOfCircle)) or hasattr(cu, "Radius"):
                     try:
-                        if abs(cu.Radius - r) < tol and math.hypot(cu.Center.x - c[0], cu.Center.y - c[1]) < tol:
-                            refs = [(v, f"Edge{i}")]
-                            break
+                        circles.append((cu.Center.x, cu.Center.y, cu.Radius))
+                        idx.append(i)
                     except Exception:
                         continue
+            # The view's frame fitted on its extents first; then its own
+            # projection of the hole's centre (projectPoint), scaled or not,
+            # y as it is or turned over: a fit thrown off by the view's
+            # extents (hidden lines, a section) no longer loses the circle.
+            frames = [(lambda p, fr=fr: _to_view(fr, p), fr[0])]
+            p3 = sp.get("centre3")
+            sv = float(getattr(v, "Scale", 1.0) or 1.0)
+            if p3 is not None and hasattr(v, "projectPoint"):
+                try:
+                    q = v.projectPoint(V(*p3))
+                    for k in (sv, 1.0):
+                        for fy in (1, -1):
+                            frames.append((lambda _p, q=q, k=k, fy=fy: (q.x * k, fy * q.y * k), k))
+                except Exception:  # noqa: BLE001
+                    pass
+            hit = match_circle(circles, sp["centre"], sp["radius"], frames)
+            if hit is not None:
+                refs = [(v, f"Edge{idx[hit]}")]
         else:
             verts = _vertices(v)
             for p2 in sp["points"]:
@@ -520,6 +639,15 @@ def _page_dims(doc, page, made, drawn, specs):
                 if sp.get("prefix"):
                     spec = sp["prefix"] + spec
                 dim.FormatSpec = spec
+            if sp.get("textAt") and at and view in at and H is not None:
+                # The callout's text where the files have it, outside the
+                # view, read horizontally on a reference line (ISO).
+                cx, cy = at[view]
+                dim.X, dim.Y = sp["textAt"][0] - cx, cy - sp["textAt"][1]
+                try:
+                    dim.ViewObject.StandardAndStyle = "ISO Referencing"
+                except Exception:  # noqa: BLE001 — no window: the style is the preference's
+                    pass
             if sp.get("over") is not None or sp.get("under") is not None:
                 dim.EqualTolerance = False
                 dim.OverTolerance = f"{sp.get('over') or 0} mm"
@@ -683,6 +811,9 @@ def _pd_holes(objs, view):
     return list(out.values())
 
 
+DEPTHS = {}  # (diameter, x, y in the view) -> length along the axis, from the last _holes()
+
+
 def _holes(objs, view, skip=()):
     """The round holes seen end on in a view, grouped by diameter: [(d,
     [centres])]. A hole is a cylindrical face (Part's, or the surface of
@@ -709,16 +840,25 @@ def _holes(objs, view, skip=()):
                 continue
             dia = round(2 * rad, 3)
             key = (round(c.dot(views.frame(view)[1]), 2), round(c.dot(views.frame(view)[2]), 2))
-            got = seen.setdefault(dia, {}).setdefault(key, [c, 0.0])
+            got = seen.setdefault(dia, {}).setdefault(key, [c, 0.0, [], ax])
             # The turn the face covers about its axis (u for Part's cylinder
             # and for a surface of revolution alike).
             got[1] += abs(u1 - u0)
+            # Its length along the axis (a counterbore's depth).
+            try:
+                got[2] += [vx.Point.dot(ax) for vx in f.Vertexes]
+            except Exception:  # noqa: BLE001
+                pass
     # A hole goes all the way round (in one face or two); a cavity's rounded
     # inside corner is a quarter turn and is no hole.
     X, Y = views.frame(view)[1], views.frame(view)[2]
     out = []
+    DEPTHS.clear()
     for d, v in seen.items():
-        centres = [c for c, span in v.values() if span >= 0.95 * 2 * math.pi]
+        for c, span, along, _ax in v.values():
+            if along:
+                DEPTHS[(d, round(c.dot(X), 2), round(c.dot(Y), 2))] = round(max(along) - min(along), 3)
+        centres = [c for c, span, _a, _x in v.values() if span >= 0.95 * 2 * math.pi]
         centres = [c for c in centres if not any(abs(d - sd) < 0.02 and abs(c.dot(X) - sc.dot(X)) < 0.05 and abs(c.dot(Y) - sc.dot(Y)) < 0.05 for sd, sc in skip)]
         if centres:
             out.append((d, centres))
@@ -864,6 +1004,10 @@ HOLE_VIEWS = ("front", "right", "top", "left", "back", "bottom")
 AXIS_NAME = {"front": "Y", "back": "Y", "right": "X", "left": "X", "top": "Z", "bottom": "Z"}
 
 
+def _boxes_hit(a, b):
+    return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+
+
 def hole_label(count, size, suffix=None):
     """"4× ⌀8 THRU ⌴⌀13 ↧8.5": count (when more than one), size, how made."""
     return (f"{count}× " if count > 1 else "") + str(size) + (f" {suffix}" if suffix else "")
@@ -891,11 +1035,37 @@ def hole_groups(objs, order, drawn_views):
                     skip.append((g["cutDiameter"], c))
         found = [dict(g) for g in pdh] + [{"diameter": d, "centres": cs, "thread": None, "suffix": None, "cut": None, "cutDiameter": None, "features": []}
                                           for d, cs in _holes(objs, v, skip)]
+        X, Y = views.frame(v)[1], views.frame(v)[2]
+        for g in found:
+            g["depths"] = [DEPTHS.get((g["diameter"], round(c.dot(X), 2), round(c.dot(Y), 2))) for c in g["centres"]]
+        found = merge_counterbores(found, lambda c: (c.dot(X), c.dot(Y)))
         shown = v if v in drawn_views else next((w for w in drawn_views if w in AXIS_NAME and AXIS_NAME[w] == AXIS_NAME.get(v)), None)
         for g in found:
             g["view"] = shown
             g["axis"] = AXIS_NAME.get(v, "?")
             out.append(g)
+    return out
+
+
+def merge_counterbores(groups, flat):
+    """A wider plain hole on the same centres as a narrower hole (a pocket
+    round a bolt hole) is its counterbore: one callout, "4× ⌀8 THRU
+    ⌴⌀13 ↧8.5", not two. groups as hole_groups makes them; flat: a centre
+    to its 2D place in the view."""
+    out = list(groups)
+    for big in sorted([g for g in out if not g.get("features") and not g.get("cut")], key=lambda g: -g["diameter"]):
+        pb = sorted((round(flat(c)[0], 2), round(flat(c)[1], 2)) for c in big["centres"])
+        for small in out:
+            if small is big or small["diameter"] >= big["diameter"] or small.get("cut"):
+                continue
+            ps = [(round(flat(c)[0], 2), round(flat(c)[1], 2)) for c in small["centres"]]
+            if pb and all(any(abs(a[0] - b[0]) < 0.05 and abs(a[1] - b[1]) < 0.05 for b in ps) for a in pb) and len(ps) == len(pb):
+                depth = next((d for d in big.get("depths") or [] if d), None)
+                bit = f"⌴⌀{_num(big['diameter'])}" + (f" ↧{_num(depth)}" if depth else "")
+                small["suffix"] = f"{small['suffix']} {bit}" if small.get("suffix") else bit
+                small["cut"], small["cutDiameter"] = "counterbore", big["diameter"]
+                out.remove(big)
+                break
     return out
 
 
@@ -1129,15 +1299,23 @@ def drawing_make(s, a):
             sv = scales[hv]
             c0 = min(g["centres"], key=lambda c: (views.point(c, hv)[0], -views.point(c, hv)[1]))
             pa = _to_paper(views.point(c0, hv), box, centre, sv)
-            tip, elbow, tail, anchor = callout_leader(pa, dia / 2 * sv, L["boxes"][hv], k)
+            # Clear of every view and every text already on the sheet: the
+            # callout goes up 6 mm more until it is.
+            busy = list(L["boxes"].values()) + [sheets.text_box(t) for t in sheet.texts]
+            for extra in range(12):
+                tip, elbow, tail, anchor = callout_leader(pa, dia / 2 * sv, L["boxes"][hv], k + extra)
+                t = (tail[0] + (1 if anchor == "start" else -1), tail[1] - 1, 3.0, label, anchor)
+                if not any(_boxes_hit(sheets.text_box(t), b) for b in busy):
+                    break
             sheet.line([tip, elbow, tail], "dim")
             sheet.arrow(tip, elbow)
-            sheet.text(tail[0] + (1 if anchor == "start" else -1), tail[1] - 1, 3.0, label, anchor)
+            sheet.text(*t)
             holes_out.append(row)
             over, under = _tolerance(dia, {"fit": fit}) if fit else (None, None)
-            specs.append({"view": hv, "type": "Diameter", "centre": views.point(c0, hv), "radius": dia / 2, "value": dia,
+            specs.append({"view": hv, "type": "Diameter", "centre": views.point(c0, hv), "centre3": [c0.x, c0.y, c0.z], "radius": dia / 2, "value": dia,
                           "fit": fit, "over": over, "under": under, "prefix": f"{len(g['centres'])}× " if len(g["centres"]) > 1 else "",
-                          **({"label": label} if g.get("features") else {})})
+                          "textAt": ((sheets.text_box(t)[0] + sheets.text_box(t)[2]) / 2, (sheets.text_box(t)[1] + sheets.text_box(t)[3]) / 2),
+                          **({"label": label} if g.get("features") or g.get("cut") else {})})
         if hole_table:
             rows = [("HOLE", "QTY", "AXIS")] + [(r["label"].split("× ", 1)[-1], str(r["count"]), r["axis"]) for r in hole_table]
             tw, th = 6 + 3.0 * 0.6 * max(len(r[0]) for r in rows) + 30, 6.0 * len(rows) + 2
@@ -1169,7 +1347,7 @@ def drawing_make(s, a):
     if a.get("page", True):
         page, made = _techdraw_page(s.doc, objs, [(v, L["centres"][v]) for v in want], scale, paper, f"{name} drawing", a.get("dimensions", True), specs, drawn,
                                      {**section_out, "origin": sec_origin} if section_out else None, tb, scales,
-                                     {v: L["boxes"][v] for v in want if v in views.AXES}, projection, hole_table or None)
+                                     {v: L["boxes"][v] for v in want if v in views.AXES}, projection, hole_table or None, extent)
     # The files are the page's own exports where TechDraw can write them;
     # Workshop's sheet writer (the same views by Open CASCADE's hidden-line
     # removal) writes the rest, and the answer says which is which.

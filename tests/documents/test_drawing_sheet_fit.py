@@ -187,5 +187,83 @@ OUT["boxes"] = got
             self.assertLess(b[3], 50, b)  # the text over the view's top edge
 
 
+class PageLive(unittest.TestCase):
+    """Found on the TechDraw page itself (f6c14e2, the stem): the front
+    view's extents read 0, six of eight hole groups were not found though
+    drawn, a counterbore came out as two callouts."""
+
+    def test_extent_between_the_extreme_vertices_checked(self):
+        out = run(r"""
+import types
+from workshop_documents.handlers import drawing as D
+pts = [(10, 5), (112, 5), (60, 30), (10, 52), (112, 52)]
+class View:
+    def getVertexByIndex(self, i):
+        if i >= len(pts): raise IndexError(i)
+        return types.SimpleNamespace(Point=types.SimpleNamespace(x=pts[i][0], y=pts[i][1]))
+class Dim:
+    Name = "Dimension"
+    def getRawValue(self):
+        (_, a), (_, b) = self.References2D
+        i, j = int(a[6:]), int(b[6:])
+        return abs(pts[j][0] - pts[i][0]) if self.Type == "DistanceX" else abs(pts[j][1] - pts[i][1])
+removed = []
+doc = types.SimpleNamespace(addObject=lambda t, n: Dim(), recompute=lambda: None, removeObject=removed.append)
+page = types.SimpleNamespace(addView=lambda d: None, removeView=lambda d: None)
+v = View()
+ok = D._extent_dim(doc, page, v, True, 102)
+OUT["ok"] = [ok["measured"], [r[1] for r in ok["dim"].References2D]]
+OUT["v"] = D._extent_dim(doc, page, v, False, 47)["measured"]
+OUT["bad"] = D._extent_dim(doc, page, v, False, 49)
+OUT["removed"] = len(removed)
+""")
+        self.assertEqual(out["ok"], [102, ["Vertex0", "Vertex1"]])
+        self.assertEqual(out["v"], 47)
+        self.assertIn("not 49", out["bad"]["why"])  # a wrong size is left off, said
+        self.assertEqual(out["removed"], 1)
+
+    def test_circle_found_in_whichever_frame_the_view_uses(self):
+        out = run(r"""
+from workshop_documents.handlers import drawing as D
+# The view's circles scaled 1 and turned over in y; the fitted frame is
+# off by 3 mm (its extents thrown by a hidden line).
+circles = [(20, -10, 6.5), (-20, -10, 6.5), (0, 0, 14)]
+fitted = (lambda p: (p[0] + 3, p[1] + 3), 1.0)
+own = (lambda p: (p[0], -p[1]), 1.0)
+OUT["fitted_only"] = D.match_circle(circles, (20, 10), 6.5, [fitted])
+OUT["with_own"] = D.match_circle(circles, (20, 10), 6.5, [fitted, own])
+OUT["big"] = D.match_circle(circles, (0, 0), 14, [own])
+OUT["wrong_size"] = D.match_circle(circles, (0, 0), 10, [own])
+""")
+        self.assertIsNone(out["fitted_only"])  # 4.2 mm off: more than half its radius
+        self.assertEqual(out["with_own"], 0)
+        self.assertEqual(out["big"], 2)
+        self.assertIsNone(out["wrong_size"])
+
+    def test_a_pocket_round_a_hole_is_its_counterbore(self):
+        out = run(r"""
+from workshop_documents.handlers import drawing as D
+holes = [{"diameter": 8.0, "centres": [(0, 0), (30, 0), (0, 20), (30, 20)], "thread": None, "suffix": "THRU", "cut": None, "cutDiameter": None, "features": ["Hole"]},
+         {"diameter": 13.0, "centres": [(0, 0), (30, 0), (0, 20), (30, 20)], "thread": None, "suffix": None, "cut": None, "cutDiameter": None, "features": [], "depths": [8.5] * 4},
+         {"diameter": 28.0, "centres": [(15, 50)], "thread": None, "suffix": None, "cut": None, "cutDiameter": None, "features": []}]
+m = D.merge_counterbores(holes, lambda c: c)
+OUT["labels"] = [D.hole_label(len(g["centres"]), "⌀%g" % g["diameter"], g.get("suffix")) for g in m]
+""")
+        self.assertEqual(out["labels"], ["4× ⌀8 THRU ⌴⌀13 ↧8.5", "⌀28"])
+
+    def test_template_in_the_export(self):
+        out = run(r"""
+import os, tempfile, types
+from workshop_documents.handlers import drawing as D
+d = tempfile.mkdtemp()
+page = types.SimpleNamespace(Template=types.SimpleNamespace(EditableTexts={"title": "StemV2", "scale": "1:1"}))
+a, b = os.path.join(d, "a.svg"), os.path.join(d, "b.svg")
+open(a, "w").write("<svg><g><path d='M0 0'/></g></svg>")
+open(b, "w").write("<svg><text>StemV2</text></svg>")
+OUT["r"] = [D.template_in_svg(a, page), D.template_in_svg(b, page)]
+""")
+        self.assertEqual(out["r"], [False, True])
+
+
 if __name__ == "__main__":
     unittest.main()
