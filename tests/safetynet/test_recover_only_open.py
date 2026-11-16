@@ -25,9 +25,16 @@ class Doc:
         self.Name, self.Label, self.FileName = name, label, file
         self.Meta = dict(meta or {})
         self.modified = modified
+        self.purged = 0
+        if modified:  # a change a call made (Agent Link's after_change)
+            recovery.note_change(types.SimpleNamespace(doc=self))
 
     def isTouched(self):
         return self.modified
+
+    def purgeTouched(self):
+        self.modified = False
+        self.purged += 1
 
     def recompute(self):
         pass
@@ -77,6 +84,7 @@ def put(p, t):
 
 class OnlyOpenAtTheCrash(unittest.TestCase):
     def setUp(self):
+        recovery._CHANGED.clear()
         self.tmp = tempfile.TemporaryDirectory()
         self._was = os.environ.get("AGENTLINK_HOME")
         os.environ["AGENTLINK_HOME"] = os.path.join(self.tmp.name, "home")
@@ -142,7 +150,7 @@ class OnlyOpenAtTheCrash(unittest.TestCase):
         stray = Doc("Bracket_recovered", "Bracket (recovered 09:00)", self.old_copy)
         # A temporary copy changed since: kept, named once.
         kept = Doc("Lid_recovered", "Lid (recovered 08:00) (recovered 08:30)", put(os.path.join(self.tmp.name, recovery.TMP_PREFIX + "l", "Lid_recovered.FCStd"), self.now - 3000), modified=True)
-        docs = [{"name": "Bracket", "label": "Bracket", "file": "/work/Bracket.FCStd"}]
+        docs = [{"name": "Bracket", "label": "Bracket", "file": "/work/Bracket.FCStd", "modified": True}]
         fc, (rec, failed) = self.run_fc([stray, kept], lambda: recovery.recover_docs(docs, since=self.now))
         self.assertEqual([r["label"] for r in rec], ["Bracket"])
         self.assertIn("Bracket_recovered", fc.closed)

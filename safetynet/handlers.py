@@ -56,12 +56,13 @@ def app_recover(s, a):
         docs = a.get("documents")
         if not isinstance(docs, list) or not docs:
             raise bad("documents: [{ name, label, file }] — the documents to bring back (app_recover lists what has copies).")
-        rec, failed = recovery.recover_docs(docs, a.get("since"))
+        reopened = []
+        rec, failed = recovery.recover_docs(docs, a.get("since"), reopened=reopened)
         again = [f["label"] for f in failed if f.get("notAgain")]
         failed = [f for f in failed if not f.get("notAgain")]
-        if rec:
-            s.switch(FreeCAD.getDocument(rec[0]["document"]))
-        return {"recovered": rec, **({"failed": failed} if failed else {}),
+        if rec or reopened:
+            s.switch(FreeCAD.getDocument((rec or reopened)[0]["document"]))
+        return {"recovered": rec, **({"reopened": reopened} if reopened else {}), **({"failed": failed} if failed else {}),
                 **({"notRecoveredAgain": again, "why": recovery.NOT_AGAIN} if again else {}),
                 "note": "Opened beside the person's files as \"(recovered …)\"; their files are untouched. accept { document, confirm: \"save over <file name>\" } typed by them saves one over its file."}
     if action == "accept":

@@ -66,10 +66,53 @@ def from_copy_folder(file):
     return TMP_PREFIX in os.path.basename(os.path.dirname(str(file or "")))
 
 
+# Documents changed by a call here: { name: (time, id of the document) },
+# from Agent Link's after_change event (note_change). Headless, FreeCAD 1.1
+# reports a document touched as soon as it is opened, with no change at
+# all, so touched alone read every file opened as changed and a restart
+# brought it back as a "(recovered …)" copy instead of as itself.
+_CHANGED = {}
+
+
+def note_change(session, tool=None):
+    """After a change (Agent Link's after_change event): the document the
+    call changed recorded as changed, until it is saved."""
+    try:
+        d = session.doc
+        _CHANGED[d.Name] = (time.time(), id(d))
+    except Exception:  # noqa: BLE001 — never fail a call over this
+        pass
+
+
+def _file_time(d):
+    try:
+        f = d.FileName or ""
+        return os.path.getmtime(f) if f else None
+    except (OSError, AttributeError):
+        return None
+
+
+def _changed_headless(d):
+    """Without the window: a saved document is changed when a call changed
+    it after its file was last written (note_change); one never saved, when
+    it is touched."""
+    if not (getattr(d, "FileName", "") or ""):
+        try:
+            return bool(d.isTouched())
+        except Exception:
+            return True
+    t, who = _CHANGED.get(d.Name, (None, None))
+    if t is None or who != id(d):
+        return False
+    ft = _file_time(d)
+    return ft is None or ft < t - 0.5
+
+
 def _changed(d):
-    """Changes since the copy was saved: the window's own modified mark when
-    there is one (FreeCAD 1.1 reports a document touched as soon as it is
-    opened), else touched."""
+    """Changes since the document was saved: the window's own modified mark
+    when there is one (FreeCAD 1.1 reports a document touched as soon as it
+    is opened), else the changes calls made since its file was written
+    (_changed_headless)."""
     try:
         import FreeCAD
 
@@ -81,10 +124,29 @@ def _changed(d):
                 return bool(g.Modified)
     except Exception:
         pass
+    return _changed_headless(d)
+
+
+def settle(d):
+    """A document marked unchanged: what SafetyNet did to it (a relabel, a
+    recompute of a copy just opened) is no change of the person's, so it is
+    not saved again, read as changed by the heartbeat or recovered again."""
     try:
-        return bool(d.isTouched())
+        d.purgeTouched()
     except Exception:
-        return True
+        pass
+    _CHANGED.pop(getattr(d, "Name", None), None)
+    try:
+        import FreeCAD
+
+        if getattr(FreeCAD, "GuiUp", False):
+            import FreeCADGui
+
+            g = FreeCADGui.getDocument(d.Name)
+            if g is not None:
+                g.Modified = False
+    except Exception:
+        pass
 
 
 def is_recovered(d):
@@ -328,6 +390,7 @@ def open_copy(src, name, label, t):
     except Exception:
         pass
     nd.Label = f"{label} (recovered {_hm(t)})"
+    settle(nd)
     forget_recent()
     return nd
 
@@ -336,14 +399,77 @@ NOT_AGAIN = ("an earlier recovered copy with no changes of its own since it open
              "(a copy of a copy); the original's own copies are under app_recover list")
 
 
-def recover_docs(documents, since=None):
+SAVED_UNCHANGED = "saved and unchanged at the stop: opened again from its own file, as itself"
+ALREADY_OPEN = "saved and unchanged at the stop, and already open again from its own file"
+
+
+def saved_unchanged(d):
+    """A document entry of a person's own saved file with no changes since
+    it was saved (modified false or not said): nothing to recover, it opens
+    again from its file as itself."""
+    return not is_recovered(d) and bool(d.get("file")) and not d.get("modified")
+
+
+def _open_as(file):
+    """The open document whose file is file, or None."""
+    import FreeCAD
+
+    want = os.path.abspath(file)
+    for x in FreeCAD.listDocuments().values():
+        f = getattr(x, "FileName", "") or ""
+        if f and os.path.abspath(f) == want:
+            return x
+    return None
+
+
+def newer_than_file(srcs, file):
+    """Of a document's saved copies (newest first), those written after its
+    file (a checkpoint or auto-save inside the call that hung holds more
+    than the file); all of them when the file cannot be read."""
+    try:
+        ft = os.path.getmtime(file)
+    except OSError:
+        return list(srcs)
+    return [x for x in srcs if float(x.get("t") or 0) > ft + 1.0]
+
+
+def reopen_saved(d):
+    """A saved, unchanged document opened again from its own file, once:
+    left as it is when it is open already (Agent Link's restart opened it).
+    { label, document, file, already? } or None when it would not open."""
+    import FreeCAD
+
+    f = d["file"]
+    have = _open_as(f)
+    if have is not None:
+        return {"label": have.Label, "document": have.Name, "file": f, "already": True}
+    if not os.path.isfile(f):
+        return None
+    try:
+        nd = FreeCAD.openDocument(f)
+    except Exception:  # noqa: BLE001 — then from its saved copies
+        return None
+    try:
+        nd.recompute()
+    except Exception:
+        pass
+    settle(nd)
+    return {"label": nd.Label, "document": nd.Name, "file": f}
+
+
+def recover_docs(documents, since=None, reopened=None):
     """The newest copy of each document that opens, beside its file: one
     per original (dedupe), named after the original. Only the documents
     given (those open at the crash); a recovered copy among them only from
     copies of its own changes (own_changes), and not at all when it was not
-    changed (modified false) — those are in failed with notAgain. With since
-    (the crash), temporary copies older than it that FreeCAD opened again
-    and nobody changed are closed (tidy). (recovered, failed)"""
+    changed (modified false) — those are in failed with notAgain. A person's
+    saved file unchanged at the stop (saved_unchanged) is not recovered:
+    it opens again from its own file as itself, once (left alone when it is
+    open already), and comes back from a copy only when a copy newer than
+    the file holds more or the file will not open; those go in reopened (a
+    list given). With since (the crash), temporary copies older than it that
+    FreeCAD opened again and nobody changed are closed (tidy). (recovered,
+    failed)"""
     rec, failed, opened = [], [], []
     for d in dedupe(documents):
         name, label, fname = d.get("name"), d["baseLabel"], d.get("file") or ""
@@ -353,6 +479,14 @@ def recover_docs(documents, since=None):
         if copy and d.get("modified") is False:
             failed.append({"label": d.get("label") or label, "why": NOT_AGAIN, "notAgain": True})
             continue
+        if saved_unchanged(d):
+            fc = [(p, t) for p, t, _ in freecad_recovery_files(cache_dirs(), d.get("label") or label)]
+            newer = newer_than_file(recovery_sources(name, fc), fname) if _open_as(fname) is None else []
+            back = None if newer else reopen_saved(d)
+            if back is not None:
+                if reopened is not None:
+                    reopened.append({**back, "why": ALREADY_OPEN if back.get("already") else SAVED_UNCHANGED})
+                continue
         fc = [(p, t) for p, t, _ in freecad_recovery_files(cache_dirs(), d.get("label") or label)]
         srcs = recovery_sources(name, fc)
         if copy:
@@ -373,6 +507,7 @@ def recover_docs(documents, since=None):
             m = dict(nd.Meta or {})
             m[RECOVERED_FOR] = json.dumps({"file": fname, "label": label, "source": src["source"], "t": src["t"], "opened": time.time()})
             nd.Meta = m
+            settle(nd)
             lost = None
             if since:
                 mins = max(0, int(round((float(since) - src["t"]) / 60.0)))
@@ -485,8 +620,10 @@ def accept(ref, confirm):
     m = dict(nd.Meta or {})
     m.pop(RECOVERED_FOR, None)
     nd.Meta = m
-    nd.saveAs(target)
+    # Labelled as the original before it is saved, so the file holds the
+    # original's label and the document is not left changed by the relabel.
     nd.Label = info.get("label") or nd.Label
+    nd.saveAs(target)
     return nd, {"saved": target, "document": nd.Name, **({"previousFile": backup} if backup else {}),
                 "note": "The recovered copy is now the file; what was there before is kept at previousFile."}
 
@@ -634,6 +771,8 @@ def tidy(fresh=(), since=None, open_at=()):
         lab = copy_label(d.Label)
         if lab != d.Label:
             d.Label = lab
+            if not touched:
+                settle(d)
     forget_recent()
 
 
