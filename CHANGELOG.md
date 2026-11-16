@@ -1,17 +1,18 @@
 <!-- SPDX-License-Identifier: LGPL-2.1-or-later -->
 # Changelog
 
-All notable changes to Workshop for FreeCAD, the suite the Addon Manager
-installs (its version is the one in `package.xml`). Each add-on keeps its own
-changelog and version: [Parts](Parts/CHANGELOG.md), [Make](Make/CHANGELOG.md),
-[Electronics](Electronics/CHANGELOG.md) and
-[Documents](Documents/CHANGELOG.md). The format follows
+All notable changes to Workshop for FreeCAD, the one add-on the Addon
+Manager installs (its version is the one in `package.xml`). Workshop Parts,
+Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
+2026; their own changelogs as they stood then are under
+[History before the combine](#history-before-the-combine). The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-The first tagged release is being prepared.
+The first tagged release, 0.4.0 (the version in `package.xml`), is being
+prepared.
 
 ### Added
 
