@@ -11,6 +11,24 @@ Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
 
 ## [Unreleased]
 
+### Fixed
+
+- Hole for hardware: the printer allowance lasts. FreeCAD sets a sized
+  Hole's diameter (and a screw standard's cut) again from its size and fit
+  when the file is opened, so an M4 clearance answered as 4.7 read 4.5 in
+  the feature, a countersink 9.0 against 9.2. With an allowance the Hole is
+  now FreeCAD's plain hole at its size plus the allowance (the size in its
+  description); `allowanceOn` says which properties carry it.
+- Hole for hardware says which face the head side is on (`headSide`:
+  "countersink on the face at x=0, facing -x"), and the new hole guide
+  says how to enter a wall-mount bracket.
+- Fastener labels stay the same across save and reopen: all worked out
+  together and set in one pass, so FreeCAD never makes one unique on the
+  way (no "M8x25-Screw 001", then 2/3/4).
+- The fasteners' bill of materials counts every fastener from the
+  objects themselves, hidden ones too (Fasteners' own count left a hidden
+  screw out: four M8x20 listed, qty 3).
+
 ## [0.4.0] - 2026-11-16
 
 The first tagged release (the version in `package.xml`): Workshop Parts,

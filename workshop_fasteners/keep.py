@@ -19,7 +19,11 @@ with the file, read-only in the property editor):
   gives it);
 - label: the label it keeps — "M8x25-Screw", the next of that size
   "M8x25-Screw 2", and so on, numbered per size once and kept; a label
-  given with fastener_set { label } is kept as given;
+  given with fastener_set { label } is kept as given. All of them are
+  worked out together and set in one pass (relabel_all), as the document
+  opens and after each recompute: a label another holds for now is moved
+  off first, so FreeCAD never makes one unique (no "M8x25-Screw 001"
+  after a reopen, no renumbering to 2/3/4 the next time);
 - lost: why it could not be put back on its hole, when it could not.
 
 Fasteners made before this (older documents, or by Fasteners' own
@@ -181,14 +185,78 @@ def stable_label(doc, o, base):
 
 
 def _relabel(doc, o, rec):
-    if rec.get("auto", True):
+    """o's record with its label worked out with every other kept
+    fastener's (relabel_all); o's label set with theirs, in one pass."""
+    write(o, rec)
+    relabel_all(doc)
+    return read(o) or rec
+
+
+def wanted(doc):
+    """{name: label} for every kept fastener, worked out together, in the
+    document's order (its creation order, the same after a reopen): a
+    given label as given; else the kept one while its size is the same and
+    no fastener before it holds it; else the first of "base", "base 2" …
+    no other object holds or is given. Never from the labels FreeCAD made
+    unique on the way (M8x25-Screw001): only from the records."""
+    ks = kept(doc)
+    mine = {id(o) for o in ks}
+    claimed = {x.Label for x in getattr(doc, "Objects", []) if id(x) not in mine}
+    recs = {o.Name: read(o) or {} for o in ks}
+    want, todo = {}, []
+    for o in ks:
+        r = recs[o.Name]
+        if not r.get("auto", True) and r.get("label"):
+            want[o.Name] = r["label"]
+            claimed.add(r["label"])
+    for o in ks:
+        r = recs[o.Name]
+        if o.Name in want:
+            continue
         base = base_of(o.Label)
-        if not rec.get("label") or base_of(rec["label"]) != base:
-            rec["label"] = stable_label(doc, o, base)
-    want = rec.get("label")
-    if want and o.Label != want:
-        o.Label = want
-    return rec
+        lab = r.get("label")
+        if lab and base_of(lab) == base and lab not in claimed:
+            want[o.Name] = lab
+            claimed.add(lab)
+        else:
+            todo.append((o, base))
+    for o, base in todo:
+        n = 1
+        while (base if n == 1 else f"{base} {n}") in claimed:
+            n += 1
+        want[o.Name] = base if n == 1 else f"{base} {n}"
+        claimed.add(want[o.Name])
+    return want
+
+
+def relabel_all(doc):
+    """Every kept fastener's label set to wanted() in one pass. A label
+    another of them holds for now (Fasteners' execute set "M8x25-Screw" on
+    each, FreeCAD made them unique: M8x25-Screw 001, 002 …) is first moved
+    off to a temporary one, so FreeCAD's uniquifier never sees two that
+    want one label and no counted-up form is left; a label is never set to
+    the one the object already has (FreeCAD 1.x may count that up too).
+    The records keep the labels. {name: label} changed."""
+    ks = kept(doc)
+    want = wanted(doc)
+    change = [o for o in ks if o.Label != want[o.Name]]
+    held = {o.Label: o for o in ks}
+    goal = set(want[o.Name] for o in change)
+    for o in change:
+        if o.Label in goal and held.get(o.Label) is o:
+            o.Label = f"{o.Name} (relabelling)"
+    done = {}
+    for o in change:
+        if o.Label != want[o.Name]:
+            o.Label = want[o.Name]
+            done[o.Name] = o.Label
+    for o in ks:
+        r = read(o) or {}
+        if r.get("label") != want[o.Name]:
+            r["label"] = want[o.Name]
+            r.setdefault("auto", True)
+            write(o, r)
+    return done
 
 
 # ---- taking a fastener in -----------------------------------------------------------------
@@ -228,9 +296,7 @@ def adopt(doc, o, label=None, adopted=False):
         rec["label"], rec["auto"] = str(label), False
     else:
         rec.setdefault("auto", True)
-    rec = _relabel(doc, o, rec)
-    write(o, rec)
-    return rec
+    return _relabel(doc, o, rec)
 
 
 def _looks_fastener(o):
@@ -341,8 +407,7 @@ def check(doc, o, fix=True):
                 g = geometry(obj, a["edge"])
                 if g:
                     rec["anchor"] = {"object": obj.Name, "edge": a["edge"], **g}
-    rec = _relabel(doc, o, rec)
-    write(o, rec)
+    write(o, rec)  # the label: relabel_all, after every fastener is checked
     return state
 
 
@@ -364,6 +429,10 @@ def sweep(doc, fix=True):
                 continue
             if s != "ok":
                 out[o.Name] = s
+        try:
+            relabel_all(doc)
+        except Exception as e:  # noqa: BLE001 — never break a recompute
+            _warn(f"could not put the fasteners' labels back: {e}")
         return out
     finally:
         _busy = False
@@ -418,6 +487,10 @@ class Observer:
         # An older document: its screws taken in as it opens.
         if not _busy:
             adopt_all(doc)
+            try:  # the kept labels, in one pass, before anything reads them
+                relabel_all(doc)
+            except Exception as e:  # noqa: BLE001 — never break opening a file
+                _warn(f"could not put the fasteners' labels back: {e}")
 
     def slotRecomputedDocument(self, doc):
         if _busy:
