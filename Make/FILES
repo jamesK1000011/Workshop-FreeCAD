@@ -35,6 +35,7 @@ tests/test_printer.py
 tests/test_printmass.py
 tests/test_release.py
 tests/test_report_line.py
+tests/test_services.py
 tests/test_slice.py
 tests/test_thread.py
 tests/test_threemf.py
@@ -127,6 +128,7 @@ workshop_make/records.py
 workshop_make/refusal.py
 workshop_make/results.py
 workshop_make/runner.py
+workshop_make/services.py
 workshop_make/sheetfile.py
 workshop_make/taskpanels.py
 workshop_make/theme.py

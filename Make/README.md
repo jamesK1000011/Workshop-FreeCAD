@@ -174,6 +174,19 @@ only Agent Link loads them. With [Agent Link for OrcaSlicer](https://github.com/
 installed beside it, OrcaSlicer and Bambu Studio slicing use its command
 lines and presets.
 
+### Hook services
+
+With Agent Link, Make offers these through Agent Link's hooks
+(`hooks.service(name)`). The names and call shapes are stable
+(`workshop_make/services.py`). Make owns mass and materials, so Agent Link's
+`measure_mass` and `material_set` defer to these when Make is installed.
+
+| Service | Call | Gives |
+|---|---|---|
+| `mass_properties` | `f(session, args)` (args as the `mass_properties` tool takes them) | The tool's answer: mass as made (as printed in a print setup, inserts included), centre of mass, inertia |
+| `material_set` | `f(doc, bodies, material)` (body labels; `""` forgets) | `{"materials", "freecadMaterial"}`: Make's record, and FreeCAD's material set to match |
+| `print_pauses` | `f(session, body object, print setup)` | The pauses a print needs for parts encased mid-print |
+
 ## Data
 
 Thread sizes are FreeCAD's own (PartDesign Hole's tables); `threads.json`

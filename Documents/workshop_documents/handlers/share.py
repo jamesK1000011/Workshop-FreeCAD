@@ -25,7 +25,53 @@ ToolError = Refusal
 SETTING_WORDS = {"printer": "Printer", "nozzle": "Nozzle (mm)", "layerHeight": "Layer height (mm)", "firstLayer": "First layer (mm)", "walls": "Walls", "infill": "Infill (%)"}
 
 
+# The library-pack service another add-on offers through Agent Link's
+# hooks (ScanRuler-FreeCAD's pack, Stefan Hermann's pack_setup / plan /
+# write): an object with pack(session, args) -> the answer library_pack
+# gives (pack, files, license, parts, bytes, and its own fields), raising
+# for a refusal. Documents' own pack below is the fallback when none is.
+SERVICE = "library_pack"
+
+
+def service():
+    """The library-pack service when an add-on provides one, else None."""
+    try:
+        import importlib
+
+        got = importlib.import_module("agentlink.hooks").service(SERVICE)
+        return got if got is not None and hasattr(got, "pack") else None
+    except Exception:  # noqa: BLE001 — Agent Link or the provider not installed
+        return None
+
+
 def library_pack(s, a):
+    """The pack by the service when an add-on provides one (ScanRuler's,
+    when ScanRuler-FreeCAD is installed); else Documents' own, below. A
+    refusal from the service is the answer; a failure falls back."""
+    svc = service() if a.get("provider", "auto") != "documents" else None
+    if svc is not None:
+        try:
+            out = svc.pack(s, {k: v for k, v in a.items() if k != "provider"})
+        except Exception as e:  # noqa: BLE001
+            if getattr(e, "code", None) and getattr(e, "message", None):
+                raise  # the provider's refusal, in its words
+            fell = f"the library-pack service failed ({e}); Documents' own pack made it"
+        else:
+            out = dict(out or {})
+            out.setdefault("by", getattr(svc, "NAME", "ScanRuler-FreeCAD"))
+            return out
+    else:
+        fell = None
+    out = own_pack(s, a)
+    out["by"] = "Workshop Documents"
+    if fell:
+        out["serviceNote"] = fell
+    return out
+
+
+def own_pack(s, a):
+    """Documents' own library pack: the fallback when no add-on provides
+    the service."""
     from workshop_documents.materials import DENSITY
 
     lic = a.get("license")
