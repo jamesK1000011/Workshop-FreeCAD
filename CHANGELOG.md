@@ -29,6 +29,18 @@ Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
 - SafetyNet declares its recovery tool `PINNED_FREE` (`app_recover`), so
   Agent Link's window link answers it after the person closed the document
   the agent worked in without naming it in Agent Link's own list.
+- Restart and crash recovery no longer bring back old "(recovered …)"
+  copies: `app_recover auto` recovers only the documents given (those open
+  at the crash), and a recovered copy among them only from changes made in
+  it after it opened (its auto-save folder, named like every earlier copy,
+  held theirs too); one nobody changed is named in `notRecoveredAgain`.
+  Temporary recovered files older than the crash that FreeCAD opened again,
+  unchanged, are closed after a crash and after a restart. FreeCAD's own
+  recovery files are matched to a document by label only (one without its
+  .xml is no document's), never a copy's file under its original's label.
+  `app_recover list` offers a recovered copy only with changes of its own;
+  `hidden.json` says which documents were modified and when a copy opened.
+  Tests with stand-ins.
 
 - Make panel, Setups ▸ New made a setup with no part when the document's
   one Body was also referred to by an add-on's object (a ScanRuler

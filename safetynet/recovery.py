@@ -7,7 +7,11 @@
 # after a restart (reopen.json), and FreeCAD's own AutoSave kept on.
 # A copy is named after its original once, however often it was recovered,
 # one per original (a recovered copy is not brought back beside its own
-# original), and kept off File > Open Recent.
+# original), and kept off File > Open Recent. Only the documents open at the
+# crash come back, and a recovered copy only with changes of its own made
+# after it opened: never an older copy of a copy (its auto-save folder holds
+# the copies of earlier copies by the same name), and a temporary copy older
+# than the crash that FreeCAD opened again is closed when nobody changed it.
 #
 # Plain FreeCAD, imported where it is used.
 
@@ -93,6 +97,36 @@ def is_recovered(d):
     return not f and (original_name(d.get("name")) != str(d.get("name") or "") or original_label(d.get("label")) != str(d.get("label") or ""))
 
 
+def opened_at(d):
+    """When a recovered copy (a document entry) was opened: its own record
+    ("opened"), else its temporary folder's time (open_copy makes the folder
+    as it opens the copy), else None."""
+    try:
+        if d.get("opened"):
+            return float(d["opened"])
+    except (TypeError, ValueError):
+        pass
+    for f in (d.get("file"), d.get("copyFile")):
+        if f and from_copy_folder(f):
+            try:
+                return os.path.getmtime(os.path.dirname(f))
+            except OSError:
+                pass
+    return None
+
+
+def own_changes(d, srcs):
+    """Of a recovered copy's saved copies (newest first), those made after
+    it opened: its changes. The copies before it opened are an earlier copy
+    of the same name (copies of copies), never brought back. A copy whose
+    opening time is unknown keeps none: its original's copies are listed
+    under the original."""
+    t0 = opened_at(d)
+    if t0 is None:
+        return []
+    return [x for x in srcs if float(x.get("t") or 0) > t0 + 1.0]
+
+
 def _keys(d):
     """What names a document's original: its file and its name."""
     f = d.get("original") if is_recovered(d) else d.get("file")
@@ -119,6 +153,7 @@ def dedupe(documents):
             if _keys(d) & taken:
                 continue
             taken |= _keys(d)
+            e["copyFile"] = d.get("file") or ""
             e["file"] = d.get("original") or ""
         e["base"] = original_name(d.get("name") or d.get("label"))
         e["baseLabel"] = original_label(d.get("label") or d.get("name"))
@@ -155,7 +190,10 @@ def recovery_sources(doc, freecad_recovery=()):
 
 def freecad_recovery_files(cache_dirs, doc_label=None):
     """FreeCAD's own recovery copies under its cache folders: each holds
-    fc_recovery_file.fcstd and an .xml naming the document. [(path, t, label)]"""
+    fc_recovery_file.fcstd and an .xml naming the document. [(path, t, label)]
+    For a document (doc_label) only its own: the label must match (one whose
+    .xml cannot be read is no document's), and a recovered copy's file (in
+    a temporary agentlink-recovered- folder) is never another document's."""
     found = []
     for root in cache_dirs:
         try:
@@ -167,15 +205,22 @@ def freecad_recovery_files(cache_dirs, doc_label=None):
             f = os.path.join(d, "fc_recovery_file.fcstd")
             if not os.path.isfile(f):
                 continue
-            label = None
+            label = fname = None
             try:
                 with open(os.path.join(d, "fc_recovery_file.xml"), encoding="utf-8", errors="replace") as fh:
-                    m = re.search(r"<Label>([^<]*)</Label>", fh.read())
-                    label = m.group(1) if m else None
+                    xml = fh.read()
+                m = re.search(r"<Label>([^<]*)</Label>", xml)
+                label = m.group(1) if m else None
+                m = re.search(r"<FileName>([^<]*)</FileName>", xml)
+                fname = m.group(1) if m else None
             except OSError:
                 pass
-            if doc_label is None or label in (None, doc_label):
-                found.append((f, os.path.getmtime(f), label))
+            if doc_label is not None:
+                if label != doc_label:
+                    continue
+                if fname and from_copy_folder(fname) and original_label(doc_label) == doc_label:
+                    continue  # a recovered copy's own, though labelled as its original
+            found.append((f, os.path.getmtime(f), label))
     return sorted(found, key=lambda x: -x[1])
 
 
@@ -287,16 +332,34 @@ def open_copy(src, name, label, t):
     return nd
 
 
+NOT_AGAIN = ("an earlier recovered copy with no changes of its own since it opened: not recovered again "
+             "(a copy of a copy); the original's own copies are under app_recover list")
+
+
 def recover_docs(documents, since=None):
     """The newest copy of each document that opens, beside its file: one
-    per original (dedupe), named after the original. (recovered, failed)"""
+    per original (dedupe), named after the original. Only the documents
+    given (those open at the crash); a recovered copy among them only from
+    copies of its own changes (own_changes), and not at all when it was not
+    changed (modified false) — those are in failed with notAgain. With since
+    (the crash), temporary copies older than it that FreeCAD opened again
+    and nobody changed are closed (tidy). (recovered, failed)"""
     rec, failed, opened = [], [], []
     for d in dedupe(documents):
         name, label, fname = d.get("name"), d["baseLabel"], d.get("file") or ""
         if not name:
             continue
+        copy = is_recovered(d)
+        if copy and d.get("modified") is False:
+            failed.append({"label": d.get("label") or label, "why": NOT_AGAIN, "notAgain": True})
+            continue
         fc = [(p, t) for p, t, _ in freecad_recovery_files(cache_dirs(), d.get("label") or label)]
         srcs = recovery_sources(name, fc)
+        if copy:
+            srcs = own_changes(d, srcs)
+            if not srcs:
+                failed.append({"label": d.get("label") or label, "why": NOT_AGAIN, "notAgain": True})
+                continue
         if not srcs:
             failed.append({"label": label, "why": "no saved copy (no checkpoint, auto-save or FreeCAD recovery file)"})
             continue
@@ -308,7 +371,7 @@ def recover_docs(documents, since=None):
                 errors.append(f"{src['source']} {_hm(src['t'])}: {e}")
                 continue
             m = dict(nd.Meta or {})
-            m[RECOVERED_FOR] = json.dumps({"file": fname, "label": label, "source": src["source"], "t": src["t"]})
+            m[RECOVERED_FOR] = json.dumps({"file": fname, "label": label, "source": src["source"], "t": src["t"], "opened": time.time()})
             nd.Meta = m
             lost = None
             if since:
@@ -321,6 +384,11 @@ def recover_docs(documents, since=None):
         else:
             failed.append({"label": label, "why": "; ".join(errors)[:400]})
     _remember(opened, [r["label"] for r in rec], crash=bool(since))
+    if since:
+        try:
+            tidy({r["document"] for r in rec}, since=since, open_at=documents)
+        except Exception:  # noqa: BLE001 — never fail a recovery over this
+            pass
     return rec, failed
 
 
@@ -345,11 +413,15 @@ def listing():
 
     names = {}
     for d in FreeCAD.listDocuments().values():
-        names[d.Name] = {"label": d.Label, "file": d.FileName or ""}
+        names[d.Name] = {"label": d.Label, "file": d.FileName or "", "entry": entry(d)}
     for sub in ("autosave", "checkpoints"):
         try:
             for n in os.listdir(path(sub)):
-                names.setdefault(n, {"label": n, "file": ""})
+                if n not in names:
+                    about = _load(os.path.join(path("autosave", n), "about.json"), {}) or {}
+                    f = about.get("fileName") or ""
+                    names[n] = {"label": about.get("label") or n, "file": f,
+                                "entry": {"name": n, "label": about.get("label") or n, "file": f, **({"recovered": True} if from_copy_folder(f) else {})}}
         except OSError:
             pass
     try:
@@ -361,7 +433,12 @@ def listing():
     out = []
     for n, info in sorted(names.items()):
         fc = [(p, t) for p, t, _ in freecad_recovery_files(cache_dirs(), info["label"])]
-        srcs = recovery_sources(n, fc)[:6]
+        srcs = recovery_sources(n, fc)
+        # A recovered copy is offered only with changes of its own: the
+        # copies before it opened are an earlier copy's (a copy of a copy).
+        if is_recovered(info["entry"]):
+            srcs = own_changes(info["entry"], srcs)
+        srcs = srcs[:6]
         if srcs:
             out.append({"document": n, "label": info["label"], "t": srcs[0]["t"],
                         "copies": [{"source": x["source"], "time": time.strftime("%Y-%m-%d %H:%M", time.localtime(x["t"])), "path": x["path"],
@@ -421,7 +498,7 @@ def write_hidden():
     the one that starts it again after a crash to recover (app_recover)."""
     import FreeCAD
 
-    _save(path("hidden.json"), {"pid": os.getpid(), "t": time.time(), "docs": [entry(d) for d in FreeCAD.listDocuments().values()]})
+    _save(path("hidden.json"), {"pid": os.getpid(), "t": time.time(), "docs": [{**entry(d), "modified": _changed(d)} for d in FreeCAD.listDocuments().values()]})
 
 
 def entry(d):
@@ -432,9 +509,13 @@ def entry(d):
     if raw or from_copy_folder(e["file"]):
         e["recovered"] = True
         try:
-            e["original"] = json.loads(raw).get("file") or "" if raw else ""
+            info = json.loads(raw) if raw else {}
         except ValueError:
-            e["original"] = ""
+            info = {}
+        e["original"] = info.get("file") or ""
+        t0 = info.get("opened") or opened_at(e)
+        if t0:
+            e["opened"] = t0
     return e
 
 
@@ -490,7 +571,8 @@ def reopen_pending(now=None):
 def reopen_now():
     """Open each pending copy beside its file. The labels opened."""
     opened, fresh, used = [], set(), []
-    for c in reopen_pending():
+    pending = reopen_pending()
+    for c in pending:
         try:
             if os.path.isfile(c.get("copy", "")):
                 nd = open_copy(c["copy"], c.get("name") or "doc", c.get("label") or c.get("name") or "doc", float(c.get("t") or time.time()))
@@ -506,30 +588,47 @@ def reopen_now():
                 pass
     _remember(used, opened, crash=True)
     try:
-        tidy(fresh)
+        since = min((float(c.get("t") or 0) for c in pending), default=0) or None
+        tidy(fresh, since=since, open_at=pending)
     except Exception:  # noqa: BLE001
         pass
     return opened
 
 
-def tidy(fresh=()):
-    """After a restart: a recovered copy FreeCAD reopened from its temporary
-    file is closed when its original is open and it has no changes of its
-    own, else named after its original once; and the temporary files are
-    taken off Open Recent. fresh: the copies just reopened, left as they are."""
+def stale_copy(e, since, open_at_files):
+    """A temporary recovered copy (entry e) from before the crash (since)
+    that was not open at it: FreeCAD opened an old temporary file again."""
+    f = e.get("file") or ""
+    if not since or not from_copy_folder(f) or os.path.abspath(f) in open_at_files:
+        return False
+    try:
+        return os.path.getmtime(f) < float(since)
+    except OSError:
+        return False
+
+
+def tidy(fresh=(), since=None, open_at=()):
+    """After a restart or a crash: a recovered copy FreeCAD reopened from
+    its temporary file is closed when it has no changes of its own and its
+    original (or a copy just recovered for it) is open, or its file is
+    older than the crash (since) and it was not open then (open_at: the
+    documents open at the crash, { file }); else named after its original
+    once. The temporary files are taken off Open Recent. fresh: the copies
+    just reopened, left as they are."""
     import FreeCAD
 
     docs = list(FreeCAD.listDocuments().values())
     es = [(d, entry(d)) for d in docs]
     originals = set()
-    for _, e in es:
-        if not is_recovered(e):
+    for d, e in es:
+        if not is_recovered(e) or d.Name in fresh:
             originals |= _keys(e)
+    was_open = {os.path.abspath(x["file"]) for x in open_at or () if isinstance(x, dict) and x.get("file")}
     for d, e in es:
         if d.Name in fresh or not from_copy_folder(e["file"]):
             continue
         touched = _changed(d)
-        if _keys(e) & originals and not touched:
+        if not touched and (_keys(e) & originals or stale_copy(e, since, was_open)):
             FreeCAD.closeDocument(d.Name)
             continue
         lab = copy_label(d.Label)
