@@ -11,23 +11,45 @@ FAKE_HOLE = r'''
 from workshop_make import pdhole
 
 class Hole:
-    """Sizes itself as FreeCAD's does: the fit sets the clearance, a screw
-    standard's cut sets the cut's sizes."""
-    CLEAR = {("M3x0.5", "Fine"): 3.2, ("M3x0.5", "Medium"): 3.4, ("M3x0.5", "Coarse"): 3.6}
+    """Sizes itself as FreeCAD 1.1.3's does (FeatureHole.cpp): with a
+    thread profile the fit sets the clearance (none with Profile None); a
+    screw standard's cut sets the cut's sizes; restore() is Hole::Restore
+    (a reopen): a sized hole's Diameter set again from size and fit, a
+    screw standard's cut again from its table, a plain cut only when at or
+    under the hole's diameter."""
+    CLEAR = {("M3x0.5", "Fine"): 3.2, ("M3x0.5", "Medium"): 3.4, ("M3x0.5", "Coarse"): 3.6,
+             ("M4x0.7", "Medium"): 4.5}
+    STD = {("ISO 4762", "M3x0.5"): (5.5, 3.0), ("ISO 10642", "M3x0.5"): (6.72, 0.0), ("ISO 10642", "M4x0.7"): (9.0, 0.0)}
     def __init__(self):
-        object.__setattr__(self, "v", {"ThreadSize": "M6x1.0", "ThreadFit": "Medium", "HoleCutType": "None", "Diameter": 6.6,
-                                        "HoleCutDiameter": 0.0, "HoleCutDepth": 0.0})
+        object.__setattr__(self, "v", {"ThreadType": "None", "ThreadSize": "M6x1.0", "ThreadFit": "Medium", "HoleCutType": "None",
+                                        "Diameter": 6.6, "HoleCutDiameter": 0.0, "HoleCutDepth": 0.0, "HoleCutCountersinkAngle": 90.0,
+                                        "HoleCutCustomValues": False, "Label2": ""})
     def getEnumerationsOfProperty(self, p):
-        return {"ThreadSize": ["M2x0.4", "M3x0.5", "M6x1.0"], "ThreadFit": ["Medium", "Fine", "Coarse"],
+        return {"ThreadSize": ["M2x0.4", "M3x0.5", "M4x0.7", "M6x1.0"], "ThreadFit": ["Medium", "Fine", "Coarse"],
                 "HoleCutType": ["None", "Counterbore", "Countersink", "Counterdrill", "ISO 4762", "ISO 10642"]}.get(p, [])
     def __getattr__(self, k):
         return self.v[k]
+    def _diameter(self):
+        if self.v["ThreadType"] != "None":
+            self.v["Diameter"] = self.CLEAR.get((self.v["ThreadSize"], self.v["ThreadFit"]), 9.9)
+    def _cut(self):
+        std = self.STD.get((self.v["HoleCutType"], self.v["ThreadSize"]))
+        if std and self.v["ThreadType"] != "None":
+            self.v["HoleCutDiameter"], self.v["HoleCutDepth"] = std
+        elif self.v["HoleCutType"] in ("Counterbore", "Countersink") and self.v["HoleCutDiameter"] <= self.v["Diameter"]:
+            self.v["HoleCutDiameter"] = self.v["Diameter"] * (1.6 if self.v["HoleCutType"] == "Counterbore" else 1.7)
     def __setattr__(self, k, x):
         self.v[k] = x
-        if k in ("ThreadSize", "ThreadFit"):
-            self.v["Diameter"] = self.CLEAR.get((self.v["ThreadSize"], self.v["ThreadFit"]), 9.9)
-        if k == "HoleCutType" and x == "ISO 4762":
-            self.v["HoleCutDiameter"], self.v["HoleCutDepth"] = 5.5, 3.0
+        if k in ("ThreadType", "ThreadSize", "ThreadFit", "Threaded"):
+            self._diameter()
+        if k == "HoleCutType":
+            self._cut()
+    def restore(self):
+        self._diameter()
+        self._cut()
+    def recompute(self):
+        # Hole::execute changes no property: what restore() left is what is cut.
+        return dict(self.v)
 '''
 
 
@@ -63,7 +85,7 @@ h = Hole()
 OUT["cal"] = pdhole._configure(h, "clearance", "M3", 6, "normal", 0.2)
 h = Hole()
 OUT["cb"] = pdhole._configure(h, "counterbore", "M3", "through", "normal", 0.2)
-OUT["cb_custom"] = h.HoleCutCustomValues
+OUT["cb_custom"] = h.HoleCutType
 h = Hole()
 OUT["ins"] = pdhole._configure(h, "insert", "M3", "through", "normal", 0.1)
 OUT["ins_type"] = [h.ThreadType, h.DepthType]
@@ -80,12 +102,13 @@ for bad in (("magnet", "6"), ("clearance", "M5")):
         self.assertEqual(out["clear"]["freecadSize"], "M3x0.5")
         self.assertEqual(out["clear_type"], ["ISOMetricProfile", "M3x0.5", False, "None", "ThroughAll"])
         self.assertAlmostEqual(out["cal"]["clearance"], 3.6)
+        self.assertAlmostEqual(out["cal"]["clearanceBeforeAllowance"], 3.4)
         self.assertEqual(out["cal"]["depth"], 6.0)
         # The counterbore is FreeCAD's ISO 4762 one, the allowance added.
         self.assertEqual((out["cb"]["cut"], out["cb"]["cutSizedBy"]), ("ISO 4762", "FreeCAD"))
         self.assertAlmostEqual(out["cb"]["cutDiameter"], 5.7)
         self.assertEqual(out["cb"]["cutDepth"], 3.0)
-        self.assertTrue(out["cb_custom"])
+        self.assertEqual(out["cb_custom"], "Counterbore")  # kept as FreeCAD's plain counterbore
         # FreeCAD has no table for inserts and magnets: a plain hole at size.
         self.assertEqual(out["ins_type"], ["None", "Dimension"])
         self.assertIn("insert", out["ins"]["note"])
@@ -93,6 +116,64 @@ for bad in (("magnet", "6"), ("clearance", "M5")):
         self.assertAlmostEqual(out["mag"]["depth"], 2.2)
         self.assertIn("6x2", out["refused"][0])
         self.assertIn("lists no M5", out["refused"][1])
+
+
+class AllowanceKept(unittest.TestCase):
+    # Live (FreeCAD 1.1.3): hw_hole answered M4 clearance 4.7 (4.5 + 0.2),
+    # but after a later recompute and reopen the Hole read 4.5, FreeCAD's
+    # M4 medium fit, and a countersink 9.0 against 9.2 answered.
+    def test_answer_and_feature_agree_after_reopen(self):
+        out = run(FAKE_HOLE + r'''
+got = {}
+for kind in ("clearance", "counterbore", "countersink"):
+    for add in (0.0, 0.2):
+        h = Hole()
+        ans = pdhole._configure(h, kind, "M4" if kind != "counterbore" else "M3", "through", "normal", add)
+        h.restore()
+        h.recompute()
+        got[f"{kind} {add}"] = {"ans": ans, "d": h.Diameter, "cd": h.HoleCutDiameter, "type": h.ThreadType, "label2": h.Label2}
+OUT["got"] = got
+# Without the fix: the allowance on a sized hole, as before, is lost on reopen.
+h = Hole()
+h.ThreadType = "ISOMetricProfile"; h.ThreadSize = "M4x0.7"; h.ThreadFit = "Medium"
+h.Diameter = h.Diameter + 0.2
+h.restore()
+OUT["old_way"] = h.Diameter
+''')
+        self.assertAlmostEqual(out["old_way"], 4.5)  # the stand-in resets as FreeCAD does
+        for k, g in out["got"].items():
+            self.assertAlmostEqual(g["d"], g["ans"]["clearance"], msg=k)
+            if not k.startswith("clearance"):
+                self.assertAlmostEqual(g["cd"], g["ans"]["cutDiameter"], msg=k)
+        c = out["got"]["clearance 0.2"]
+        self.assertAlmostEqual(c["d"], 4.7)
+        self.assertEqual(c["type"], "None")
+        self.assertIn("Diameter", c["ans"]["allowanceOn"])
+        self.assertIn("M4 clearance, ISO 273 medium 4.5 mm + 0.2 mm", c["label2"])
+        cs = out["got"]["countersink 0.2"]
+        self.assertAlmostEqual(cs["cd"], 9.2)
+        self.assertEqual(cs["ans"]["cutBeforeAllowance"], 9.0)
+        self.assertIn("HoleCutDiameter", cs["ans"]["allowanceOn"])
+        # No allowance: FreeCAD's own sized hole, as it was.
+        self.assertEqual(out["got"]["clearance 0.0"]["type"], "ISOMetricProfile")
+        self.assertAlmostEqual(out["got"]["countersink 0.0"]["cd"], 9.0)
+        self.assertNotIn("allowanceOn", out["got"]["clearance 0.0"]["ans"])
+
+
+class HeadSide(unittest.TestCase):
+    def test_which_face_the_head_is_on(self):
+        out = run(r'''
+from workshop_make import pdhole as H
+OUT["wall"] = H.head_side("countersink", [0, 20, 15], (1, 0, 0))
+OUT["top"] = H.head_side("counterbore", [10, 5, 12.5], (0, 0, -1))
+OUT["slant"] = H.head_side("clearance", [1, 2, 3], (1, 1, 0))
+OUT["sketch"] = H.head_side("clearance", None, (0, 0, -1))
+''')
+        self.assertEqual((out["wall"]["face"], out["wall"]["facing"]), ("x=0", "-x"))
+        self.assertTrue(out["wall"]["headSide"].startswith("countersink on the face at x=0, facing -x"))
+        self.assertTrue(out["top"]["headSide"].startswith("counterbore on the face at z=12.5, facing +z"))
+        self.assertEqual(out["slant"]["facing"], [-0.7071, -0.7071, 0.0])
+        self.assertIn("sketch", out["sketch"]["headSide"])
 
 
 class Route(unittest.TestCase):

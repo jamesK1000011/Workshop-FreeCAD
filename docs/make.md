@@ -64,7 +64,11 @@ toolbars and its **Make** menu have:
   **Hole for Hardware** (FreeCAD's own PartDesign Hole on the face or sketch
   you pick, with its clearance, counterbore and countersink sizes, editable
   in its panel after; Make adds only what it lacks: your printer's
-  allowance, nut traps, heat-set insert and magnet pockets. A plain Part
+  allowance, nut traps, heat-set insert and magnet pockets. With an
+  allowance the Hole is FreeCAD's plain hole at its size plus the
+  allowance, so FreeCAD keeps it when the file is reopened; the size is in
+  its description. The screw head, counterbore or countersink goes on the
+  face you drill from. A plain Part
   solid, not in a Body, gets the hole cut as a shape, and is told so).
 - **Hardware**: **Embed Hardware** (a pocket for a part dropped in mid-print),
   **Pauses** (every pause the print needs), **Thread Lookup** (FreeCAD's

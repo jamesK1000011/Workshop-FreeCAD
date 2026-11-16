@@ -247,6 +247,9 @@ def _hole(out):
              else "cut as a shape: a plain Part solid, not in a Part Design Body")
     s = f"{size} {what} in {out.get('body')}{how} ({route})."
     s += " " + calibration_clause(out.get("printerFit"), out.get("allowance"))
+    side = str(out.get("headSide") or "").split(" (dir runs")[0]
+    if side:
+        s += " " + side[0].upper() + side[1:].rstrip(".") + "."
     if out.get("sound") is False:
         s += " The part is no longer sound: check it with DFM Check."
     return s
