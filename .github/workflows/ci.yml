@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # Workshop for FreeCAD's tests on the newest FreeCAD conda-forge has and the
-# newest 1.0: each add-on alone (its API and commands, no agent),
-# then with Agent Link beside it (the tools an agent calls).
+# newest 1.0: the add-on alone (its API and commands, no agent), then with
+# Agent Link beside it (the tools an agent calls). tests/ holds the add-on's
+# own tests; tests/<part>/ each part's.
 name: Workshop tests
 
 on:
@@ -61,14 +62,13 @@ jobs:
         timeout-minutes: 6
         continue-on-error: true
         run: sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 update -qq && sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 install -y -qq --no-install-recommends prusa-slicer xvfb libopengl0 libegl1 libgl1 > /dev/null
-      - name: Each add-on alone (no Agent Link)
+      - name: Alone (no Agent Link)
         # Not exit: a login shell's exit runs ~/.bash_logout, whose
         # clear_console fails on the runner and turns a pass into 1.
         run: |
           code=0
           python -m unittest discover -s tests -v > "$RUNNER_TEMP/alone.log" 2>&1 || code=$?
-          # Each one with only itself on the path: none needs another.
-          for d in Parts Make Electronics Documents; do PYTHONPATH="$GITHUB_WORKSPACE/$d" python -X faulthandler -m unittest discover -s $d/tests -v >> "$RUNNER_TEMP/alone.log" 2>&1 || code=$?; done
+          for d in parts make electronics documents safetynet; do PYTHONPATH="$GITHUB_WORKSPACE" AGENTLINK_HOME="$(mktemp -d)" python -X faulthandler -m unittest discover -s tests/$d -v >> "$RUNNER_TEMP/alone.log" 2>&1 || code=$?; done
           grep -E "^(Ran|OK|FAILED)" "$RUNNER_TEMP/alone.log"
           grep -E -A40 "^(FAIL|ERROR):|Fatal Python error" "$RUNNER_TEMP/alone.log" | head -n 300
           echo "exit code: $code"
@@ -76,8 +76,9 @@ jobs:
       - name: With Agent Link beside it
         run: |
           code=0
-          export PYTHONPATH="$GITHUB_WORKSPACE/agentlink-addon:$GITHUB_WORKSPACE/Parts:$GITHUB_WORKSPACE/Make:$GITHUB_WORKSPACE/Electronics:$GITHUB_WORKSPACE/Documents" AGENTLINK_DIR="$GITHUB_WORKSPACE/agentlink-addon"
-          for d in Parts Make Electronics Documents; do python -X faulthandler -m unittest discover -s $d/tests -v >> "$RUNNER_TEMP/with.log" 2>&1 || code=$?; done
+          export PYTHONPATH="$GITHUB_WORKSPACE/agentlink-addon:$GITHUB_WORKSPACE" AGENTLINK_DIR="$GITHUB_WORKSPACE/agentlink-addon" AGENTLINK_SRC="$GITHUB_WORKSPACE/agentlink-addon"
+          python -X faulthandler -m unittest discover -s tests -v > "$RUNNER_TEMP/with.log" 2>&1 || code=$?
+          for d in parts make electronics documents safetynet; do AGENTLINK_HOME="$(mktemp -d)" python -X faulthandler -m unittest discover -s tests/$d -v >> "$RUNNER_TEMP/with.log" 2>&1 || code=$?; done
           grep -E "^(Ran|OK|FAILED)" "$RUNNER_TEMP/with.log"
           grep -E -A40 "^(FAIL|ERROR):|Fatal Python error" "$RUNNER_TEMP/with.log" | head -n 300
           echo "exit code: $code"

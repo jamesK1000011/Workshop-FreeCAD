@@ -1,34 +1,30 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# Release readiness of the repository itself, without FreeCAD: the root
-# package.xml (the Addon Manager's one install of all the add-ons) names each
-# add-on's workbench as its InitGui registers it, the repository's own files
-# state their licence (each add-on folder checks its own in its
-# tests/test_release.py), the README links every add-on, and no bytecode is
-# tracked.
+# Release readiness without FreeCAD: the README's tool list is current, the
+# licence of every file in this add-on is stated (a REUSE-style check, for
+# when the `reuse` tool is not installed), package.xml is what the Addon
+# Manager needs (one add-on, one workbench: Make), and the changelog has an
+# Unreleased section. ROOT is the repository, which is the Mod folder.
 import os
 import re
 import subprocess
+import sys
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# This repository's own add-ons: a folder with a package.xml that git tracks.
-# CI checks Agent Link and OrcaLink out beside them in the same folder; those
-# have package.xml too but are not ours (red CI from f3663a5 on).
-def _ours(d):
-    try:
-        out = subprocess.run(["git", "ls-files", "--error-unmatch", f"{d}/package.xml"], cwd=ROOT, capture_output=True, text=True)
-    except OSError:
-        return True
-    return out.returncode == 0
 
+PKG = "workshop"  # VERSION is the add-on's
+WORKBENCH = "WorkshopMakeWorkbench"  # the one workbench (built in workshop_make)
+TOOLS = True  # README carries a generated tool list
+DATA = True  # data/ files under CC-BY-4.0
 
-ADDONS = [d for d in sorted(os.listdir(ROOT)) if os.path.isfile(os.path.join(ROOT, d, "package.xml")) and _ours(d)]
 MAIN = "LGPL-2.1-or-later"
 SOURCE = (".py", ".js", ".mjs", ".sh")
+URLS = ("repository", "bugtracker", "readme")
 NS = {"p": "https://wiki.freecad.org/Package_Metadata"}
 
 
 def tracked():
+    """This add-on's tracked files, relative to its folder."""
     try:
         out = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True).stdout
     except (OSError, subprocess.CalledProcessError):
@@ -37,6 +33,7 @@ def tracked():
 
 
 def reuse_annotations():
+    """(globs, licence) pairs from REUSE.toml, read without tomllib."""
     out, globs = [], None
     for line in open(os.path.join(ROOT, "REUSE.toml"), encoding="utf-8"):
         m = re.match(r"\s*path\s*=\s*(.+)", line)
@@ -54,7 +51,93 @@ def _match(path, glob):
     return re.fullmatch(rx, path) is not None
 
 
-class RootPackage(unittest.TestCase):
+def _licence_file(f):
+    return re.fullmatch(r"LICEN[CS]E([-.].*)?", f) is not None or f.startswith("LICENSES/")
+
+
+class Readme(unittest.TestCase):
+    def setUp(self):
+        self.text = open(os.path.join(ROOT, "README.md"), encoding="utf-8").read()
+
+    def test_tool_list_is_current(self):
+        if not TOOLS:
+            self.skipTest("no tools")
+        sys.path.insert(0, os.path.join(ROOT, "tools"))
+        try:
+            import gen_readme_tools
+        finally:
+            sys.path.pop(0)
+        self.assertEqual(gen_readme_tools.render(self.text), self.text, "run python3 tools/gen_readme_tools.py")
+        self.assertGreater(gen_readme_tools.block().count("\n| `"), 0)
+
+    def test_licence_and_credits(self):
+        self.assertRegex(self.text, r"(?m)^## Licence")
+        self.assertIn(MAIN, self.text)
+
+
+class Licences(unittest.TestCase):
+    def test_every_file_has_a_licence(self):
+        files = tracked()
+        if files is None:
+            self.skipTest("not a git checkout")
+        notes = reuse_annotations()
+        missing, wrong = [], []
+        for f in files:
+            if _licence_file(f):
+                continue
+            with open(os.path.join(ROOT, f), "rb") as fh:
+                head = fh.read(600).decode("utf-8", "replace")
+            m = re.search(r"SPDX-License-Identifier:\s*([^\s*>-][^\s>]*)", head)
+            if m:
+                ids = [m.group(1)]
+            else:
+                ids = [lic for globs, lic in notes if any(_match(f, g) for g in globs)]
+                if f.endswith(SOURCE) or not ids:
+                    missing.append(f)
+                    continue
+            for i in ids:
+                for part in re.split(r"\s+(?:AND|OR|WITH)\s+", i):
+                    if part != MAIN and not os.path.exists(os.path.join(ROOT, "LICENSES", part + ".txt")):
+                        wrong.append(f"{f}: {part}")
+        self.assertEqual(missing, [], "no SPDX header or REUSE.toml entry")
+        self.assertEqual(wrong, [], "licence text not in LICENSES/")
+
+    def test_main_licence_is_lgpl(self):
+        head = open(os.path.join(ROOT, "LICENSE"), encoding="utf-8").read(400)
+        self.assertIn("LESSER GENERAL PUBLIC LICENSE", head)
+        self.assertIn("Version 2.1", head)
+
+    def test_data_licence(self):
+        if not DATA:
+            self.skipTest("no data files")
+        text = open(os.path.join(ROOT, "LICENSES", "CC-BY-4.0.txt"), encoding="utf-8").read()
+        self.assertIn("Attribution 4.0 International", text)
+        self.assertIn("CC BY 4.0", open(os.path.join(ROOT, "LICENSE-DATA"), encoding="utf-8").read())
+
+    def test_one_addon(self):
+        # One package.xml, Init.py and InitGui.py: none left in a sub-folder.
+        files = tracked()
+        if files is None:
+            self.skipTest("not a git checkout")
+        for name in ("package.xml", "Init.py", "InitGui.py"):
+            self.assertEqual([f for f in files if os.path.basename(f) == name], [name])
+
+    def test_no_bytecode_tracked(self):
+        files = tracked()
+        if files is None:
+            self.skipTest("not a git checkout")
+        self.assertEqual([f for f in files if "__pycache__" in f or f.endswith(".pyc")], [])
+
+
+class Changelog(unittest.TestCase):
+    def test_unreleased_section(self):
+        text = open(os.path.join(ROOT, "CHANGELOG.md"), encoding="utf-8").read()
+        self.assertRegex(text, r"(?m)^## \[?Unreleased\]?")
+
+
+class PackageXml(unittest.TestCase):
+    """package.xml as FreeCAD's Addon Manager reads it."""
+
     @classmethod
     def setUpClass(cls):
         import xml.etree.ElementTree as ET
@@ -67,84 +150,67 @@ class RootPackage(unittest.TestCase):
         self.assertTrue((el.text or "").strip(), tag)
         return el
 
-    def test_required(self):
+    def test_format_and_required(self):
         self.assertEqual(self.root.tag, "{%s}package" % NS["p"])
         self.assertEqual(self.root.get("format"), "1")
-        for tag in ("name", "description", "version", "date", "maintainer", "license", "icon", "freecadmin"):
+        for tag in ("name", "description", "version", "date", "maintainer", "license", "freecadmin"):
             self.one(tag)
+        if WORKBENCH:
+            self.one("icon")
         self.assertRegex(self.one("version").text, r"^\d+\.\d+\.\d+$")
-        self.assertTrue(self.one("maintainer").get("email"))
+        self.assertRegex(self.one("date").text, r"^\d{4}-\d{2}-\d{2}$")
+        self.assertRegex(self.one("freecadmin").text, r"^\d+\.\d+(\.\d+)?$")
+
+    def test_version_matches_package(self):
+        src = open(os.path.join(ROOT, PKG, "__init__.py"), encoding="utf-8").read()
+        m = re.search(r'^VERSION\s*=\s*"([^"]+)"', src, re.M)
+        self.assertIsNotNone(m)
+        self.assertEqual(m.group(1), self.one("version").text.strip())
+
+    def test_maintainer_and_licence(self):
+        self.assertTrue(self.one("maintainer").get("email"), "the format needs an email attribute")
         lics = self.root.findall("p:license", NS)
         self.assertEqual(lics[0].text.strip(), MAIN)
         for lic in lics:
             self.assertTrue(os.path.isfile(os.path.join(ROOT, lic.get("file"))), lic.get("file"))
+        if DATA:
+            self.assertIn("CC-BY-4.0", [lic.text.strip() for lic in lics])
+
+    def test_urls(self):
         urls = {u.get("type"): (u.text or "").strip() for u in self.root.findall("p:url", NS)}
-        for kind in ("repository", "bugtracker", "readme"):
+        for kind in URLS:
             self.assertTrue(urls.get(kind, "").startswith("https://"), kind)
-        self.assertTrue(os.path.isfile(os.path.join(ROOT, self.one("icon").text.strip())))
+        self.assertTrue(urls["readme"].endswith("/blob/main/README.md"), urls["readme"])
+
+    def test_icons_exist(self):
+        icon = self.root.find("p:icon", NS)
+        if icon is not None:
+            self.assertTrue(os.path.isfile(os.path.join(ROOT, icon.text.strip())))
+        for wb in self.root.findall("p:content/p:workbench", NS):
+            self.assertTrue(os.path.isfile(os.path.join(ROOT, self.one("icon", wb).text.strip())))
+
+    def test_workbench_matches_initgui(self):
+        wbs = self.root.findall("p:content/p:workbench", NS)
+        initgui = open(os.path.join(ROOT, "InitGui.py"), encoding="utf-8").read()
+        if not WORKBENCH:
+            self.assertEqual(wbs, [])
+            self.assertNotIn("addWorkbench", initgui)
+            return
+        self.assertEqual(len(wbs), 1)
+        for wb in wbs:
+            cls = self.one("classname", wb).text.strip()
+            self.assertEqual(cls, WORKBENCH)
+            # InitGui.py only calls workbench.add(); the class lives in the
+            # module (FreeCAD's exec() hides InitGui's own names from it).
+            built = open(os.path.join(ROOT, "workshop_make", "workbench.py"), encoding="utf-8").read()
+            self.assertRegex(built, r"(?m)^    class %s\(Gui\.Workbench\)" % re.escape(cls))
+            self.assertRegex(initgui, r"(?m)^_WORKSHOP_MENUS = _workshop_workbench\.add\(FreeCADGui\)")
+            sub = self.one("subdirectory", wb).text.strip()
+            self.assertTrue(os.path.isfile(os.path.join(ROOT, sub, "InitGui.py")))
+            self.one("name", wb)
+
+    def test_tags(self):
         self.assertGreaterEqual(len(self.root.findall("p:tag", NS)), 1)
-
-    def test_each_workbench_is_its_addons(self):
-        """One workbench per add-on that registers one, each in its folder,
-        the same classname and freecadmin as the add-on's own package.xml."""
-        import xml.etree.ElementTree as ET
-
-        wbs = {self.one("subdirectory", wb).text.strip(): wb for wb in self.root.findall("p:content/p:workbench", NS)}
-        want = []
-        for d in ADDONS:
-            own = ET.parse(os.path.join(ROOT, d, "package.xml")).getroot()
-            for w in own.findall("p:content/p:workbench", NS):
-                want.append(d)
-                self.assertIn(d, wbs, d)
-                cls = self.one("classname", wbs[d]).text.strip()
-                self.assertEqual(cls, w.find("p:classname", NS).text.strip(), d)
-                # InitGui.py only calls its package's workbench.add(); the class
-                # lives in that module (FreeCAD's exec() hides InitGui's names).
-                initgui = open(os.path.join(ROOT, d, "InitGui.py"), encoding="utf-8").read()
-                pkg = re.search(r"(?m)^from (\w+) import workbench as _\1_workbench$", initgui).group(1)
-                self.assertRegex(initgui, r"(?m)^_%s_workbench\.add\(FreeCADGui\)" % pkg)
-                built = open(os.path.join(ROOT, d, pkg, "workbench.py"), encoding="utf-8").read()
-                self.assertRegex(built, r"(?m)^    class %s\(Gui\.Workbench\)" % re.escape(cls))
-                # A workbench icon is relative to its subdirectory, as FreeCAD reads it.
-                self.assertTrue(os.path.isfile(os.path.join(ROOT, d, self.one("icon", wbs[d]).text.strip())), d)
-                self.assertEqual(own.find("p:freecadmin", NS).text, self.one("freecadmin").text)
-        self.assertEqual(sorted(wbs), sorted(want))
-        self.assertGreaterEqual(len(want), 4)
-
-
-class Files(unittest.TestCase):
-    def test_root_files_have_a_licence(self):
-        files = tracked()
-        if files is None:
-            self.skipTest("not a git checkout")
-        notes = reuse_annotations()
-        missing = []
-        for f in files:
-            if f.split("/", 1)[0] in ADDONS or re.fullmatch(r"LICEN[CS]E([-.].*)?", f) or f.startswith("LICENSES/"):
-                continue
-            with open(os.path.join(ROOT, f), "rb") as fh:
-                head = fh.read(600).decode("utf-8", "replace")
-            if re.search(r"SPDX-License-Identifier:\s*" + re.escape(MAIN), head):
-                continue
-            if f.endswith(SOURCE) or not any(lic == MAIN and any(_match(f, g) for g in globs) for globs, lic in notes):
-                missing.append(f)
-        self.assertEqual(missing, [], "no SPDX header or REUSE.toml entry")
-
-    def test_each_addon_has_release_files(self):
-        for d in ADDONS:
-            for f in ("README.md", "CHANGELOG.md", "LICENSE", "REUSE.toml", "tests/test_release.py"):
-                self.assertTrue(os.path.isfile(os.path.join(ROOT, d, f)), f"{d}/{f}")
-
-    def test_readme_links_every_addon(self):
-        text = open(os.path.join(ROOT, "README.md"), encoding="utf-8").read()
-        for d in ADDONS:
-            self.assertIn(f"({d}/README.md)", text)
-
-    def test_no_bytecode_tracked(self):
-        files = tracked()
-        if files is None:
-            self.skipTest("not a git checkout")
-        self.assertEqual([f for f in files if "__pycache__" in f or f.endswith(".pyc")], [])
 
 
 if __name__ == "__main__":

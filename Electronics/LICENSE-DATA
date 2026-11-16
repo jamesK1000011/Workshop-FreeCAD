@@ -1,9 +1,0 @@
-The data files of Workshop for FreeCAD (each add-on's data/*.json and their
-schemas) are licensed under the Creative Commons Attribution 4.0
-International licence (CC BY 4.0): https://creativecommons.org/licenses/by/4.0/
-
-You may share and adapt them for any purpose, giving credit ("Workshop for
-FreeCAD data") and saying what you changed. Entries derived from others'
-work name their source in their own "source" field.
-
-The code is licensed separately, under LGPL-2.1-or-later (LICENSE).
