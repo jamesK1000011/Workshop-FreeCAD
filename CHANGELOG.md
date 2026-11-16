@@ -13,6 +13,21 @@ changelog and version: [Parts](Parts/CHANGELOG.md), [Make](Make/CHANGELOG.md),
 
 The first tagged release is being prepared.
 
+### Fixed
+
+- Tools ▸ SafetyNet was missing on FreeCAD 1.1.3, where an append into the
+  Tools menu didn't land. It's now inserted before Customize, and a Qt
+  backstop adds it after each workbench switch wherever it's still missing.
+- Hole for hardware and Thread lookup were missing from the Part Design
+  menu. On 1.1.3 an insert can't reach into a submenu, so they now sit at
+  the Part Design menu's own level, before Boolean.
+- Old WorkshopParts/Make/Electronics/Documents or SafetyNet Mod folders
+  left beside Workshop no longer shadow its packages. Workshop's own folder
+  goes first on the path, the old folders are named in one line of the
+  Report view, and their InitGui files do nothing instead of failing.
+  Workshop never touches the Mod folder; Agent Link's update sets the old
+  folders aside.
+
 ### Changed
 
 - One add-on: Workshop Parts, Make, Electronics and Documents and SafetyNet

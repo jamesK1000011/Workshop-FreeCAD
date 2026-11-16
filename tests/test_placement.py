@@ -1,10 +1,13 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # Where each command lands (docs/combine-design.md, section 2): the
-# manipulator's instructions applied, the way FreeCAD's WorkbenchManipulator
-# applies them, to stand-ins of FreeCAD 1.1's own menus and toolbars
-# (PartDesign, Part, TechDraw, File, Tools). "insert" puts the command before
-# the item named (found anywhere in the tree); "append" adds it to the end of
-# the menu named. An anchor a workbench lacks adds nothing there.
+# manipulator's instructions applied, the way FreeCAD 1.1.3's
+# WorkbenchManipulator was seen to apply them on the Mac, to stand-ins of its
+# own menus and toolbars (PartDesign, Part, TechDraw, File, Tools). A menu
+# "insert" puts the command before the item named among a top-level menu's
+# own items only (an item inside a submenu is not found: Subtractive
+# Features ▸ Hole); a toolbar "insert" before the item in any toolbar; an
+# "append" into &Tools did not land, so none is used. An anchor a workbench
+# lacks adds nothing there.
 # Fold check: Hole for hardware is not folded into PartDesign Hole's task
 # panel (C++, no Python API for it); it is an icon right after
 # PartDesign_Hole instead, checked here.
@@ -23,7 +26,7 @@ from workshop import placement  # noqa: E402
 # confirms these names on the Mac).
 FILE = ["Std_New", "Std_Open", "Std_RecentFiles", "Separator", "Std_Save", "Std_SaveAs", "Std_Revert", "Separator",
         "Std_Import", "Std_Export", "Std_MergeProjects", "Std_ProjectInfo", "Separator", "Std_Quit"]
-TOOLS = ["Std_DlgParameter", "Separator", "Std_Measure", "Std_QuickMeasure", "Std_UnitsCalculator", "Separator", "Std_DlgCustomize"]
+TOOLS = ["Std_AddonMgr", "Separator", "Std_Measure", "Std_QuickMeasure", "Std_UnitsCalculator", "Separator", "Std_DlgCustomize"]
 BENCHES = {
     "PartDesignWorkbench": {
         "toolbars": {
@@ -34,13 +37,15 @@ BENCHES = {
                                               "PartDesign_Hole", "PartDesign_Groove", "PartDesign_SubtractiveLoft"],
         },
         "menus": {"&File": list(FILE), "&Tools": list(TOOLS),
-                  "&Part Design": {"Create a subtractive feature": ["PartDesign_Pocket", "PartDesign_Hole", "PartDesign_Groove"]}},
+                  "&Part Design": ["PartDesign_Body", "PartDesign_NewSketch", "Separator",
+                                   ("Subtractive Features", ["PartDesign_Pocket", "PartDesign_Hole", "PartDesign_Groove"]),
+                                   "Separator", "PartDesign_Boolean"]},
     },
     "PartWorkbench": {
         "toolbars": {"Solids": ["Part_Box", "Part_Cylinder", "Part_Sphere", "Part_Cone", "Part_Torus", "Part_Tube", "Part_Primitives", "Part_Builder"],
                      "Boolean": ["Part_Boolean", "Part_Cut", "Part_Fuse", "Part_Common", "Part_CheckGeometry"]},
         "menus": {"&File": list(FILE), "&Tools": list(TOOLS),
-                  "&Part": {"Primitives": ["Part_Box", "Part_Cylinder", "Part_Primitives"]}},
+                  "&Part": [("Primitives", ["Part_Box", "Part_Cylinder"]), "Part_Primitives", "Part_Builder"]},
     },
     "TechDrawWorkbench": {
         "toolbars": {"TechDraw Pages": ["TechDraw_PageDefault", "TechDraw_PageTemplate", "TechDraw_RedrawPage", "TechDraw_PrintAll"]},
@@ -63,30 +68,20 @@ def _lists(tree):
             yield from _lists(v)
 
 
-def _menu(tree, name):
-    if isinstance(tree, dict):
-        for k, v in tree.items():
-            if k == name:
-                return v
-            found = _menu(v, name)
-            if found is not None:
-                return found
-    return None
-
-
 def apply(bench, menus, toolbars):
     b = copy.deepcopy(bench)
-    for kind, entries, key in (("menus", menus, "menuItem"), ("toolbars", toolbars, "toolItem")):
-        for e in entries:
-            if "insert" in e:
-                for lst in _lists(b[kind]):
-                    if e[key] in lst:
-                        lst.insert(lst.index(e[key]), e["insert"])
-                        break
-            elif "append" in e:
-                target = _menu(b[kind], e[key])
-                if isinstance(target, list):
-                    target.append(e["append"])
+    for e in toolbars:
+        for lst in _lists(b["toolbars"]):
+            if e["toolItem"] in lst:
+                lst.insert(lst.index(e["toolItem"]), e["insert"])
+                break
+    for e in menus:
+        if "insert" not in e:
+            continue  # an append into a menu: did not land on 1.1.3
+        for lst in b["menus"].values():  # a top-level menu's own items only
+            if isinstance(lst, list) and e["menuItem"] in lst:
+                lst.insert(lst.index(e["menuItem"]), e["insert"])
+                break
     return b
 
 
@@ -112,16 +107,30 @@ class Placed(unittest.TestCase):
         tb = self.b["PartDesignWorkbench"]["toolbars"]["Part Design Modeling Features"]
         self.assertEqual(self.after(tb, "PartDesign_Hole"), "Workshop_Make_Hole")
         self.assertEqual(self.after(tb, "Workshop_Make_Hole"), "PartDesign_Groove")
-        sub = self.b["PartDesignWorkbench"]["menus"]["&Part Design"]["Create a subtractive feature"]
-        self.assertEqual(sub[sub.index("PartDesign_Hole") + 1:sub.index("PartDesign_Groove")], ["Workshop_Make_Hole", "Workshop_Make_ThreadLookup"])
+        # The menu: at the Part Design menu's own level, before Boolean (an
+        # anchor inside Subtractive Features would add nothing on 1.1.3).
+        menu = self.b["PartDesignWorkbench"]["menus"]["&Part Design"]
+        self.assertEqual(menu[-3:], ["Workshop_Make_Hole", "Workshop_Make_ThreadLookup", "PartDesign_Boolean"])
+
+    def test_menu_anchors_are_top_level_items(self):
+        # Every menu anchor is an item of a top-level menu, never of a
+        # submenu, in the stand-ins (what 1.1.3 can find).
+        top = {i for b in BENCHES.values() for lst in b["menus"].values() if isinstance(lst, list) for i in lst if isinstance(i, str)}
+        nested = {i for b in BENCHES.values() for lst in b["menus"].values() if isinstance(lst, list)
+                  for sub in lst if isinstance(sub, tuple) for i in sub[1]}
+        for e in self.menus:
+            self.assertIn("insert", e, e)
+            self.assertIn(e["menuItem"], top, e)
+            self.assertNotIn(e["menuItem"], nested - top, e)
 
     def test_standard_parts_beside_the_primitives(self):
         pd = self.b["PartDesignWorkbench"]["toolbars"]["Part Design Modeling Features"]
         self.assertEqual(self.after(pd, "PartDesign_AdditiveHelix"), "Workshop_Parts_Group")
         part = self.b["PartWorkbench"]["toolbars"]["Solids"]
         self.assertEqual(self.after(part, "Part_Tube"), "Workshop_Parts_Group")
-        prim = self.b["PartWorkbench"]["menus"]["&Part"]["Primitives"]
-        self.assertEqual(prim[2:6], list(placement.GROUPS["Workshop_Parts_Group"][3]))
+        part_menu = self.b["PartWorkbench"]["menus"]["&Part"]
+        i = part_menu.index("Part_Primitives")
+        self.assertEqual(part_menu[i - 4:i], list(placement.GROUPS["Workshop_Parts_Group"][3]))
 
     def test_checks_beside_check_geometry(self):
         h = self.b["PartDesignWorkbench"]["toolbars"]["Part Design Helper Features"]
@@ -142,7 +151,7 @@ class Placed(unittest.TestCase):
             self.assertEqual(self.after(f, "SafetyNet_Recover"), "Std_Import", name)
             self.assertEqual(self.after(f, "Std_Import"), "Workshop_Electronics_ImportBoard", name)
             self.assertEqual(self.after(f, "Std_Export"), "Workshop_Documents_LibraryPack", name)
-            self.assertEqual(b["menus"]["&Tools"][-2:], ["Separator", "SafetyNet_Menu"], name)
+            self.assertEqual(b["menus"]["&Tools"][-3:], ["Separator", "SafetyNet_Menu", "Std_DlgCustomize"], name)
 
     def test_each_stays_in_its_workbench(self):
         make = self.b["WorkshopMakeWorkbench"]

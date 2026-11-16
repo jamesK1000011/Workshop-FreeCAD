@@ -21,7 +21,7 @@ API, data files and agent tools) are in [docs/](docs/): [Parts](docs/parts.md),
 | Feature | Where |
 |---|---|
 | Gridfinity bin and baseplate, project box, board box | **Standard Parts** dropdown in Part (beside the primitives) and Part Design (beside the additive primitives); Part ▸ Primitives menu |
-| Hole for hardware (printer allowance, nut trap, insert and magnet pockets) | Part Design, its own button right after Hole |
+| Hole for hardware (printer allowance, nut trap, insert and magnet pockets) | Part Design, its own button right after Hole; in the Part Design menu before Boolean |
 | Thread lookup | Part Design menu, after Hole for hardware |
 | DFM check, part review, mass properties | **Make Checks** dropdown beside Check Geometry in Part Design; Mass properties also beside Measure in the menu |
 | Drawing (a TechDraw page in one click) | TechDraw, after the page buttons |

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # The Make workbench, the one workbench of the Workshop add-on:
-# workshop/workbench.py builds it with make_class() (add() registers it
-# alone, as before the combine). It is built here, in a real module, because FreeCAD runs InitGui.py
+# workshop/workbench.py builds it with make_class(). add() is a no-op left
+# for an old WorkshopMake folder's InitGui. It is built here, in a real module, because FreeCAD runs InitGui.py
 # with exec() and a separate locals dict: a class body or a method body there
 # sees only FreeCAD's own globals, never the names InitGui.py defines.
 import os
@@ -64,16 +64,8 @@ def make_class(Gui):
 
 
 def add(Gui=None):
-    """The icons, the commands and the workbench: what InitGui.py calls."""
-    if Gui is None:
-        import FreeCADGui as Gui
-    Gui.addIconPath(ICONS)
-    try:
-        from . import commands  # noqa: F401 — registers the commands
-    except Exception as e:  # noqa: BLE001 — never stop FreeCAD starting
-        import FreeCAD
-
-        FreeCAD.Console.PrintWarning(f"Workshop Make: commands not loaded ({e}).\n")
-    cls = make_class(Gui)
-    Gui.addWorkbench(cls())
-    return cls
+    """Nothing: Workshop's own InitGui (workshop/workbench.py) registers the
+    Make workbench. Kept for an old WorkshopMake folder's InitGui.py, which
+    calls this when it is still beside Workshop: it adds no second workbench
+    (workshop/stale.py says the old folder is there)."""
+    return None

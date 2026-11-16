@@ -6,7 +6,9 @@ manipulator, and only what has no home there in the small Make workbench.
 A manipulator can only insert an item *before* another, or append it to a
 menu; "right after X" is written as "before the item FreeCAD 1.1 puts after
 X". An anchor a workbench does not have adds nothing there, which keeps each
-entry in its own workbench. Pure Python: tested without FreeCAD."""
+entry in its own workbench. Seen live on 1.1.3: a menu insert finds only a
+top-level menu's own items (not a submenu's), and an append into &Tools did
+not land, so menu anchors are items at a menu's own level. Pure Python: tested without FreeCAD."""
 
 TOOLBAR, MENU = "toolbar", "menu"
 BEFORE, INTO = "before", "into"
@@ -44,8 +46,11 @@ PLACES = (
     # controls cannot fold into Hole's C++ task panel from Python); Thread
     # lookup in the menu after it.
     ("Workshop_Make_Hole", TOOLBAR, BEFORE, "PartDesign_Groove", "PartDesignWorkbench", "after PartDesign_Hole"),
-    ("Workshop_Make_Hole", MENU, BEFORE, "PartDesign_Groove", "PartDesignWorkbench", "after PartDesign_Hole"),
-    ("Workshop_Make_ThreadLookup", MENU, BEFORE, "PartDesign_Groove", "PartDesignWorkbench", "after Hole for hardware"),
+    # In the menu at the Part Design menu's own level, before Boolean: on
+    # 1.1.3 an insert finds only a menu's direct items, never a submenu's
+    # (Subtractive Features ▸ Hole is out of reach).
+    ("Workshop_Make_Hole", MENU, BEFORE, "PartDesign_Boolean", "PartDesignWorkbench", "Part Design menu, before Boolean"),
+    ("Workshop_Make_ThreadLookup", MENU, BEFORE, "PartDesign_Boolean", "PartDesignWorkbench", "after Hole for hardware"),
     # The checks: one dropdown beside Check Geometry; mass beside Measure.
     ("Workshop_Make_Checks", TOOLBAR, BEFORE, "Part_CheckGeometry", "PartDesignWorkbench", "Check Geometry"),
     ("Workshop_Make_MassProperties", MENU, BEFORE, "Std_Measure", None, "Measure"),
@@ -59,10 +64,12 @@ PLACES = (
     ("Workshop_Documents_PatentFigures", MENU, BEFORE, "TechDraw_RedrawPage", "TechDrawWorkbench", "after Drawing"),
     ("Workshop_Documents_PatentDraft", MENU, BEFORE, "TechDraw_RedrawPage", "TechDrawWorkbench", "after Drawing"),
     ("Workshop_Documents_LibraryPack", MENU, BEFORE, "Std_MergeProjects", None, "after File ▸ Export"),
-    # SafetyNet: Tools ▸ SafetyNet in every workbench, Recovered Copies in
-    # File too.
-    ("Separator", MENU, INTO, "&Tools", None, "Tools"),
-    ("SafetyNet_Menu", MENU, INTO, "&Tools", None, "Tools"),
+    # SafetyNet: Tools ▸ SafetyNet in every workbench, before Customize (an
+    # "append" into &Tools did not land on 1.1.3; inserts at a menu's own
+    # level do; safetynet/startup.py adds it by Qt where it is missing),
+    # Recovered Copies in File too.
+    ("Separator", MENU, BEFORE, "Std_DlgCustomize", None, "Tools, before Customize"),
+    ("SafetyNet_Menu", MENU, BEFORE, "Std_DlgCustomize", None, "Tools, before Customize"),
     ("SafetyNet_Recover", MENU, BEFORE, "Std_Import", None, "File ▸ Import"),
 )
 

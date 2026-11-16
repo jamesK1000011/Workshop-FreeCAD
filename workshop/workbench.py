@@ -46,19 +46,23 @@ def _commands(Gui):
 
 
 def _placed(Gui):
-    """The manipulator, or for a FreeCAD without one, Tools ▸ SafetyNet by
-    Qt after each workbench switch (the other placements need it)."""
-    from . import placement
-
-    if hasattr(Gui, "addWorkbenchManipulator"):
-        Gui.addWorkbenchManipulator(placement.Manipulator())
-        return "manipulator"
+    """The manipulator (every placement), and Tools ▸ SafetyNet by Qt after
+    each workbench switch where the manipulator's entry is missing."""
     from safetynet import startup
 
+    from . import placement
+
+    how = "qt"
+    if hasattr(Gui, "addWorkbenchManipulator"):
+        Gui.addWorkbenchManipulator(placement.Manipulator())
+        how = "manipulator"
+    # Tools ▸ SafetyNet by Qt too, as the backstop: it adds the submenu only
+    # where the manipulator's entry is not there (on 1.1.3 an "append" into
+    # &Tools did not land).
     slot = startup.qt_tools_menu(Gui)
     Gui.getMainWindow().workbenchActivated.connect(slot)
     slot()
-    return "qt"
+    return how
 
 
 def add(Gui=None):
@@ -68,6 +72,12 @@ def add(Gui=None):
     "qt"), None if they were not."""
     if Gui is None:
         import FreeCADGui as Gui
+    try:  # this add-on's packages ahead of old copies beside it (said once)
+        from . import stale
+
+        stale.prefer_own()
+    except Exception as e:  # noqa: BLE001
+        _warn(f"Workshop: start-up check skipped ({e}).\n")
     for d in icon_dirs():
         Gui.addIconPath(d)
     _commands(Gui)

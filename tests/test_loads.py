@@ -136,7 +136,7 @@ class Loads(unittest.TestCase):
 
     def test_manipulator_places_the_rest(self):
         out = self.out
-        self.assertIn({"append": "SafetyNet_Menu", "menuItem": "&Tools"}, out["menus"])
+        self.assertIn({"insert": "SafetyNet_Menu", "menuItem": "Std_DlgCustomize"}, out["menus"])
         self.assertIn({"insert": "Workshop_Make_Hole", "toolItem": "PartDesign_Groove"}, out["toolbars"])
         self.assertIn({"insert": "Workshop_Electronics_ImportBoard", "menuItem": "Std_Export"}, out["menus"])
         # Every command placed is a registered one (or a separator).
