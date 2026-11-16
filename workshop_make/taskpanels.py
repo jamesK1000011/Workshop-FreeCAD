@@ -151,6 +151,10 @@ def body_items(parts, selected=None):
     part selected, else the only one; a prompt first when there are several
     and none is selected (blank: the tool's own "the one there is")."""
     parts = list(parts)
+    if selected and selected not in parts:
+        # The part the picked face or sketch belongs to, though the list
+        # left it out (something built from it): it is what was picked.
+        parts = [selected] + parts
     if selected in parts:
         return [(p, p) for p in parts], parts.index(selected)
     if len(parts) == 1:
@@ -206,9 +210,49 @@ def args_of(panel, values):
     return tool, args
 
 
+def owner(o, sub=""):
+    """The part a picked object belongs to, as a person names it: the
+    PartDesign Body a feature, sketch or face is in (by the sub-element path
+    too: "Hole.Face5" picked on a Body, "Body.Hole.Face5" on an App::Part),
+    else the object itself (a Part feature); None for nothing."""
+    if o is None:
+        return None
+    path = [p for p in str(sub or "").split(".")[:-1] if p]
+    if path:
+        # An unresolved pick (on a Body or a container): its deepest object.
+        try:
+            deep = o.getSubObject(".".join(path) + ".", 1)
+            if deep is not None and not isinstance(deep, (tuple, list)):
+                o = deep
+        except Exception:  # noqa: BLE001
+            pass
+    seen, cur = set(), o
+    while cur is not None and id(cur) not in seen:
+        seen.add(id(cur))
+        if _is(cur, "PartDesign::Body"):
+            return cur
+        try:
+            cur = cur.getParentGeoFeatureGroup()
+        except Exception:  # noqa: BLE001
+            cur = None
+    # A Body that holds it, though not as its geo group (an older file).
+    for p in getattr(o, "InList", None) or []:
+        if _is(p, "PartDesign::Body") and o in (getattr(p, "Group", None) or []):
+            return p
+    return o
+
+
+def _is(o, type_id):
+    try:
+        return bool(o.isDerivedFrom(type_id))
+    except Exception:  # noqa: BLE001
+        return getattr(o, "TypeId", "") == type_id
+
+
 def picked():
-    """(the part, the point) the person has selected: a part's label and the
-    picked point on it [x, y, z], or None for either."""
+    """(the part, the point) the person has selected: the label of the part
+    the pick belongs to (a face's Body, owner()) and the picked point on it
+    [x, y, z], or None for either."""
     try:
         import FreeCADGui
 
@@ -216,17 +260,47 @@ def picked():
         if not sel:
             return None, None
         s = sel[0]
-        o = s.Object
-        try:
-            body = o.getParentGeoFeatureGroup() or o
-        except Exception:
-            body = o
+        subs = [str(n) for n in (getattr(s, "SubElementNames", None) or [])]
+        body = owner(s.Object, subs[0] if subs else "")
         pts = list(getattr(s, "PickedPoints", None) or [])
         at = [round(pts[0].x, 3), round(pts[0].y, 3), round(pts[0].z, 3)] if pts else None
         label = getattr(body, "Label", None)
         return (label if isinstance(label, str) else None), at
     except Exception:
         return None, None
+
+
+def axis_into(normal):
+    """The axis a hole goes along into a face whose outward normal is
+    normal ([x, y, z]): "-z" for a top face; None unless the face is square
+    to an axis."""
+    try:
+        n = [float(v) for v in normal][:3]
+    except (TypeError, ValueError):
+        return None
+    if len(n) != 3:
+        return None
+    k = max(range(3), key=lambda i: abs(n[i]))
+    if abs(n[k]) < 0.999:
+        return None
+    return ("+" if n[k] < 0 else "-") + "xyz"[k]
+
+
+def picked_normal():
+    """The picked face's outward normal at the picked point ([x, y, z]),
+    or None."""
+    try:
+        import FreeCADGui
+
+        s = list(FreeCADGui.Selection.getSelectionEx())[0]
+        name = [str(n) for n in s.SubElementNames][0].split(".")[-1]
+        face = s.Object.Shape.getElement(name)
+        p = list(s.PickedPoints)[0]
+        u, v = face.Surface.parameter(p)
+        n = face.normalAt(u, v)
+        return [n.x, n.y, n.z]
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def picked_entry():
@@ -275,6 +349,15 @@ def picked_entry():
     return {"face": path[-1]}
 
 
+def entry_text(entry, body=None):
+    """What a hole starts on, in words: "Face5 of Body", "Sketch001"."""
+    if entry.get("face"):
+        return f"{entry['face']} of {body}" if body else str(entry["face"])
+    if entry.get("sketch"):
+        return f"Sketch {entry['sketch']} (its circles)"
+    return ""
+
+
 def selected_labels():
     try:
         import FreeCADGui
@@ -295,6 +378,8 @@ class FormPanel:
             from PySide import QtWidgets
         except ImportError:
             QtWidgets = QtGui
+        from workshop import narrow
+
         from . import panel as P
         from . import runner as R
 
@@ -303,14 +388,16 @@ class FormPanel:
         title, _tool, _fixed, fields = PANELS[panel]
         self.form = QtWidgets.QWidget()
         self.form.setWindowTitle(title)
-        lay = QtWidgets.QFormLayout(self.form)
-        intro = QtWidgets.QLabel(INTRO.get(panel, ""))
-        intro.setWordWrap(True)
+        # It fits the Tasks dock (narrow.WIDTH): the intro wraps, combos
+        # ask for a few characters, a long row's label goes above its field.
+        lay = narrow.form(QtWidgets.QFormLayout(self.form))
+        intro = narrow.label(QtWidgets.QLabel(INTRO.get(panel, "")))
         lay.addRow(intro)
         body, at = picked()
         # Hole for Hardware starts on the face or sketch picked, as
-        # PartDesign's own Hole does.
+        # PartDesign's own Hole does: the face shown, the hole going into it.
         self.entry = picked_entry() if panel == "hole" else {}
+        into = axis_into(picked_normal()) if self.entry.get("face") else None
         self.get = {}
         self.blocked = ""
         for key, label, kind, default, extra in fields:
@@ -323,13 +410,15 @@ class FormPanel:
                 if len(extra) > 4:
                     w.setSpecialValueText(extra[4])
                 w.setValue(default)
+                narrow.grow(w)
                 self.get[key] = w.value
             elif kind in ("choice", "body", "setup"):
-                w = QtWidgets.QComboBox()
+                w = narrow.combo(QtWidgets.QComboBox())
                 start = 0
                 if kind == "choice":
                     items = options(extra)
-                    start = next((i for i, (v, _t) in enumerate(items) if v == default), 0)
+                    want = into if key == "dir" and into else default
+                    start = next((i for i, (v, _t) in enumerate(items) if v == want), 0)
                 elif kind == "body":
                     items, start = body_items(P.parts(P._doc()), body)
                 else:
@@ -346,12 +435,14 @@ class FormPanel:
                 w.setCurrentIndex(start)
                 self.get[key] = lambda w=w, items=items: chosen(w, items)
             elif kind == "point":
+                # X, Y and Z one under another: three across ran off the
+                # dock (live on the Mac).
                 row = QtWidgets.QWidget()
-                h = QtWidgets.QHBoxLayout(row)
+                h = QtWidgets.QVBoxLayout(row)
                 h.setContentsMargins(0, 0, 0, 0)
                 boxes = []
                 for k in range(3):
-                    sb = QtWidgets.QDoubleSpinBox()
+                    sb = narrow.grow(QtWidgets.QDoubleSpinBox())
                     sb.setRange(-100000, 100000)
                     sb.setDecimals(3)
                     sb.setPrefix("XYZ"[k] + " ")
@@ -366,7 +457,7 @@ class FormPanel:
                 row = QtWidgets.QWidget()
                 h = QtWidgets.QHBoxLayout(row)
                 h.setContentsMargins(0, 0, 0, 0)
-                sb = QtWidgets.QDoubleSpinBox()
+                sb = narrow.grow(QtWidgets.QDoubleSpinBox())
                 lo, hi, dec, suf = extra[:4]
                 sb.setRange(lo, hi)
                 sb.setDecimals(dec)
@@ -381,29 +472,30 @@ class FormPanel:
                 w = row
                 self.get[key] = lambda sb=sb, through=through: "through" if through.isChecked() else sb.value()
             else:
-                w = QtWidgets.QLineEdit()
+                w = narrow.grow(QtWidgets.QLineEdit())
                 w.setText(", ".join(selected_labels()) if kind == "bodies" else str(default or ""))
                 self.get[key] = w.text
             lay.addRow(label, w)
+            if key == "body" and self.entry:
+                # What the hole starts on, as picked.
+                self.on = narrow.label(QtWidgets.QLabel(entry_text(self.entry, body)))
+                lay.addRow("Starts on", self.on)
         if screw_offered(panel):
-            row = QtWidgets.QWidget()
-            h = QtWidgets.QHBoxLayout(row)
-            h.setContentsMargins(0, 0, 0, 0)
+            # The checkbox on a row of its own, the screw's type under it:
+            # side by side they ran off the dock (live on the Mac).
             check = QtWidgets.QCheckBox(SCREW_LABEL)
             check.setToolTip("Fasteners Workbench (Shai Seger) puts the screw in the hole: its length from the plate, matched to the hole.")
             kinds = list(SCREW_TYPES)
-            combo = QtWidgets.QComboBox()
+            combo = narrow.combo(QtWidgets.QComboBox())
             combo.addItems([t for _v, t in kinds])
             combo.setCurrentIndex(0)
             combo.setEnabled(False)
             check.toggled.connect(lambda on, combo=combo: combo.setEnabled(on))
-            h.addWidget(check)
-            h.addWidget(combo, 1)
-            lay.addRow(row)
+            lay.addRow(check)
+            lay.addRow("Screw", combo)
             self.screw = check
             self.get["screw"] = lambda check=check, combo=combo, kinds=kinds: screw_arg(check.isChecked(), chosen(combo, kinds))
-        self.msg = QtWidgets.QLabel(self.blocked)
-        self.msg.setWordWrap(True)
+        self.msg = narrow.label(QtWidgets.QLabel(self.blocked))
         lay.addRow(self.msg)
 
     def getStandardButtons(self):

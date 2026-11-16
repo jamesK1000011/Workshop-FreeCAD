@@ -31,6 +31,27 @@ The first tagged release is being prepared.
 
 ### Fixed
 
+- Every Workshop task panel and dock page fits the Tasks dock (320 px or
+  wider). On 1.1.3 Hole for Hardware was about 580 px wide: its intro was
+  cut off, its fields ran past the right edge and its OK button was
+  clipped. Now in every form (`workshop/narrow.py`):
+  - long labels wrap;
+  - combos ask for a few characters of room rather than their longest
+    entry, so a long part or setup name is elided;
+  - a long row's label sits above its field;
+  - nothing sets a fixed width.
+  Hole for Hardware also puts X, Y and Z one under another, and puts the
+  Fasteners checkbox on its own row with the screw type under it. This
+  covers Make (its task panels and its Setups, Materials, Fits and Review
+  tabs), Documents (Drawing, Exploded drawing, Library pack, Patent draft,
+  Manual), the KiCad board panel and the Parts generators (Gridfinity bin
+  and baseplate, Project box, Board box). SafetyNet's panel already fit.
+- Hole for Hardware starts on what you picked. With a face of a Body
+  picked (Hole.Face5, or the same face picked on the Body), Part is that
+  Body, even when the parts list leaves it out. The panel also says which
+  face the hole starts on ("Face5 of Body") and sets "Into the material"
+  from that face. Fit size, Embed hardware and Slice take the picked part
+  the same way, and so do Documents' panels.
 - No more "Internal C++ object (PySide6.QtWidgets.QMenu) already deleted"
   in the Report view at each workbench switch. Tools ▸ SafetyNet's Qt
   backstop finds the Tools menu again each time it runs, checks it's still

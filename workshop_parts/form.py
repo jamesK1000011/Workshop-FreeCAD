@@ -149,14 +149,16 @@ def build(table, intro="", qt=None, labels=None, columns=None):
     in words with its unit (labels: {name: label}). A list of [x, y] points
     is a table of X and Y; another list a table of the columns given
     (columns: {name: [(key, header, "num" or choices)]}, "pair" for X × Y)."""
+    from workshop import narrow
+
     Q = qt or _qt()
     columns = columns or {}
     form = Q.QWidget()
-    lay = Q.QFormLayout(form)
+    # It fits the Tasks dock (narrow.WIDTH): long labels above their
+    # fields, combos asking for a few characters.
+    lay = narrow.form(Q.QFormLayout(form))
     if intro:
-        lab = Q.QLabel(intro)
-        lab.setWordWrap(True)
-        lay.addRow(lab)
+        lay.addRow(narrow.label(Q.QLabel(intro)))
     fields = {}
     for k, spec in table.items():
         kind, d = spec.get("kind"), spec.get("default")
@@ -164,15 +166,15 @@ def build(table, intro="", qt=None, labels=None, columns=None):
             w = Q.QCheckBox()
             w.setChecked(bool(d))
         elif kind == "enum":
-            w = Q.QComboBox()
+            w = narrow.combo(Q.QComboBox())
             w.addItems([shown(v) for v in spec["values"]])
             w.setCurrentIndex(list(spec["values"]).index(d) if d in spec["values"] else 0)
         elif kind == "int":
-            w = Q.QSpinBox()
+            w = narrow.grow(Q.QSpinBox())
             w.setRange(int(spec["min"]), int(spec["max"]))
             w.setValue(int(d if d is not None else spec["min"]))
         elif kind == "num":
-            w = Q.QDoubleSpinBox()
+            w = narrow.grow(Q.QDoubleSpinBox())
             w.setDecimals(2)
             w.setRange(float(spec["min"]), float(spec["max"]))
             w.setValue(float(d if d is not None else spec["min"]))
