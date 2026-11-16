@@ -74,11 +74,69 @@ def _daily():
         pass
 
 
+def _valid(obj):
+    """obj is there and its C++ object not deleted (FreeCAD rebuilds the
+    menu bar at each workbench switch: a QMenu found before is gone after)."""
+    if obj is None:
+        return False
+    for name in ("shiboken6", "shiboken2", "shiboken"):
+        try:
+            sh = __import__(name)
+        except ImportError:
+            continue
+        try:
+            return bool(sh.isValid(obj))
+        except Exception:  # noqa: BLE001
+            return False
+    return True
+
+
+def _tools_menu(mw):
+    """The menu bar's Tools menu as it is now, or None; found afresh each
+    time, never kept."""
+    for a in mw.menuBar().actions():
+        try:
+            m = a.menu()
+            if _valid(m) and m.objectName() == "&Tools":
+                return m
+        except RuntimeError:  # deleted while we looked
+            continue
+    return None
+
+
+def add_tools_menu(Gui, QtWidgets):
+    """Tools ▸ SafetyNet put in by Qt, unless Tools has it already (the
+    manipulator's, or one added before). Returns True when it added it. A
+    menu deleted under it (the menu bar rebuilt meanwhile) is skipped
+    quietly: the next workbench switch adds it."""
+    from . import commands
+
+    try:
+        tools = _tools_menu(Gui.getMainWindow())
+        if tools is None or tools.findChild(QtWidgets.QMenu, "SafetyNetToolsMenu") is not None:
+            return False
+        # The manipulator's entry (the SafetyNet_Menu command) already there.
+        if any(_valid(a) and a.text().replace("&", "") == "SafetyNet" for a in tools.actions()):
+            return False
+        tools.addSeparator()
+        sub = tools.addMenu("SafetyNet")
+        sub.setObjectName("SafetyNetToolsMenu")
+        for name in commands.NAMES:
+            res = commands.COMMANDS[name]().GetResources()
+            act = sub.addAction(res["MenuText"])
+            act.setToolTip(res["ToolTip"])
+            act.triggered.connect(lambda checked=False, n=name: Gui.runCommand(n))
+        return True
+    except RuntimeError:
+        return False
+
+
 def qt_tools_menu(Gui):
     """A slot that puts the submenu into the Tools menu by Qt after each
     workbench switch (which rebuilds it): for a FreeCAD without workbench
     manipulators, and as the backstop where the manipulator's entry does not
-    land (it is skipped when Tools already has a SafetyNet entry)."""
+    land (on 1.1.3 it is this that shows it). The Tools menu is found afresh
+    each time the slot runs, never kept across a switch."""
 
     def slot(*_):
         try:
@@ -89,27 +147,7 @@ def qt_tools_menu(Gui):
                 from PySide import QtWidgets  # noqa: F811
             except ImportError:
                 pass
-
-            def add():
-                from . import commands
-
-                mw = Gui.getMainWindow()
-                tools = next((a.menu() for a in mw.menuBar().actions() if a.menu() is not None and a.menu().objectName() == "&Tools"), None)
-                if tools is None or tools.findChild(QtWidgets.QMenu, "SafetyNetToolsMenu") is not None:
-                    return
-                # The manipulator's entry (the SafetyNet_Menu command) already there.
-                if any(a.text().replace("&", "") == "SafetyNet" for a in tools.actions()):
-                    return
-                tools.addSeparator()
-                sub = tools.addMenu("SafetyNet")
-                sub.setObjectName("SafetyNetToolsMenu")
-                for name in commands.NAMES:
-                    res = commands.COMMANDS[name]().GetResources()
-                    act = sub.addAction(res["MenuText"])
-                    act.setToolTip(res["ToolTip"])
-                    act.triggered.connect(lambda checked=False, n=name: Gui.runCommand(n))
-
-            QtCore.QTimer.singleShot(0, add)
+            QtCore.QTimer.singleShot(0, lambda: add_tools_menu(Gui, QtWidgets))
         except Exception as e:  # noqa: BLE001
             _warn(f"SafetyNet: no Tools ▸ SafetyNet menu ({e})\n")
 

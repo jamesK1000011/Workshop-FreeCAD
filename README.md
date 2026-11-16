@@ -25,7 +25,7 @@ API, data files and agent tools) are in [docs/](docs/): [Parts](docs/parts.md),
 | Thread lookup | Part Design menu, after Hole for hardware |
 | DFM check, part review, mass properties | **Make Checks** dropdown beside Check Geometry in Part Design; Mass properties also beside Measure in the menu |
 | Drawing (a TechDraw page in one click) | TechDraw, after the page buttons |
-| Exploded drawing, patent figures, patent draft | TechDraw menu, after Drawing |
+| Exploded drawing, patent figures, patent draft | TechDraw menu (last items, before Cosmetic Eraser), after Drawing |
 | KiCad board | File menu, after Import |
 | Library pack | File menu, after Export |
 | Checkpoint, restore, recovered copies, settings history and rollback, macros, clean up copies | **Tools ▸ SafetyNet** in every workbench; Recovered Copies also in the File menu |

@@ -15,6 +15,14 @@ The first tagged release is being prepared.
 
 ### Fixed
 
+- No more "Internal C++ object (PySide6.QtWidgets.QMenu) already deleted"
+  in the Report view at each workbench switch. Tools ▸ SafetyNet's Qt
+  backstop finds the Tools menu again each time it runs, checks it's still
+  valid, and quietly skips a menu FreeCAD deleted while rebuilding the menu
+  bar.
+- Drawing, Exploded drawing, Patent figures and Patent draft are in the
+  TechDraw menu again. On 1.1.3 that menu's own level is submenus plus
+  Cosmetic Eraser, so they go before Cosmetic Eraser.
 - Tools ▸ SafetyNet was missing on FreeCAD 1.1.3, where an append into the
   Tools menu didn't land. It's now inserted before Customize, and a Qt
   backstop adds it after each workbench switch wherever it's still missing.
