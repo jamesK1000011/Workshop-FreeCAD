@@ -113,6 +113,7 @@ tests/test_placement.py
 tests/test_release.py
 tests/test_shared.py
 tests/test_stale.py
+tests/test_tools_menu.py
 tools/gen_readme_tools.py
 workshop/__init__.py
 workshop/agentlink_families.py

@@ -77,8 +77,8 @@ there, and that is how each entry stays in its own workbench.
 | Workshop_Make_ThreadLookup | Part Design | Menu only, after Hole for hardware (before PartDesign_Boolean) |
 | Workshop_Make_DfmCheck, …PartReview, …MassProperties | Part Design / beside Measure | One dropdown, *Checks* (`Workshop_Make_Checks`), own icon before Part_CheckGeometry; Mass properties also in the menu before Std_Measure |
 | Workshop_Electronics_ImportBoard (KiCad Board…) | File ▸ Import area | Menu only, before Std_Export, so it sits after Import |
-| Workshop_Documents_Drawing | TechDraw | Own icon before TechDraw_RedrawPage (after the page commands); menu too |
-| Workshop_Documents_Exploded, …PatentFigures, …PatentDraft | TechDraw | Menu only, after Drawing |
+| Workshop_Documents_Drawing | TechDraw | Own icon before TechDraw_RedrawPage (after the page commands); in the TechDraw menu before TechDraw_CosmeticEraser |
+| Workshop_Documents_Exploded, …PatentFigures, …PatentDraft | TechDraw | Menu only, after Drawing (before TechDraw_CosmeticEraser) |
 | Workshop_Documents_LibraryPack | File ▸ Export area | Menu only, before Std_MergeProjects (after Export). Behaviour unchanged: ScanRuler's pack first |
 | Workshop_Documents_Panel (Manual) | Make workbench | Toolbar *Panels* and menu |
 | Materials | Make workbench | Not a command: the Materials tab stays in the Make panel; mass and material services unchanged |
@@ -110,7 +110,12 @@ land either. So every menu anchor is now an item at a top-level menu's own
 level. Tools ▸ SafetyNet goes before Customize, and SafetyNet's Qt slot adds
 the submenu after each workbench switch wherever it's still missing. The slot
 skips menus that already have it. Toolbar inserts and top-level menu inserts
-(File, Tools) landed as planned.
+(File, Tools) landed as planned. On 1.1.3 the TechDraw menu's own level is
+all submenus plus one command, Cosmetic Eraser, listed last, so the TechDraw
+items go before it. The Qt slot finds the Tools menu again each time it
+runs and checks the menu is still valid (shiboken) before using it. A menu
+that FreeCAD deleted while rebuilding the menu bar at a workbench switch had
+been raising "Internal C++ object already deleted" on every switch.
 
 ### 2.1 Hole for hardware and PartDesign Hole's task panel
 

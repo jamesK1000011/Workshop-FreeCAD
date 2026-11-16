@@ -59,10 +59,12 @@ PLACES = (
     # Documents → TechDraw: Drawing an icon after the page commands, the
     # rest in the TechDraw menu after it; library packs after File ▸ Export.
     ("Workshop_Documents_Drawing", TOOLBAR, BEFORE, "TechDraw_RedrawPage", "TechDrawWorkbench", "after the page commands"),
-    ("Workshop_Documents_Drawing", MENU, BEFORE, "TechDraw_RedrawPage", "TechDrawWorkbench", "after the page commands"),
-    ("Workshop_Documents_Exploded", MENU, BEFORE, "TechDraw_RedrawPage", "TechDrawWorkbench", "after Drawing"),
-    ("Workshop_Documents_PatentFigures", MENU, BEFORE, "TechDraw_RedrawPage", "TechDrawWorkbench", "after Drawing"),
-    ("Workshop_Documents_PatentDraft", MENU, BEFORE, "TechDraw_RedrawPage", "TechDrawWorkbench", "after Drawing"),
+    # The TechDraw menu's own level on 1.1.3 is submenus and one command,
+    # Cosmetic Eraser (last): the menu items go before it.
+    ("Workshop_Documents_Drawing", MENU, BEFORE, "TechDraw_CosmeticEraser", "TechDrawWorkbench", "TechDraw menu, before Cosmetic Eraser"),
+    ("Workshop_Documents_Exploded", MENU, BEFORE, "TechDraw_CosmeticEraser", "TechDrawWorkbench", "after Drawing"),
+    ("Workshop_Documents_PatentFigures", MENU, BEFORE, "TechDraw_CosmeticEraser", "TechDrawWorkbench", "after Drawing"),
+    ("Workshop_Documents_PatentDraft", MENU, BEFORE, "TechDraw_CosmeticEraser", "TechDrawWorkbench", "after Drawing"),
     ("Workshop_Documents_LibraryPack", MENU, BEFORE, "Std_MergeProjects", None, "after File ▸ Export"),
     # SafetyNet: Tools ▸ SafetyNet in every workbench, before Customize (an
     # "append" into &Tools did not land on 1.1.3; inserts at a menu's own

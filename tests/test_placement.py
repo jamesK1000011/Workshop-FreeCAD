@@ -49,8 +49,11 @@ BENCHES = {
     },
     "TechDrawWorkbench": {
         "toolbars": {"TechDraw Pages": ["TechDraw_PageDefault", "TechDraw_PageTemplate", "TechDraw_RedrawPage", "TechDraw_PrintAll"]},
+        # 1.1.3: the menu's own level is submenus and Cosmetic Eraser last.
         "menus": {"&File": list(FILE), "&Tools": list(TOOLS),
-                  "&TechDraw": ["TechDraw_PageDefault", "TechDraw_PageTemplate", "TechDraw_RedrawPage", "TechDraw_PrintAll"]},
+                  "&TechDraw": [("Page", ["TechDraw_PageDefault", "TechDraw_PageTemplate", "TechDraw_RedrawPage", "TechDraw_PrintAll"]),
+                                ("TechDraw Views", ["TechDraw_View"]), ("Annotations", ["TechDraw_Annotation"]),
+                                "TechDraw_CosmeticEraser"]},
     },
     "WorkshopMakeWorkbench": {
         "toolbars": {"Setup": ["Workshop_Make_NewSetup"]},
@@ -142,8 +145,8 @@ class Placed(unittest.TestCase):
         tb = self.b["TechDrawWorkbench"]["toolbars"]["TechDraw Pages"]
         self.assertEqual(self.after(tb, "TechDraw_PageTemplate"), "Workshop_Documents_Drawing")
         menu = self.b["TechDrawWorkbench"]["menus"]["&TechDraw"]
-        self.assertEqual(menu[2:6], ["Workshop_Documents_Drawing", "Workshop_Documents_Exploded", "Workshop_Documents_PatentFigures",
-                                     "Workshop_Documents_PatentDraft"])
+        self.assertEqual(menu[-5:], ["Workshop_Documents_Drawing", "Workshop_Documents_Exploded", "Workshop_Documents_PatentFigures",
+                                     "Workshop_Documents_PatentDraft", "TechDraw_CosmeticEraser"])
 
     def test_file_and_tools_in_every_workbench(self):
         for name, b in self.b.items():
