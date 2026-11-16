@@ -884,15 +884,23 @@ def _page_dim(doc, page, by_view, view_frames, drawn, sp, at=None, H=None):
     refs = []
     sized = None
     if sp["type"] in ("Diameter", "Radius"):
-        circles, idx = [], []
+        circles, idx, turns = [], [], []
         for i, e in enumerate(_edges(v)):
             cu = getattr(e, "Curve", None)
             if isinstance(cu, (Part.Circle, Part.ArcOfCircle)) or hasattr(cu, "Radius"):
                 try:
                     circles.append((cu.Center.x, cu.Center.y, cu.Radius))
                     idx.append(i)
+                    turns.append(abs(e.LastParameter - e.FirstParameter))
                 except Exception:
                     continue
+        if sp["type"] == "Diameter":
+            # A diameter is called out on a circle that goes all the way
+            # round, never on an arc of that radius (the "4× ⌀6" leader
+            # landed on a slot's R3 end): the arcs kept are those that
+            # together close their circle (a hole TechDraw drew in two halves).
+            keep = full_circles(circles, turns)
+            circles, idx = [circles[k] for k in keep], [idx[k] for k in keep]
         # The view's frame fitted on its extents first; then its own
         # projection of the hole's centre (projectPoint), scaled or not,
         # y as it is or turned over: a fit thrown off by the view's
@@ -1419,6 +1427,22 @@ def merge_counterbores(groups, flat):
                 out.remove(big)
                 break
     return out
+
+
+def full_circles(circles, turns, share=0.95):
+    """Which of a view's round edges belong to a circle drawn all the way
+    round: circles [(cx, cy, r)], turns the angle each edge covers
+    (radians). Edges on one centre and radius are taken together, so a
+    circle drawn as two half arcs counts and a slot's end (half a turn) or a
+    fillet (a quarter) does not. The indices kept."""
+    groups = {}
+    for i, (c, t) in enumerate(zip(circles, turns)):
+        groups.setdefault((round(c[0], 2), round(c[1], 2), round(c[2], 3)), []).append((i, t))
+    keep = []
+    for members in groups.values():
+        if sum(t for _i, t in members) >= share * 2 * math.pi:
+            keep += [i for i, _t in members]
+    return sorted(keep)
 
 
 def hole_circle(circles, points, radius, rtol=0.02, thread=False):
