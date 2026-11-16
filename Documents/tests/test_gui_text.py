@@ -47,10 +47,12 @@ class Report(unittest.TestCase):
         out = run(r'''
 from workshop_documents import commands as C
 OUT["err"] = C.person_error({"error": {"message": "no parts to draw — gen_part makes one"}})
-OUT["line"] = C.line("Drawing", {"paper": "A4", "files": ["a.svg", "a.pdf"], "views": [{"v": 1}], "sheet": {"w": 297}})
+OUT["line"] = C.sentence("drawing_make", "Drawing", {"paper": "A4", "scale": "1:2", "files": {"svg": "/o/a.svg", "pdf": "/o/a.pdf"}, "titleBlock": {"title": "Box"}, "techdrawPage": "Box drawing"})
+OUT["other"] = C.sentence("bogus", "Drawing", {"paper": "A4"})
 ''')
         self.assertEqual(out["err"], "No parts to draw.")
-        self.assertEqual(out["line"], "Workshop Documents · Drawing · paper A4; files a.svg, a.pdf; views 1 item.")
+        self.assertEqual(out["line"], "Workshop: Drawing of Box on A4 at 1:2: the TechDraw page Box drawing (edit it in TechDraw); files a.svg, a.pdf.")
+        self.assertEqual(out["other"], "Workshop: Drawing done.")
 
 
 if __name__ == "__main__":

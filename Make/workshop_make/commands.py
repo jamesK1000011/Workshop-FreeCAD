@@ -72,18 +72,16 @@ def report(text, ok, out, tool=None, show=False):
     if not ok:
         said = results.person_error(out)
         guide = (out.get("error") or {}).get("code") in GUIDANCE
-        (c.PrintMessage if guide else c.PrintWarning)(f"Workshop Make · {name}: {said}\n")
+        (c.PrintMessage if guide else c.PrintWarning)(f"Workshop: {name}: {said}\n")
         if show:
             tell(said, f"Workshop Make · {name}", warn=not guide)
         return
+    # One sentence with units in the Report view; the tool's fields stay in
+    # its answer, for agents.
+    c.PrintMessage(results.sentence(tool, name, out) + "\n")
     fmt = results.SHOWN.get(tool)
-    if fmt:
-        _verdict, said, line = fmt(out)
-        c.PrintMessage(f"Workshop Make · {line}\n")
-        if show:
-            tell(said, f"Workshop Make · {name}")
-        return
-    c.PrintMessage(results.line(f"Workshop Make · {name}", out) + "\n")
+    if fmt and show:
+        tell(fmt(out)[1], f"Workshop Make · {name}")
 
 
 def _body():
@@ -141,7 +139,7 @@ class Form:
             if why:
                 report(self.text, False, why, show=True)
                 return
-        T.show(self.panel, done=lambda ok, out: report(self.text, ok, out))
+        T.show(self.panel, done=lambda ok, out: report(self.text, ok, out, T.PANELS[self.panel][1]))
 
 
 def _only_part():

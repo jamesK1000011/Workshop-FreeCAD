@@ -29,7 +29,7 @@ OUT["mass"] = R.mass({"bodies": [{"body": "QA5", "mass": 12.3456, "com": [1.0, 2
         self.assertIn("Problem: Wall 0.6 mm", text)
         self.assertNotIn("Overhang", text)
         self.assertIn("Waived: 1", text)
-        self.assertTrue(line.startswith("DFM Check · QA5 is not printable"))
+        self.assertTrue(line.startswith("QA5 is not printable as it stands. DFM check: 1 problem"), line)
         self.assertEqual(out["clean"][0], "QA5 is printable.")
         self.assertEqual(out["review"][0], "QA5 passes.")
         self.assertIn("Mass: 12.3 g (PLA)", out["review"][1])
@@ -62,12 +62,12 @@ from workshop_make import results as R
 OUT["setup"] = R.person_error({"error": {"message": 'QA5 is in no print setup: a part is encased between layers — setup add { type: "print", bodies: ["QA5"] } once the person says it is printed.'}})
 OUT["tool"] = R.person_error({"error": {"message": "waive.id 'F9': not a finding of the last check on QA5 — dfm_check it first."}})
 OUT["plain"] = R.person_error({"error": {"message": "body 'X': not in the document"}})
-OUT["line"] = R.line("Workshop Make · Pauses", {"body": "QA5", "pauses": [{"z": 1}], "count": 1, "setup": {"id": "S1"}})
+OUT["line"] = R.sentence("hw_pauses", "Pauses", {"body": "QA5", "pauses": [{"layer": 12, "z": 2.5, "note": "Insert 6x2 magnet"}], "count": 1})
 ''')
         self.assertEqual(out["setup"], "QA5 isn't in a print setup yet: Make ▸ New Setup… first.")
         self.assertNotIn("dfm_check", out["tool"])
         self.assertEqual(out["plain"], "Body 'X': not in the document.")
-        self.assertEqual(out["line"], "Workshop Make · Pauses · body QA5; pauses 1 item; count 1.")
+        self.assertEqual(out["line"], "Workshop: QA5 needs 1 pause: after layer 12 (Z 2.5 mm): Insert 6x2 magnet.")
 
 
 class Commands(unittest.TestCase):

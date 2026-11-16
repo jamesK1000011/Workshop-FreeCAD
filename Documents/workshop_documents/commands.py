@@ -4,6 +4,7 @@ own runner (workshop_documents.runner: the handler the agent's tool calls,
 one undo step when it changes the document), on the parts selected or all of
 them. Forms open as task panels. Icons: Documents' own (icons/, by file stem)
 where FreeCAD has none to reuse, else FreeCAD's own by name. No agent and no Agent Link needed."""
+import os
 import re
 
 import FreeCAD
@@ -48,21 +49,59 @@ def person_error(out):
     return text if text.endswith((".", "?", "!")) else text + "."
 
 
-def _short(v):
-    if isinstance(v, (str, int, float, bool)):
-        return str(v)
-    if isinstance(v, list) and all(isinstance(x, (str, int, float)) for x in v):
-        return ", ".join(str(x) for x in v)
-    if isinstance(v, (list, tuple)):
-        return f"{len(v)} item" + ("" if len(v) == 1 else "s")
-    return None
+def _file(p):
+    return os.path.basename(str(p))
 
 
-def line(name, out):
-    """One Report-view line: the plain figures, a count for anything
-    nested, never a raw dict."""
-    bits = [f"{k} {_short(v)}" for k, v in out.items() if not isinstance(v, dict) and k not in ("step", "note", "next") and _short(v)]
-    return f"Workshop Documents · {name} · " + ("; ".join(bits)[:300] if bits else "done") + "."
+def _n(n, word):
+    return f"{n} {word}" + ("" if n == 1 else "s")
+
+
+def _drawing(out):
+    tb = out.get("titleBlock") or {}
+    files = ", ".join(_file(p) for p in (out.get("files") or {}).values())
+    s = f"Drawing of {tb.get('title', 'the parts')} on {out.get('paper')} at {out.get('scale')}"
+    if out.get("techdrawPage"):
+        s += f": the TechDraw page {out['techdrawPage']} (edit it in TechDraw)"
+    return s + (f"; files {files}." if files else ".")
+
+
+def _exploded(out):
+    return (f"Assembly manual in {_n(len(out.get('steps') or []), 'step')}, {_n(len(out.get('bom') or []), 'line')} in the bill of materials: "
+            f"{_file(out.get('manual'))}.")
+
+
+def _pack(out):
+    kb = (out.get("bytes") or 0) / 1024
+    size = f"{kb / 1024:.1f} MB" if kb >= 1024 else f"{kb:.0f} kB"
+    s = f"Library pack of {_n(len(out.get('parts') or []), 'part')} under {out.get('license')}: {_file(out.get('pack'))}, {size}."
+    if out.get("personal"):
+        s += " Some files may still hold a path or user name: check them before sharing."
+    return s
+
+
+def _figures(out):
+    figs = out.get("figures") or []
+    return f"{_n(len(figs), 'patent figure')} with {_n(len(out.get('numerals') or {}), 'reference numeral')}, as SVG and PDF."
+
+
+def _draft(out):
+    return f"Patent draft written: {_file(out.get('draft'))} ({_n(out.get('figures') or 0, 'figure')}). Nothing is filed or sent."
+
+
+SENTENCES = {"drawing_make": _drawing, "drawing_exploded": _exploded, "library_pack": _pack, "patent_figures": _figures, "patent_draft": _draft}
+
+
+def sentence(tool, name, out):
+    """The Report view's line: "Workshop: " and a sentence with units; the
+    tool's fields stay in its answer, for agents."""
+    fn = SENTENCES.get(tool)
+    if fn is not None:
+        try:
+            return "Workshop: " + fn(out)
+        except Exception:  # noqa: BLE001 — an answer of another shape
+            pass
+    return f"Workshop: {name} done."
 
 
 def tell(text, title="Workshop Documents", warn=False):
@@ -92,18 +131,18 @@ def tell(text, title="Workshop Documents", warn=False):
         pass
 
 
-def report(text, ok, out, show=False):
+def report(text, ok, out, show=False, tool=None):
     """The answer: a refusal in the person's words (a message box when
     show), one line in the Report view either way."""
     name = title(text)
     c = FreeCAD.Console
     if not ok:
         said = person_error(out)
-        c.PrintWarning(f"Workshop Documents · {name}: {said}\n")
+        c.PrintWarning(f"Workshop: {name}: {said}\n")
         if show:
             tell(said, f"Workshop Documents · {name}", warn=True)
         return
-    c.PrintMessage(line(name, out) + "\n")
+    c.PrintMessage(sentence(tool, name, out) + "\n")
 
 
 class Run:
@@ -129,7 +168,7 @@ class Run:
 
     def Activated(self):
         ok, out = R.run(self.tool, self.arguments())
-        report(self.text, ok, out, show=True)
+        report(self.text, ok, out, show=True, tool=self.tool)
         if ok:
             try:
                 FreeCADGui.updateGui()
@@ -150,7 +189,7 @@ class Form:
         return FreeCAD.ActiveDocument is not None
 
     def Activated(self):
-        T.show(self.panel, done=lambda ok, out: report(self.text, ok, out))
+        T.show(self.panel, done=lambda ok, out: report(self.text, ok, out, tool=T.PANELS[self.panel][1]))
 
 
 class Panel:

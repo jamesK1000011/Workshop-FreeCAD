@@ -82,6 +82,24 @@ def stack(items, target=None):
     return out
 
 
+def _through(shape, at, d):
+    """How much material a through hole at `at` going `d` passes, mm (the
+    line's length inside the solid), or None when it cannot be read."""
+    try:
+        import FreeCAD
+        import Part
+
+        p = FreeCAD.Vector(*at)
+        v = FreeCAD.Vector(d)
+        v.normalize()
+        reach = shape.BoundBox.DiagonalLength * 2
+        inside = shape.common(Part.makeLine(p - v * 1e-3, p + v * reach))
+        n = round(sum(e.Length for e in inside.Edges), 2)
+        return n if n > 0 else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def hole(doc, body, kind, size="M3", at=None, direction="-z", depth="through", fit="normal", face=None, sketch=None):
     """A hole for hardware: clearance, counterbore, countersink, nut_trap,
     insert or magnet, with the printer's allowance added.
@@ -113,13 +131,15 @@ def hole(doc, body, kind, size="M3", at=None, direction="-z", depth="through", f
         except ValueError as e:
             raise Refused(str(e))
         before = pd.Shape.Volume if not pd.Shape.isNull() else 0.0
+        through = _through(pd.Shape, at, dvec) if depth == "through" and at else None
         try:
             names, sizes = pdhole.make(doc, pd, kind, size, list(at) if at else None, dvec, depth, fit, cal, face=face, sketch=sk)
         except pdhole.Failed as e:
             raise Refused(str(e), "failed")
         doc.recompute()
         s = geo.soundness(pd.Shape)
-        return {"body": pd.Label, "kind": kind, "size": size, "sizes": sizes, "printerFit": said, "removed": round(before - pd.Shape.Volume, 2),
+        return {"body": pd.Label, "kind": kind, "size": size, "sizes": sizes, "printerFit": said, "allowance": float(cal.get("hole", 0.0)),
+                "depth": depth, **({"through": through} if through else {}), "removed": round(before - pd.Shape.Volume, 2),
                 "route": "PartDesign Hole", "features": names,
                 "note": "FreeCAD's own Hole (double-click it to edit); the printer allowance is added to its diameter, and a size or fit changed in its panel takes FreeCAD's size again.",
                 "sound": s["ok"], **({"problems": s["problems"]} if not s["ok"] else {})}
@@ -132,6 +152,7 @@ def hole(doc, body, kind, size="M3", at=None, direction="-z", depth="through", f
     except ValueError as e:
         raise Refused(str(e))
     before = o.Shape.Volume
+    through = _through(o.Shape, at, fits._dir(direction)) if depth == "through" else None
     cut = geo.clean(o.Shape.cut(tool))
     removed = before - cut.Volume
     if removed < 1e-3:
@@ -139,7 +160,8 @@ def hole(doc, body, kind, size="M3", at=None, direction="-z", depth="through", f
     o.Shape = cut
     doc.recompute()
     s = geo.soundness(cut)
-    return {"body": o.Label, "kind": kind, "size": size, "sizes": sizes, "printerFit": said, "removed": round(removed, 2),
+    return {"body": o.Label, "kind": kind, "size": size, "sizes": sizes, "printerFit": said, "allowance": float(cal.get("hole", 0.0)),
+            "depth": depth, **({"through": through} if through else {}), "removed": round(removed, 2),
             "route": "Part solid",
             "note": "Cut as a shape: the part is a plain Part solid, not a PartDesign Body, so FreeCAD's Hole cannot go on it (put it in a Body for an editable Hole).",
             "sound": s["ok"], **({"problems": s["problems"]} if not s["ok"] else {})}
