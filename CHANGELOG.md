@@ -11,6 +11,12 @@ Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
 
 ## [Unreleased]
 
+### Added
+
+- A Tutor lesson, Hole for hardware (an M4 countersunk hole through a
+  plate), in `workshop/lessons/`, where the Tutor finds an add-on's lessons
+  (beside its `agentlink_families` module). From Tutor-FreeCAD's example.
+
 ### Fixed
 
 - Make panel, Setups ▸ New made a setup with no part when the document's

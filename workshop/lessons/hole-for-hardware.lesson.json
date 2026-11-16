@@ -1,0 +1,295 @@
+{
+ "schema": 1,
+ "id": "workshop.make.hole-for-hardware",
+ "version": "1.0.0",
+ "title": "Hole for hardware: an M4 countersunk hole",
+ "summary": "Put a hole for an M4 countersunk screw through a plate with Part Design's Hole, checked by its type and size.",
+ "level": "first-steps",
+ "minutes": 6,
+ "tags": [
+  "workshop",
+  "hardware",
+  "hole",
+  "countersink",
+  "screw"
+ ],
+ "requires": {
+  "freecad": ">=1.0",
+  "agentlink_api": ">=1,<2",
+  "workbenches": [
+   "PartDesignWorkbench",
+   "SketcherWorkbench"
+  ]
+ },
+ "setup": {
+  "calls": [
+   {
+    "tool": "doc_new",
+    "args": {
+     "name": "HoleLesson"
+    }
+   },
+   {
+    "tool": "pd_body_new",
+    "args": {}
+   },
+   {
+    "tool": "sketch_new",
+    "args": {
+     "plane": "XY"
+    }
+   },
+   {
+    "tool": "sketch_add",
+    "args": {
+     "items": [
+      {
+       "kind": "rectangle",
+       "center": [
+        0,
+        0
+       ],
+       "size": [
+        60,
+        40
+       ],
+       "dims": true
+      }
+     ]
+    }
+   },
+   {
+    "tool": "pd_pad",
+    "args": {
+     "length": 6
+    }
+   }
+  ],
+  "bind": {
+   "body": {
+    "exists": "PartDesign::Body"
+   }
+  }
+ },
+ "steps": [
+  {
+   "id": "top",
+   "say": "Select the top face of the plate. Push **{PartDesign_NewSketch|New Sketch}**.",
+   "why": "The sketch sets where the hole goes in.",
+   "targets": [
+    {
+     "face": {
+      "normal": [
+       0,
+       0,
+       1
+      ],
+      "largest": true
+     },
+     "of": "$body"
+    },
+    {
+     "cmd": "PartDesign_NewSketch"
+    }
+   ],
+   "check": {
+    "new": "Sketcher::SketchObject"
+   },
+   "bind": {
+    "spot": {
+     "new": "Sketcher::SketchObject"
+    }
+   },
+   "hints": [
+    "Click the large flat face on top.",
+    "The rings show the face and the sketch button."
+   ],
+   "do": [
+    {
+     "tool": "sketch_new",
+     "args": {
+      "face": {
+       "at": [
+        0,
+        0,
+        6
+       ],
+       "normal": [
+        0,
+        0,
+        1
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "mark",
+   "say": "Draw a small circle at the centre of the plate. Push **Close**.",
+   "why": "Hole drills one hole at the centre of each circle.",
+   "targets": [
+    {
+     "cmd": "Sketcher_CreateCircle"
+    }
+   ],
+   "check": {
+    "all": [
+     {
+      "sketch": "$spot",
+      "count": 1
+     },
+     {
+      "editing": null
+     }
+    ]
+   },
+   "hints": [
+    "Find the circle tool in the Sketcher toolbar.",
+    "Its size does not matter. The hole sets the size."
+   ],
+   "do": [
+    {
+     "tool": "sketch_add",
+     "args": {
+      "sketch": "$spot",
+      "items": [
+       {
+        "kind": "circle",
+        "center": [
+         0,
+         0
+        ],
+        "diameter": 4
+       }
+      ]
+     }
+    },
+    {
+     "tool": "cmd_run",
+     "args": {
+      "name": "Sketcher_LeaveSketch"
+     }
+    }
+   ]
+  },
+  {
+   "id": "hole",
+   "say": "Select the sketch. Push **{PartDesign_Hole|Hole}**.",
+   "targets": [
+    {
+     "cmd": "PartDesign_Hole"
+    }
+   ],
+   "check": {
+    "new": "PartDesign::Hole"
+   },
+   "bind": {
+    "drill": {
+     "new": "PartDesign::Hole"
+    }
+   },
+   "hints": [
+    "Find Hole in the Part Design toolbar, near Pocket.",
+    "The ring shows the button."
+   ],
+   "do": [
+    {
+     "tool": "hw_hole",
+     "args": {
+      "kind": "countersink",
+      "size": "M4",
+      "sketch": "$spot",
+      "depth": "through"
+     }
+    }
+   ]
+  },
+  {
+   "id": "size",
+   "say": "Set **Size** to **M4**. Turn off **Threaded**. Set the hole cut **Type** to **Countersink**. Set **Depth** to **Through all**. Push **OK**.",
+   "why": "A countersink lets the flat screw head sit level with the face.",
+   "targets": [
+    {
+     "task": "Size"
+    },
+    {
+     "task": "Type"
+    },
+    {
+     "task": {
+      "button": "ok"
+     }
+    }
+   ],
+   "check": {
+    "all": [
+     {
+      "exists": {
+       "type": "PartDesign::Hole",
+       "where": {
+        "ThreadSize": "M4",
+        "HoleCutType": "Countersink",
+        "DepthType": "ThroughAll",
+        "Diameter": {
+         "ge": 4.3,
+         "le": 5
+        }
+       }
+      }
+     },
+     {
+      "task_open": null
+     },
+     {
+      "valid": "$drill"
+     }
+    ]
+   },
+   "hints": [
+    "The Size list is under Profile in the Tasks panel.",
+    "The hole cut settings are lower in the panel.",
+    "Size = **M4**, not threaded, Countersink, Through all."
+   ],
+   "do": [
+    {
+     "tool": "feature_edit",
+     "args": {
+      "feature": "$drill",
+      "set": {
+       "ThreadSize": "M4",
+       "Threaded": false,
+       "HoleCutType": "Countersink",
+       "DepthType": "ThroughAll"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "see",
+   "say": "Done: a clearance hole for an **M4** countersunk screw goes through the plate.",
+   "targets": [
+    {
+     "tree": "$drill"
+    }
+   ],
+   "check": {
+    "all": [
+     {
+      "valid": "$drill"
+     },
+     {
+      "exists": {
+       "type": "PartDesign::Hole",
+       "where": {
+        "ThreadSize": "M4",
+        "HoleCutType": "Countersink"
+       }
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

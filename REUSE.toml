@@ -33,3 +33,11 @@ SPDX-License-Identifier = "LGPL-2.1-or-later"
 path = ["safetynet/guides/*.md", "safetynet/icons/CREDITS.md", "tests/safetynet/data/**"]
 SPDX-FileCopyrightText = "SafetyNet contributors"
 SPDX-License-Identifier = "LGPL-2.1-or-later"
+
+[[annotations]]
+path = "workshop/lessons/*.lesson.json"
+SPDX-FileCopyrightText = "Tutor contributors"
+SPDX-License-Identifier = "LGPL-2.1-or-later"
+# Lessons for the Tutor (Tutor-FreeCAD, same licence), copied from its
+# docs/examples/workshop/lessons/; the Tutor finds them in the lessons/
+# folder beside workshop/agentlink_families.py.
