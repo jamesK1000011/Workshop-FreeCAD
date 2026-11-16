@@ -9,7 +9,7 @@ import os
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PARTS = ("workshop_parts", "workshop_make", "workshop_electronics", "workshop_documents", "safetynet")
+PARTS = ("workshop_parts", "workshop_make", "workshop_electronics", "workshop_documents", "safetynet", "workshop_fasteners")
 # Every tool name the five add-ons offered before the combine.
 BEFORE = {
     "gen_make", "gen_part", "fit", "hw_hole", "thread_lookup", "thread_identify", "thread_cut", "hw_embed", "hw_embed_list", "hw_unembed",
@@ -20,6 +20,8 @@ BEFORE = {
     "library_pack", "history_checkpoint", "history_restore", "macro_save", "macro_list", "macro_show", "macro_approve",
     "macro_unapprove", "macro_run", "app_recover", "pref_history", "pref_rollback",
 }
+# The Fasteners bridge's, new (listed only with Fasteners Workbench installed).
+FASTENERS = {"fastener_types", "fastener_add", "fastener_set", "fastener_list", "fastener_print"}
 
 
 def tool_names():
@@ -43,7 +45,7 @@ class Families(unittest.TestCase):
     def test_one_family_module(self):
         found = []
         for d, dirs, files in os.walk(ROOT):
-            dirs[:] = [x for x in dirs if x not in {".git", "__pycache__", "tests", "agentlink-addon", "orcalink-addon"}]
+            dirs[:] = [x for x in dirs if x not in {".git", "__pycache__", "tests", "agentlink-addon", "orcalink-addon", "fasteners-ref"}]
             if "agentlink_families.py" in files:
                 found.append(os.path.relpath(d, ROOT))
         self.assertEqual(found, ["workshop"], "Agent Link would find a part's families twice")
@@ -57,7 +59,7 @@ class Families(unittest.TestCase):
             self.assertTrue(os.path.isdir(os.path.join(ROOT, p, "guides")), p)
 
     def test_tool_names_unchanged(self):
-        self.assertEqual(tool_names(), BEFORE)
+        self.assertEqual(tool_names(), BEFORE | FASTENERS)
 
 
 if __name__ == "__main__":

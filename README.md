@@ -16,6 +16,17 @@ API, data files and agent tools) are in [docs/](docs/): [Parts](docs/parts.md),
 [Make](docs/make.md), [Electronics](docs/electronics.md),
 [Documents](docs/documents.md), [SafetyNet](docs/safetynet.md).
 
+**With Fasteners Workbench.** If you also have
+[Fasteners Workbench](https://github.com/shaise/FreeCAD_FastenersWB) (Shai
+Seger's add-on; its screw_maker is Ulrich Brammer's), Workshop works with it:
+Hole for hardware can put the matching screw in the hole, drawings' bills of
+materials and mass properties list its parts as bought hardware, and its
+heat-set insert table and 3D-print thread settings are used before
+Workshop's own typical figures. Agents get its fasteners as tools too (the
+`fasteners` group below). Workshop calls Fasteners where it is installed
+and copies none of it. Without Fasteners none of this shows. Notes:
+[docs/fasteners.md](docs/fasteners.md).
+
 ## Where things are
 
 | Feature | Where |
@@ -29,6 +40,7 @@ API, data files and agent tools) are in [docs/](docs/): [Parts](docs/parts.md),
 | KiCad board | File menu, after Import |
 | Library pack | File menu, after Export |
 | Checkpoint, restore, recovered copies, settings history and rollback, macros, clean up copies | **Tools ▸ SafetyNet** in every workbench; Recovered Copies also in the File menu |
+| Matching screw in a hole (with Fasteners Workbench installed) | Hole for hardware's panel: **Add the matching screw (Fasteners)** |
 | Setups, fit sizes and printer calibration, encased hardware and pauses, slicing, cut and mill export, printers; the Make panel (Setups, Materials, Fits, Review) and the Manual panel | The **Make** workbench |
 
 ## Install
@@ -133,13 +145,19 @@ separate add-ons):
 | `app_recover` | safety | Documents back after a crash or a hang. |
 | `pref_history` | safety | The settings changes Agent Link made, newest first. |
 | `pref_rollback` | safety | Put FreeCAD's settings back as they were before a change. |
+| `fastener_types` | fasteners (with Fasteners Workbench installed) | Fasteners Workbench's types, sizes and lengths, from its own tables. |
+| `fastener_add` | fasteners (with Fasteners Workbench installed) | A Fasteners Workbench screw, nut, washer or insert, attached to round edges or loose. |
+| `fastener_set` | fasteners (with Fasteners Workbench installed) | Change Fasteners parts as its Change Parameters, Flip and Move do. |
+| `fastener_list` | fasteners (with Fasteners Workbench installed) | The Fasteners parts in the document and their bill of materials. |
+| `fastener_print` | fasteners (with Fasteners Workbench installed) | Fasteners' 3D-print thread settings, read; or set. |
 <!-- tools:end -->
 
 ## For developers
 
 Each part is its own Python package with its own API: `workshop_parts.api`,
 `workshop_make.api`, `workshop_electronics.api`, `workshop_documents.api`,
-and `safetynet`. `workshop/` is the add-on's own layer: the placement table
+`safetynet`, and `workshop_fasteners.api` (the Fasteners bridge, dormant
+without Fasteners Workbench). `workshop/` is the add-on's own layer: the placement table
 (`workshop/placement.py`), the one `agentlink_families` module, and the
 helper files Agent Link vendors. The design is in
 [docs/combine-design.md](docs/combine-design.md). Tests, with no FreeCAD
@@ -147,7 +165,7 @@ needed:
 
 ```
 AGENTLINK_HOME=$(mktemp -d) python3 -m unittest discover -s tests
-for d in parts make electronics documents safetynet; do AGENTLINK_HOME=$(mktemp -d) PYTHONPATH=. python3 -m unittest discover -s tests/$d; done
+for d in parts make electronics documents safetynet fasteners; do AGENTLINK_HOME=$(mktemp -d) PYTHONPATH=. python3 -m unittest discover -s tests/$d; done
 python3 tools/gen_readme_tools.py   # the tool list above
 ```
 
@@ -164,6 +182,10 @@ the same licence. Each part's changelog up to the combine is in
 
 ## Credits
 
+- Fasteners, when installed, are Fasteners Workbench's, by Shai Seger
+  (shaise) and its contributors, with screw_maker by Ulrich Brammer
+  (LGPL-2.1-or-later). Workshop calls them at run time and bundles none of
+  them.
 - The Make panel is inspired by the panels of ScanRuler by Stefan Hermann
   (CNC Kitchen).
 - The Gridfinity profile follows the open Gridfinity system by Zack Freedman.

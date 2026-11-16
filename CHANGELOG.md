@@ -13,6 +13,22 @@ changelog and version: [Parts](Parts/CHANGELOG.md), [Make](Make/CHANGELOG.md),
 
 The first tagged release is being prepared.
 
+### Added
+
+- The Fasteners bridge (`workshop_fasteners`). When
+  [Fasteners Workbench](https://github.com/shaise/FreeCAD_FastenersWB) (Shai
+  Seger; screw_maker by Ulrich Brammer) is installed, Workshop calls it at
+  run time and copies none of it:
+  - Hole for hardware can put the matching screw in the hole (`hw_hole
+    { screw }`, or the panel's checkbox).
+  - Exploded drawings' BOM and mass properties list its parts as bought
+    hardware.
+  - Its heat-set insert table and 3D-print thread setting come before
+    Workshop's typical figures.
+  - Agents get the `fasteners` tools: `fastener_types`, `fastener_add`,
+    `fastener_set`, `fastener_list` and `fastener_print`.
+  Without Fasteners nothing shows and nothing costs tokens.
+
 ### Fixed
 
 - No more "Internal C++ object (PySide6.QtWidgets.QMenu) already deleted"

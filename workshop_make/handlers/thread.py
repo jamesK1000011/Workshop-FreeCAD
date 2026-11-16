@@ -87,7 +87,7 @@ def _row(size):
 
 
 NOTE = ("Sizes, majors and tap drills are FreeCAD's own (PartDesign Hole's thread tables); pitch diameter and minors from the ISO 68-1 basic profile. "
-        "A Unified pitch and drill name, and heat-set insert holes, are Workshop Make's, where FreeCAD has none. "
+        "A Unified pitch and drill name are Workshop Make's, where FreeCAD has none; heat-set insert holes are Fasteners Workbench's IUT table when it is installed, else Workshop Make's typical figures (each row's source says). "
         "A printed hole is better tapped or fitted with an insert than printed threaded under M5.")
 
 
@@ -149,6 +149,20 @@ def thread_identify(s, a):
     if out.get("best") and abs(out["best"]["off"]) > 0.3:
         out["note"] = f"{out['best']['off']:+.2f} mm off the nearest: maybe not a thread size — a clearance hole, a press fit or a print's shrinkage."
     return out
+
+
+def _print_clearance(doc, o, row, mode):
+    """(diametral clearance mm, source) for a modelled thread in a printed
+    part: Fasteners Workbench's 3D-print nut scaling when it is installed
+    and set to 3dprint; else None (the thread as FreeCAD's table has it)."""
+    if mode != "modelled" or not store.setup_of(doc, o.Label, "print"):
+        return None
+    try:
+        from workshop_fasteners import api as fasteners
+
+        return fasteners.thread_compensation(float(row["major"]))
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def thread_cut(s, a):
@@ -232,6 +246,14 @@ def thread_cut(s, a):
         h.ThreadSize = pick
         h.Threaded = True
         h.ModelThread = mode == "modelled"
+        comp = _print_clearance(doc, o, row, mode)
+        if comp:
+            try:  # FreeCAD's own custom thread clearance on the Hole
+                h.UseCustomThreadClearance = True
+                h.CustomThreadClearance = comp[0]
+                rec["printClearance"] = {"mm": comp[0], "source": comp[1]}
+            except Exception:  # noqa: BLE001 — a FreeCAD without it: the thread as the table has it
+                pass
         h.HoleCutType = "None"
         h.DepthType = "Dimension"
         h.Depth = depth

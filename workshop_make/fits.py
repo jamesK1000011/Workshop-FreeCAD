@@ -55,6 +55,26 @@ def stack(items):
 M = {k: {f: (tuple(v[f]) if isinstance(v[f], list) else v[f]) for f in ("clear", "head", "csk", "nut", "insert")}
      for k, v in _data.load(_DATA, "metric-hardware", package="workshop_make")["entries"].items()}
 KINDS = ("clearance", "counterbore", "countersink", "nut_trap", "insert", "magnet")
+TYPICAL_INSERT = "Workshop Make (typical heat-set insert figures)"
+
+
+def insert_figures(size):
+    """(hole d, insert depth, source, note) for a heat-set insert's pocket:
+    Fasteners Workbench's IUT insert table when it is installed and has the
+    size (workshop_fasteners: read from its own table, nothing copied), else
+    Workshop's typical figures; None when neither has the size."""
+    try:
+        from workshop_fasteners import api as _fasteners
+
+        f = _fasteners.insert_figures(size)
+    except Exception:  # noqa: BLE001 — no Fasteners, or it would not read: ours
+        f = None
+    if f:
+        return f["hole"], f["depth"], f["source"], "Fasteners Workbench's IUT insert figures; check your insert's sheet."
+    m = M.get(size)
+    if m and m.get("insert"):
+        return m["insert"][0], m["insert"][1], TYPICAL_INSERT, "Typical insert figures; check the insert's sheet."
+    return None
 FIT_INDEX = {"close": 0, "normal": 1, "loose": 2}
 
 
@@ -97,8 +117,9 @@ def hole_tool(kind, size, at, d, depth, fit, cal):
         raise ValueError(f"size: one of {', '.join(M)}.")
     m = M[size]
     if kind == "insert":
-        hd, hdep = m["insert"][0] + add, m["insert"][1] + 0.5
-        return Part.makeCylinder(hd / 2, hdep + 0.05, back, d), {"hole": round(hd, 3), "depth": round(hdep, 3), "note": "Typical insert figures; check the insert's sheet."}
+        ins_d, ins_l, src, note = insert_figures(size)
+        hd, hdep = ins_d + add, ins_l + 0.5
+        return Part.makeCylinder(hd / 2, hdep + 0.05, back, d), {"hole": round(hd, 3), "depth": round(hdep, 3), "insertSource": src, "note": note}
     clear = m["clear"][FIT_INDEX.get(fit, 1)] + add
     shaft = Part.makeCylinder(clear / 2, depth + 0.05, back, d)
     sizes = {"clearance": round(clear, 3), "depth": round(depth, 3)}

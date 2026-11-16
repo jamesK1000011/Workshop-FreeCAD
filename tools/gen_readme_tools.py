@@ -22,9 +22,11 @@ END = "<!-- tools:end -->"
 # its GROUP) or a data/tools.json (Agent Link's tool-data format, group per
 # entry). (source file, group shown; None: the source's own group)
 SOURCES = [("workshop_parts/fam_parts.py", None), ("workshop_make/data/tools.json", None), ("workshop_electronics/data/tools.json", None),
-           ("workshop_documents/data/tools.json", None), ("safetynet/fam_history.py", None), ("safetynet/fam_safety.py", None)]
+           ("workshop_documents/data/tools.json", None), ("safetynet/fam_history.py", None), ("safetynet/fam_safety.py", None),
+           ("workshop_fasteners/data/tools.json", "fasteners (with Fasteners Workbench installed)")]
 # A tool whose first sentence reads badly cut short: the line shown instead.
-SHORT = {}
+SHORT = {"fastener_add": "A Fasteners Workbench screw, nut, washer or insert, attached to round edges or loose.",
+         "fastener_list": "The Fasteners parts in the document and their bill of materials."}
 
 
 def _const(node):

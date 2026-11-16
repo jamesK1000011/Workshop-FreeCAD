@@ -11,6 +11,7 @@ REUSE.toml
 docs/combine-design.md
 docs/documents.md
 docs/electronics.md
+docs/fasteners.md
 docs/make.md
 docs/parts.md
 docs/safetynet.md
@@ -62,6 +63,8 @@ tests/electronics/test_electronics.py
 tests/electronics/test_handlers.py
 tests/electronics/test_icons.py
 tests/electronics/test_taskpanels.py
+tests/fasteners/_fwb.py
+tests/fasteners/test_bridge.py
 tests/make/_fc.py
 tests/make/_stubs.py
 tests/make/_threadtable.py
@@ -188,6 +191,17 @@ workshop_electronics/refusal.py
 workshop_electronics/taskpanels.py
 workshop_electronics/tooldata.py
 workshop_electronics/workbench.py
+workshop_fasteners/__init__.py
+workshop_fasteners/api.py
+workshop_fasteners/commands.py
+workshop_fasteners/data/coverage.json
+workshop_fasteners/data/tools.json
+workshop_fasteners/detect.py
+workshop_fasteners/fam_fasteners.py
+workshop_fasteners/families.py
+workshop_fasteners/fs.py
+workshop_fasteners/guides/fasteners.md
+workshop_fasteners/handlers.py
 workshop_make/__init__.py
 workshop_make/api.py
 workshop_make/bimnest.py

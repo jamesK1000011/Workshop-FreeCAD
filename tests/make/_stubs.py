@@ -187,7 +187,10 @@ OUT = {}
 
 
 def run(code, extra_path=None):
-    env = {"PATH": os.environ.get("PATH", ""), "PYTHONPATH": "", "AGENTLINK_HOME": os.environ.get("AGENTLINK_HOME", ""), "HOME": os.environ.get("HOME", "/tmp")}
+    env = {"PATH": os.environ.get("PATH", ""), "PYTHONPATH": "", "AGENTLINK_HOME": os.environ.get("AGENTLINK_HOME", ""), "HOME": os.environ.get("HOME", "/tmp"),
+           # The Fasteners bridge off unless a test turns it on (a Fasteners
+           # Workbench in this computer's FreeCAD must not change the panels).
+           "WORKSHOP_FASTENERS": "off"}
     src = PRELUDE + (f"sys.path.append({extra_path!r})\n" if extra_path else "") + code + "\nprint(json.dumps(OUT, default=str))\n"
     r = subprocess.run([sys.executable, "-I", "-c", src, ROOT], capture_output=True, text=True, env=env, cwd=ROOT)
     if r.returncode:

@@ -95,6 +95,32 @@ INTRO = {
 
 NO_SETUPS = "No setups yet: Make ▸ New Setup… first."
 
+# Hole for Hardware's "add the matching screw": shown only when Fasteners
+# Workbench is installed (workshop_fasteners.detect: folder checks only).
+SCREW_LABEL = "Add the matching screw (Fasteners)"
+SCREW_TYPES = (("", "Matching the hole"), ("ISO4762", "Socket head cap (ISO 4762)"), ("ISO7380-1", "Button head (ISO 7380-1)"),
+               ("ISO10642", "Countersunk (ISO 10642)"), ("ISO4017", "Hex head (ISO 4017)"))
+
+
+def screw_offered(panel):
+    """Whether a panel offers the matching screw: Hole for Hardware, with
+    Fasteners Workbench installed."""
+    if panel != "hole":
+        return False
+    try:
+        from workshop_fasteners import detect
+
+        return detect.present()
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def screw_arg(on, ftype=""):
+    """hw_hole's screw argument from the checkbox and the type chosen."""
+    if not on:
+        return None
+    return {"type": ftype} if ftype else True
+
 
 def options(extra):
     """[(value, text)] for a choice's options."""
@@ -359,6 +385,23 @@ class FormPanel:
                 w.setText(", ".join(selected_labels()) if kind == "bodies" else str(default or ""))
                 self.get[key] = w.text
             lay.addRow(label, w)
+        if screw_offered(panel):
+            row = QtWidgets.QWidget()
+            h = QtWidgets.QHBoxLayout(row)
+            h.setContentsMargins(0, 0, 0, 0)
+            check = QtWidgets.QCheckBox(SCREW_LABEL)
+            check.setToolTip("Fasteners Workbench (Shai Seger) puts the screw in the hole: its length from the plate, matched to the hole.")
+            kinds = list(SCREW_TYPES)
+            combo = QtWidgets.QComboBox()
+            combo.addItems([t for _v, t in kinds])
+            combo.setCurrentIndex(0)
+            combo.setEnabled(False)
+            check.toggled.connect(lambda on, combo=combo: combo.setEnabled(on))
+            h.addWidget(check)
+            h.addWidget(combo, 1)
+            lay.addRow(row)
+            self.screw = check
+            self.get["screw"] = lambda check=check, combo=combo, kinds=kinds: screw_arg(check.isChecked(), chosen(combo, kinds))
         self.msg = QtWidgets.QLabel(self.blocked)
         self.msg.setWordWrap(True)
         lay.addRow(self.msg)
@@ -384,8 +427,11 @@ class FormPanel:
         if self.blocked:
             self.msg.setText(self.blocked)
             return False
-        tool, args = args_of(self.panel, self.values())
+        vals = self.values()
+        tool, args = args_of(self.panel, vals)
         args.update(getattr(self, "entry", None) or {})
+        if vals.get("screw"):
+            args["screw"] = vals["screw"]
         ok, out = self.runner(tool, args)
         if not ok:
             from . import theme

@@ -47,7 +47,7 @@ def body(path):
 def copies(name, mark):
     out = []
     for d, dirs, files in os.walk(ROOT):
-        dirs[:] = [x for x in dirs if x not in {".git", "__pycache__", "tests", "build", "dist", "agentlink-addon", "orcalink-addon"}]
+        dirs[:] = [x for x in dirs if x not in {".git", "__pycache__", "tests", "build", "dist", "agentlink-addon", "orcalink-addon", "fasteners-ref"}]
         for f in files:
             if f == name:
                 p = os.path.join(d, f)
