@@ -71,15 +71,44 @@ def short_edges(shape, length_mm=0.02):
     return out
 
 
+def freecad_check(shape):
+    """FreeCAD's own Part Check Geometry on shape (Part_CheckGeometry's
+    check, Shape.check: BRepCheck_Analyzer, and the BOP check when FreeCAD's
+    Check Geometry preference runs it). [its findings], [] when it passes,
+    None when this FreeCAD cannot run it."""
+    bop = False
+    try:
+        import FreeCAD
+
+        bop = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Mod/Part/CheckGeometry").GetBool("RunBOPCheck", False)
+    except Exception:  # noqa: BLE001
+        bop = False
+    if not hasattr(shape, "check"):
+        return None
+    try:
+        shape.check(bool(bop))
+        return []
+    except Exception as e:  # noqa: BLE001 — its findings come as the error's text
+        lines = [ln.strip() for ln in str(e).splitlines() if ln.strip()]
+        return lines or [str(e) or "FreeCAD's Check Geometry found the shape invalid"]
+
+
 def soundness(shape):
-    """Valid, closed, one solid, no slivers: as a body check reads it."""
+    """Sound for making: FreeCAD's own Check Geometry passes (the validity
+    check is FreeCAD's, not Make's), then what a printed part also needs and
+    Check Geometry does not judge: closed (an inside to print or weigh), one
+    solid, no slivers a slicer chokes on."""
     shells = shape.Shells
     closed = bool(shells) and all(s.isClosed() for s in shells)
     narrow = narrow_faces(shape)
     short = short_edges(shape)
     problems = []
-    if not shape.isValid():
-        problems.append("The shape is not valid: a boolean or loft left it broken. Rebuild the last step.")
+    found = freecad_check(shape)
+    if found is None:  # an older FreeCAD: its validity flag alone
+        found = [] if shape.isValid() else ["the shape is not valid"]
+    if found:
+        problems.append("FreeCAD's Check Geometry finds the shape broken (" + "; ".join(found[:3])
+                        + (f"; and {len(found) - 3} more" if len(found) > 3 else "") + "): a boolean or loft left it so. Rebuild the last step.")
     if not closed:
         problems.append("The shape is not closed: it has open edges, so it has no inside to print or weigh.")
     if len(shape.Solids) != 1:
@@ -91,7 +120,9 @@ def soundness(shape):
             + ". Overlap the pieces clearly, or carry a cutter on along its slope."
         )
     return {
-        "valid": shape.isValid(),
+        "valid": not found,
+        "checkedBy": "FreeCAD's Check Geometry",
+        **({"checkGeometry": found[:10]} if found else {}),
         "closed": closed,
         "solids": len(shape.Solids),
         "narrow": narrow[:10],

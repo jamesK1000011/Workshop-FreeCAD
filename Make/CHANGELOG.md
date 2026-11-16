@@ -25,6 +25,12 @@ The first tagged release, 0.3.0 (the version in `package.xml`), is being prepare
 
 ### Changed
 
+- Part Review and DFM Check judge soundness with FreeCAD's own Check
+  Geometry (Shape.check, as Part_CheckGeometry runs it, with its BOP-check
+  preference) instead of Make's own validity test; Make keeps only what a
+  print needs beyond it (closed, one solid, slivers) and its print checks
+  (walls, overhangs, bridges, holes, bed contact, build volume). DFM Check
+  adds a check-geometry finding when FreeCAD's check fails.
 - The Report view says each command's result in a sentence with units
   ("Workshop: M3 clearance hole in Body, through 20 mm (FreeCAD Hole,
   editable in Part Design). Printer calibration: none, so 0.2 mm added."),
