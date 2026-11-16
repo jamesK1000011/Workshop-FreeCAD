@@ -17,7 +17,7 @@ import here.
 import difflib
 import re
 
-from . import detect, fs
+from . import detect, fs, keep
 from .fs import Missing
 
 CREDIT = detect.CREDIT
@@ -311,6 +311,15 @@ def describe(o):
     if said:
         out["attachNote"] = said
     try:
+        back = keep.REATTACHED.pop((o.Document.Name, o.Name), None)
+    except Exception:  # noqa: BLE001 — an object that does not say its document
+        back = next((keep.REATTACHED.pop(k) for k in list(keep.REATTACHED) if k[1] == o.Name), None)
+    if back:
+        out["reattached"] = back
+    lost = keep.lost_note(o)
+    if lost:
+        out["lost"] = lost
+    try:
         p = o.Placement.Base
         out["at"] = [_clean(p.x), _clean(p.y), _clean(p.z)]
     except Exception:  # noqa: BLE001
@@ -411,13 +420,17 @@ def add(doc, ftype, size=None, length=None, thread="simple", edges=(), at=None, 
             o.Placement = pl
         made.append(o)
     doc.recompute()
+    for o in made:
+        keep.adopt(doc, o)
     return made
 
 
-def change(doc, refs, ftype=None, size=None, length=None, thread=None, invert=None, offset=None, match=None, edge=None):
+def change(doc, refs, ftype=None, size=None, length=None, thread=None, invert=None, offset=None, match=None, edge=None, label=None):
     """Change fasteners as Fasteners' Change Parameters (and Flip, Move)
     does: type, size ("Auto": matched to its hole again), length (the
-    nearest standard one), thread, invert, offset, match, edge (moved)."""
+    nearest standard one), thread, invert, offset, match, edge (moved),
+    label (kept as given; else "M8x25-Screw", numbered per size). Always
+    in place: the object, its name and its label stay."""
     F = fs.load()
     objs = [_obj(doc, r) for r in refs]
     bad = [o.Label for o in objs if not detect.is_fastener(o)]
@@ -450,6 +463,11 @@ def change(doc, refs, ftype=None, size=None, length=None, thread=None, invert=No
         for o in objs:
             _set_length(F, o, length)
         doc.recompute()
+    if label is not None and len(objs) > 1:
+        raise Missing("label: one fastener at a time (labels are unique).", "invalid_input")
+    for o in objs:
+        if label is not None or keep.read(o) is not None or tgt is not None:
+            keep.adopt(doc, o, label=label or None)
     return objs
 
 
@@ -466,6 +484,7 @@ def repeats(o):
 
 
 def listing(doc):
+    keep.sweep(doc)
     objs = fasteners_in(doc)
     items = [describe(o) for o in objs]
     bom = {}
@@ -473,7 +492,11 @@ def listing(doc):
         n = repeats(o)
         if n:
             bom[bom_text(o)] = bom.get(bom_text(o), 0) + n
-    return {"fasteners": items, "bom": [{"item": k, "qty": v} for k, v in sorted(bom.items())], "source": SOURCE}
+    out = {"fasteners": items, "bom": [{"item": k, "qty": v} for k, v in sorted(bom.items())], "source": SOURCE}
+    warnings = [i["lost"] for i in items if i.get("lost")]
+    if warnings:
+        out["warnings"] = warnings
+    return out
 
 
 def bom_sheet(doc):
@@ -748,7 +771,13 @@ def hole_screw(doc, hole_args, hole_out, spec):
         container = parent if parent is not None and parent.TypeId == "App::Part" else None
     except Exception:  # noqa: BLE001
         pass
-    o = add(doc, ftype, str(size), length, spec.get("thread", "simple"), edges=[f"{body.Name}.Edge{idx}"], match=HOLE_MATCH[kind], container=container)[0]
+    there = [x for x in keep.on_edge(doc, body, f"Edge{idx}") if _family(x) == F.screwMaker.GetTypeName(ftype)]
+    if there:
+        # hw_hole again on the same hole: the screw already in it is
+        # changed in place (its name and label stay), not a second one made.
+        o = change(doc, [there[0]], ftype=ftype, size=str(size), length=length, thread=spec.get("thread", "simple"), match=HOLE_MATCH[kind])[0]
+    else:
+        o = add(doc, ftype, str(size), length, spec.get("thread", "simple"), edges=[f"{body.Name}.Edge{idx}"], match=HOLE_MATCH[kind], container=container)[0]
     # Shank into the material (away from the far side for a nut trap):
     # Fasteners puts the head on the edge's axis side, the shank opposite.
     want = d if inward else d * -1

@@ -12,3 +12,19 @@ except Exception as _e:  # noqa: BLE001 — never stop FreeCAD starting
     import FreeCAD
 
     FreeCAD.Console.PrintWarning(f"Workshop: start-up check skipped ({_e}).\n")
+
+# Fasteners Workbench installed: the screws Workshop puts in keep their hole
+# (re-found by its geometry when FreeCAD renumbers edges) and their label
+# (Fasteners relabels at every recompute). A document observer only;
+# nothing of Fasteners is loaded or changed here.
+try:
+    from workshop_fasteners import detect as _workshop_fs_detect
+
+    if _workshop_fs_detect.present():
+        from workshop_fasteners import keep as _workshop_fs_keep
+
+        _workshop_fs_keep.watch()
+except Exception as _e:  # noqa: BLE001 — never stop FreeCAD starting
+    import FreeCAD
+
+    FreeCAD.Console.PrintWarning(f"Workshop: Fasteners keeper not started ({_e}).\n")

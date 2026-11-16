@@ -12,10 +12,14 @@ Screws, bolts, nuts, washers, heat-set inserts, PEM parts, pins and retaining ri
 - A `size` given wins over the hole. Given on a counterbore's wall, the screw goes on the bore's edge at the counterbore's floor, where its head sits. The answer says so (`attachNote`) and gives the edge's diameter.
 - Loose: `fastener_add { type, size, length, at: [x, y, z] }`.
 - `length` takes the nearest length Fasteners has. `thread: "real"` models the thread. That's slow: use it for a render or a printed thread, not for fit checks.
-- From a hole Workshop makes: `hw_hole { …, screw: true }` or `screw: { type, length }`. The screw goes in the hole, its length taken from the plate (less a counterbore). A nut trap's screw comes from the far side. An insert's screw is as long as the insert is deep, so add the thickness of what it clamps.
+- From a hole Workshop makes: `hw_hole { …, screw: true }` or `screw: { type, length }`. The screw goes in the hole, its length taken from the plate (less a counterbore). A nut trap's screw comes from the far side. An insert's screw is as long as the insert is deep, so add the thickness of what it clamps. `hw_hole` again on the same hole changes the screw already in it, never a second one.
+
+## Kept on the hole, under one label
+- Each fastener Workshop puts in keeps its hole by the edge's geometry as well as its name. When a later feature renumbers the Body's edges, it is put back on the same circle (`reattached` says from which edge to which). When no edge of that size is left near, it stays where it is and says so: `lost` on it, `warnings` in `fastener_list`, a warning in the Report view. Then `fastener_set { objects, edge }` puts it on a hole again.
+- Labels read `M8x25-Screw`, then `M8x25-Screw 2` for the next of that size, and keep that through recomputes. Fasteners relabels at every recompute, and Workshop puts the label back. `fastener_set { objects: [one], label }` sets a name of your own, kept as given. Edits always change the object in place: its name and label stay.
 
 ## Changing and counting
-- `fastener_set { objects, size | length | type | thread | invert | offset | match | edge }`, as Fasteners' Change Parameters, Flip and Move do. `type` takes another type with the same properties (a screw for a screw).
+- `fastener_set { objects, size | length | type | thread | invert | offset | match | edge | label }`, as Fasteners' Change Parameters, Flip and Move do. `type` takes another type with the same properties (a screw for a screw).
 - `fastener_set { restore: true }`: a file saved where Fasteners wasn't loaded gets its fasteners back.
 - `fastener_list` gives every fastener and the bill of materials, counted as Fasteners counts them (links and arrays too). `sheet: true` writes it to a spreadsheet. `drawing_exploded`'s BOM and `mass_properties` list fasteners as bought hardware, not as parts.
 
