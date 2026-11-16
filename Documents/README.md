@@ -107,6 +107,16 @@ Workshop Documents needs no other add-on. It never imports Agent Link: only
 `workshop_documents/agentlink_families.py` and the `fam_*` modules it loads
 do, and only Agent Link loads them.
 
+### Hook services
+
+Documents asks Agent Link's hooks for two services another add-on may offer.
+Without one, Documents uses its own.
+
+| Service | Asked by | Call |
+|---|---|---|
+| `manual_maker` | The Manual tab | `make(runner, rows, title) -> (ok, answer)` |
+| `library_pack` | Library Pack (`library_pack`) | `pack(session, args) -> answer`; ScanRuler-FreeCAD's pack (Stefan Hermann's) when installed, Documents' own otherwise |
+
 ## Data
 
 The filament table (`workshop_documents/data/filaments.json`), for the parts'

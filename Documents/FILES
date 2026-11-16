@@ -21,6 +21,7 @@ tests/test_iso286.py
 tests/test_layout.py
 tests/test_layout_placer.py
 tests/test_loads_alone.py
+tests/test_pack_service.py
 tests/test_panel.py
 tests/test_release.py
 tests/test_share.py

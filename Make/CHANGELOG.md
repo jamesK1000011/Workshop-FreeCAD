@@ -10,6 +10,7 @@ The first tagged release, 0.3.0 (the version in `package.xml`), is being prepare
 
 ### Added
 
+- Make offers its mass properties and material setting as hook services (`mass_properties`, `material_set`, listed in the README's Hook services table), so Agent Link's own mass and material tools defer to Make when it is installed.
 - Its own workbench, Workshop Make, with Setup, Check, Fits, Hardware,
   Output and Printer toolbars over Make's own runner (one undo step a
   command).

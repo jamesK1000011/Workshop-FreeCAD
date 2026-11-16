@@ -237,7 +237,7 @@
   },
   "library_pack": {
    "group": "share",
-   "description": "Pack bodies to share: a zip of each as STEP and STL (formats), a README with their sizes, material and mass, and the print settings from their print setup (magnet pauses too), a LICENSE (license: CC-BY-4.0, CC-BY-SA-4.0, CC0-1.0 or MIT — ask the person; author is required for all but CC0), and credits [{ title, author, url, license, changes }] for remixed parts, refused when their licence does not allow the one chosen (no-derivatives, non-commercial, share-alike). The STEP header carries the file's name and the author given, no path, user name or organisation.",
+   "description": "Pack bodies to share: a zip of each as STEP and STL (formats), a README with their sizes, material and mass, and the print settings from their print setup (magnet pauses too), a LICENSE (license: CC-BY-4.0, CC-BY-SA-4.0, CC0-1.0 or MIT — ask the person; author is required for all but CC0), and credits [{ title, author, url, license, changes }] for remixed parts, refused when their licence does not allow the one chosen (no-derivatives, non-commercial, share-alike). The STEP header carries the file's name and the author given, no path, user name or organisation. When ScanRuler-FreeCAD is installed its pack makes it (through Agent Link's library_pack service), Documents' own otherwise; by says which (provider: documents for Documents' own).",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -283,6 +283,14 @@
      },
      "tolerance": {
       "type": "number"
+     },
+     "provider": {
+      "type": "string",
+      "enum": [
+       "auto",
+       "documents"
+      ],
+      "description": "auto (ScanRuler's pack when installed, else Documents') or documents."
      }
     },
     "required": [

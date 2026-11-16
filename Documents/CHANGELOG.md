@@ -10,6 +10,7 @@ The first tagged release, 0.2.0 (the version in `package.xml`), is being prepare
 
 ### Added
 
+- Library Pack asks for a `library_pack` hook service first (ScanRuler-FreeCAD's pack when it offers one) and falls back to Documents' own pack; the answer's `by` says which made it, and `provider: documents` forces Documents' own.
 - Workshop Documents, from Agent Link for FreeCAD: `drawing_make`,
   `drawing_exploded`, `patent_figures`, `patent_draft` and
   `library_pack` with their guides, hidden-line views and library packs; a

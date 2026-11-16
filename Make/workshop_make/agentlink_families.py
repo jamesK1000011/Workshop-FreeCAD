@@ -11,7 +11,7 @@
 # Materials, Fits) in Agent Link's panel over its panel._call, gives its
 # Review tab the part_review verdict, and says Make is hosted (so Make's own
 # dock stays away).
-from . import handlers
+from . import handlers, services
 from . import fam_cut, fam_embed, fam_fits, fam_frame, fam_make, fam_mass, fam_mill, fam_printer, fam_slicing, fam_thread, maps, printability, printed
 
 AGENTLINK_API = ">=1,<2"
@@ -24,6 +24,9 @@ def _register():
     from agentlink import hooks, render
 
     hooks.provide("print_pauses", fam_embed.pauses_for)
+    # Make owns mass and materials: Agent Link's measure_mass and
+    # material_set defer to these (services.py, names stable).
+    services.provide(hooks)
     # One list of wall readers: whatever add-on reads walls better is asked
     # by the printability check here.
     printability.WALL_READERS = hooks.readers("wall")
