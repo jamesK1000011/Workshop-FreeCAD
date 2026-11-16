@@ -33,6 +33,7 @@ def _register():
     hooks.provide("checkpoints", checkpoints.Service)
     hooks.provide("reopen", recovery.Reopen)
     hooks.on("after_change", autosave.after_change)
+    hooks.on("after_change", recovery.note_change)
     hooks.on("setting_changing", settings.changing)
     hooks.on("setting_changed", settings.changed)
     hooks.on("reply_written", _reply_written)

@@ -22,6 +22,20 @@ Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
 
 ### Fixed
 
+- SafetyNet: every document came back as a "(recovered …)" copy after a
+  watchdog restart. `app_recover auto` no longer recovers a person's saved
+  file that was unchanged at the stop: it opens again from its own file as
+  itself, once (left alone when Agent Link's restart already opened it),
+  named in `reopened`; a copy is used only when one newer than the file
+  holds more or the file will not open. Opening a recovered copy (its
+  relabel, recompute and record), renaming one in `tidy`, and `accept`
+  (now labelled before it saves) mark the document unchanged
+  (`purgeTouched`, and the window's modified mark), so a copy is not read
+  as changed and recovered again as a copy of a copy. hidden.json's
+  `modified` headless now comes from the changes calls made since the file
+  was written (after_change), not `isTouched`, which FreeCAD 1.1 reports
+  true right after opening.
+
 - `drawing_make`: the check that TechDraw's SVG export holds the views'
   lines no longer refuses one that does. TechDraw writes a view's lines of
   one style as a few paths of many subpaths each, so counting elements (72
