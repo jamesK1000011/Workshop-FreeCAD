@@ -25,6 +25,11 @@ The first tagged release, 0.3.0 (the version in `package.xml`), is being prepare
 
 ### Changed
 
+- Cut Export lays the sheet parts out with FreeCAD's BIM Nest
+  (ArchNesting, as BIM_Nest does; no turns, the gap as its margin) when a
+  sheet size is given and BIM is here; Make keeps the kerf, least feature by
+  material, cut check and its DXF/SVG flat profiles. Otherwise the rows as
+  before, and `layout` says which and why (`nest: false` for rows).
 - Mill Export builds on FreeCAD's CAM: the CAM Job holding the part is
   reused, else a Job is made with the stock and least tool used, and the
   setup sheet is CAM's own Sanity report (HTML) with only Make's mill check

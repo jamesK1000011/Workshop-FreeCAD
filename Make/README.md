@@ -66,7 +66,8 @@ toolbars and its **Make** menu have:
 - **Hardware**: **Embed Hardware** (a pocket for a part dropped in mid-print),
   **Pauses** (every pause the print needs), **Thread Lookup** (FreeCAD's
   own thread tables, with insert holes and Unified pitches Make adds).
-- **Output**: **Slice**, **Cut Export** (DXF and SVG laid out on the sheet),
+- **Output**: **Slice**, **Cut Export** (DXF and SVG laid out on the sheet by FreeCAD's BIM Nest
+  where BIM is installed, else in rows),
   **Mill Export** (STEP, and the setup sheet from FreeCAD CAM's Job and its
   Sanity report, with Make's mill check added).
 - **Printer**: **Printer Status**, **Send to Printer** (uploads; it does not
@@ -147,7 +148,7 @@ is generated from the tool definitions (`workshop_make/data/tools.json`) by
 | `printer_pause` | printer | Pause the printer's job. |
 | `printer_stop` | printer | Stop the printer's job. |
 | `cut_check` | cut | Can a body in a cut setup be cut from sheet. |
-| `cut_export` | cut | The flat profiles of one or more sheet bodies laid out in rows on the sheet, as DXF and SVG in mm, read back … |
+| `cut_export` | cut | The flat profiles of one or more sheet bodies laid out on the sheet by FreeCAD's BIM Nest where BIM is here … |
 | `mill_check` | mill | Can a body in a mill setup be milled. |
 | `mill_export` | mill | STEP of a milled body and its setup sheet by FreeCAD's CAM. |
 | `fea_frame` | strength | A frame of straight members by beam elements. |

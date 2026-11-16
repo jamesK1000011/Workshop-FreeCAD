@@ -1039,7 +1039,7 @@
   },
   "cut_export": {
    "group": "cut",
-   "description": "The flat profiles of one or more sheet bodies (bodies, copies n or { body: n }) laid out in rows on the sheet [w,h] (a gap between, 3 mm or two kerfs by default), as DXF (R12: LINE, ARC, CIRCLE, POLYLINE; layers OUTER and HOLES) and SVG in mm, read back and counted. compensate: true offsets each profile by half the kerf (outside out, holes in) — leave it off when the cutter's software does that. One thickness per file.",
+   "description": "The flat profiles of one or more sheet bodies (bodies, copies n or { body: n }) laid out on the sheet [w,h] by FreeCAD's BIM Nest (no turns; the gap its margin) where BIM is here, else in rows (layout says which; nest: false for rows) (a gap between, 3 mm or two kerfs by default), as DXF (R12: LINE, ARC, CIRCLE, POLYLINE; layers OUTER and HOLES) and SVG in mm, read back and counted. compensate: true offsets each profile by half the kerf (outside out, holes in) — leave it off when the cutter's software does that. One thickness per file.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -1084,6 +1084,10 @@
      },
      "name": {
       "type": "string"
+     },
+     "nest": {
+      "type": "boolean",
+      "description": "Lay the parts out with FreeCAD's BIM Nest when a sheet is given (true by default)."
      }
     },
     "required": [],
