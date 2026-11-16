@@ -22,5 +22,41 @@ INFO = "Sharing: library packs of bodies as STEP and STL with a README, a licenc
 handlers.lend(H, ToolError=ToolError)
 
 
+# With ScanRuler-FreeCAD installed (it offers the library_pack service),
+# its pack_setup, pack_plan and pack_write are the agent's library-pack
+# tools: Documents' library_pack is left off the tool list then, still
+# callable by name and still routed to the service (handlers/share.py), and
+# the Library Pack command keeps working through it. Alone, it is listed.
+SERVICE_TOOL = "library_pack"
+INSTEAD = "pack_write"
+
+
+def unlist_when_offered(tool, offered=None):
+    """tool left off Agent Link's list while the library_pack service is
+    offered: its alias_of (what Agent Link's listing reads to keep a name
+    callable but unlisted) names ScanRuler's pack_write then, else None.
+    Asked at each listing, so the order the add-ons load in does not
+    matter."""
+    offered = offered or (lambda: H.service() is not None)
+    base = type(tool)
+
+    class Deferring(base):
+        @property
+        def alias_of(self):
+            return self.__dict__.get("_alias_of") or (INSTEAD if offered() else None)
+
+        @alias_of.setter
+        def alias_of(self, v):
+            self.__dict__["_alias_of"] = v
+
+    Deferring.__name__ = base.__name__
+    tool.__class__ = Deferring
+    return tool
+
+
 def tools(session):
-    return tooldefs.build(DATA, GROUP, handlers.bound(session, H.HANDLERS), "Documents")
+    out = tooldefs.build(DATA, GROUP, handlers.bound(session, H.HANDLERS), "Documents")
+    for t in out:
+        if t.name == SERVICE_TOOL:
+            unlist_when_offered(t)
+    return out

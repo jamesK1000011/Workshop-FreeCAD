@@ -50,5 +50,40 @@ OUT["none"] = S.library_pack(None, {"license": "CC0-1.0"})
         self.assertEqual(out["none"], {"pack": "/o/own.zip", "by": "Workshop Documents"})
 
 
+    def test_documents_tool_unlisted_while_the_service_is_offered(self):
+        out = run(SETUP + r'''
+class Tool:
+    def __init__(self, name, fn):
+        self.name, self.fn, self.group = name, fn, "share"
+calls = []
+hooks.tools_from_data = lambda folder, group, handlers, who: [Tool(n, f) for n, f in handlers.items()]
+proto = types.ModuleType("agentlink.protocol")
+class ToolError(Exception):
+    def __init__(self, code, message):
+        super().__init__(message); self.code, self.message = code, message
+proto.ToolError = ToolError
+al.protocol = proto
+sys.modules["agentlink.protocol"] = proto
+from workshop_documents import fam_share as F
+ts = F.tools(types.SimpleNamespace())
+lp = next(t for t in ts if t.name == "library_pack")
+listed = lambda: [t.name for t in ts if not getattr(t, "alias_of", None)]  # Agent Link's Server.listed
+OUT["offered"] = listed()
+OUT["alias"] = lp.alias_of
+OUT["called"] = lp.fn({"license": "CC0-1.0"})  # still callable by name, routed to the service
+svc["v"] = None
+OUT["alone"] = listed()
+lp.alias_of = "kept"  # Agent Link may still set an alias of its own
+OUT["set"] = lp.alias_of
+OUT["cls"] = type(lp).__name__
+''')
+        self.assertEqual(out["offered"], [])
+        self.assertEqual(out["alias"], "pack_write")
+        self.assertEqual(out["called"]["by"], "ScanRuler-FreeCAD")
+        self.assertEqual(out["alone"], ["library_pack"])
+        self.assertEqual(out["set"], "kept")
+        self.assertEqual(out["cls"], "Tool")
+
+
 if __name__ == "__main__":
     unittest.main()

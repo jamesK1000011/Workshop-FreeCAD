@@ -10,6 +10,11 @@ The first tagged release, 0.2.0 (the version in `package.xml`), is being prepare
 
 ### Added
 
+- With ScanRuler-FreeCAD installed (it offers the `library_pack` service),
+  Documents' `library_pack` agent tool is left off Agent Link's tool list,
+  so the agent sees ScanRuler's `pack_setup`, `pack_plan` and `pack_write`
+  only; it stays callable by name and routed to the service, and the
+  Library Pack command keeps working through it. Alone, it is listed.
 - Library Pack asks for a `library_pack` hook service first (ScanRuler-FreeCAD's pack when it offers one) and falls back to Documents' own pack; the answer's `by` says which made it, and `provider: documents` forces Documents' own.
 - Workshop Documents, from Agent Link for FreeCAD: `drawing_make`,
   `drawing_exploded`, `patent_figures`, `patent_draft` and
