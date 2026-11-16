@@ -66,6 +66,7 @@ tests/electronics/test_icons.py
 tests/electronics/test_taskpanels.py
 tests/fasteners/_fwb.py
 tests/fasteners/test_bridge.py
+tests/fasteners/test_keep.py
 tests/fasteners/test_stem_findings.py
 tests/make/_fc.py
 tests/make/_stubs.py
@@ -209,6 +210,7 @@ workshop_fasteners/families.py
 workshop_fasteners/fs.py
 workshop_fasteners/guides/fasteners.md
 workshop_fasteners/handlers.py
+workshop_fasteners/keep.py
 workshop_make/__init__.py
 workshop_make/api.py
 workshop_make/bimnest.py
