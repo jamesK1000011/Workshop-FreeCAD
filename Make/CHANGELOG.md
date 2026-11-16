@@ -25,6 +25,11 @@ The first tagged release, 0.3.0 (the version in `package.xml`), is being prepare
 
 ### Changed
 
+- The Report view says each command's result in a sentence with units
+  ("Workshop: M3 clearance hole in Body, through 20 mm (FreeCAD Hole,
+  editable in Part Design). Printer calibration: none, so 0.2 mm added."),
+  not the tool's fields; those stay in the tool's answer for agents
+  (hw_hole's adds allowance, depth and through).
 - Hole for Hardware builds FreeCAD's own PartDesign Hole in a Body, on the
   face or sketch picked (ISO 273 clearance by fit, the screw standard's
   counterbore or countersink, sizes from FreeCAD's tables; editable in its

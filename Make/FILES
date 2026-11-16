@@ -31,6 +31,7 @@ tests/test_printed.py
 tests/test_printer.py
 tests/test_printmass.py
 tests/test_release.py
+tests/test_report_line.py
 tests/test_slice.py
 tests/test_thread.py
 tests/test_threemf.py

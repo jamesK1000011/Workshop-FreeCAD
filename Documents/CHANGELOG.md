@@ -28,6 +28,9 @@ The first tagged release, 0.2.0 (the version in `package.xml`), is being prepare
 
 ### Changed
 
+- The Report view says each command's result in a sentence (the drawing's
+  paper, scale, TechDraw page and files; the manual's steps; the pack's
+  size), not the tool's fields.
 - Drawing… makes a normal TechDraw page: TechDraw's own template (its
   preference, else ISO 7200) with the title block filled, its views,
   section and dimensions, all editable in TechDraw. The SVG, PDF and DXF

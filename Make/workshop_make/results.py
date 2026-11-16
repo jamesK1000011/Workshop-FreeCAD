@@ -108,6 +108,10 @@ def figures_line(fig):
     return "  ·  ".join(bits)
 
 
+def _count(n, word):
+    return f"no {word}s" if not n else f"{n} {word}" + ("" if n == 1 else "s")
+
+
 # Mass is shown to one decimal everywhere (Part Review and Mass Properties
 # agree): a tenth of a gram is past what a printer or scale holds to.
 def _mass(v):
@@ -140,7 +144,7 @@ def dfm(out):
     waived = len(out.get("findings") or []) - len(open_)
     if waived:
         lines.append(f"Waived: {waived}")
-    line = f"DFM Check · {verdict} {len(errors)} problems, {len(warns)} warnings."
+    line = f"{verdict} DFM check: {_count(len(errors), 'problem')}, {_count(len(warns), 'warning')}."
     return verdict, "\n".join(lines), line
 
 
@@ -168,7 +172,7 @@ def review(out):
             lines.append(f"{SEVERITY.get(f.get('severity'), 'Note')}: {f.get('says', '')}")
     for u in out.get("unjudged") or []:
         lines.append(f"Not judged: {u.split(':', 1)[-1].strip()}")
-    line = f"Part Review · {verdict} {len(finds)} findings."
+    line = f"{verdict} Part review: {_count(len(finds), 'finding')}."
     return verdict, "\n".join(lines), line
 
 
@@ -193,31 +197,171 @@ def mass(out):
             lines.append(f"Encased: {e.get('count')} × {e.get('what')}, {_mass(e.get('mass'))}")
     if out.get("printedNote"):
         lines += ["", out["printedNote"]]
-    line = "Mass Properties · " + "; ".join(f"{b.get('body')} {_mass(b.get('mass'))}" for b in bodies) + "."
+    line = verdict if len(bodies) == 1 else verdict[:-1] + ": " + "; ".join(f"{b.get('body')} {_mass(b.get('mass'))}" for b in bodies) + "."
     return verdict, "\n".join(lines), line
 
 
 SHOWN = {"dfm_check": dfm, "part_review": review, "mass_properties": mass}
 
 
-def _short(v):
-    if isinstance(v, (str, int, float, bool)):
-        return str(v)
-    if isinstance(v, list) and all(isinstance(x, (str, int, float)) for x in v):
-        return ", ".join(str(x) for x in v)
-    if isinstance(v, (list, tuple)):
-        return f"{len(v)} item" + ("" if len(v) == 1 else "s")
-    return None
+# ---- the Report view: one sentence a person reads, units with every figure;
+# the machine fields stay in the tool's answer for agents ----
+
+HOLE_KIND = {"clearance": "clearance hole", "counterbore": "counterbored hole", "countersink": "countersunk hole",
+             "nut_trap": "hole with a nut trap", "insert": "heat-set insert pocket", "magnet": "magnet pocket"}
 
 
-def line(title, out):
-    """One Report-view line for any other answer: its plain figures, a count
-    for anything nested, never a raw dict."""
-    bits = []
-    for k, v in out.items():
-        if k in ("step", "note", "next") or isinstance(v, dict):
-            continue
-        s = _short(v)
-        if s:
-            bits.append(f"{k} {s}")
-    return f"{title} · " + ("; ".join(bits)[:300] if bits else "done") + "."
+def _names(xs):
+    xs = [str(x) for x in xs or []]
+    return xs[0] if len(xs) == 1 else (", ".join(xs[:-1]) + " and " + xs[-1] if xs else "")
+
+
+def _file(p):
+    import os
+
+    return os.path.basename(str(p))
+
+
+def calibration_clause(said, allowance=None):
+    """"Printer calibration: …" as a sentence: none kept, so what was added."""
+    s = str(said or "")
+    add = f"{_g(allowance)} mm added" if isinstance(allowance, (int, float)) else None
+    if s.startswith("none"):
+        return f"Printer calibration: none, so {add or 'the typical 0.2 mm added'}."
+    kept = "the one kept with this document" if s == "calibrated" else s
+    return f"Printer calibration: {kept}" + (f", {add}." if add else ".")
+
+
+def _hole(out):
+    size = str(out.get("size", ""))
+    kind = out.get("kind")
+    what = HOLE_KIND.get(kind, "hole")
+    if kind == "magnet":
+        size = size.replace("x", " × ") + " mm"
+    depth = out.get("depth")
+    if depth == "through":
+        how = f", through {_g(out['through'], 'mm')}" if out.get("through") else ", through"
+    elif isinstance(depth, (int, float)) or str(depth).replace(".", "", 1).isdigit():
+        how = f", {_g(float(depth), 'mm')} deep"
+    else:
+        how = ""
+    route = ("FreeCAD Hole, editable in Part Design" if out.get("route") == "PartDesign Hole"
+             else "cut as a shape: a plain Part solid, not in a Part Design Body")
+    s = f"{size} {what} in {out.get('body')}{how} ({route})."
+    s += " " + calibration_clause(out.get("printerFit"), out.get("allowance"))
+    if out.get("sound") is False:
+        s += " The part is no longer sound: check it with DFM Check."
+    return s
+
+
+def _fit(out):
+    if "calibration" in out:
+        c = out["calibration"]
+        return f"Printer calibration kept: holes print {_g(c.get('hole'), 'mm')} small, pegs {_g(c.get('shaft'), 'mm')} big."
+    of = "hole" if out.get("of") == "hole" else "peg"
+    sizes = "; ".join(f"{k} {_g(v, 'mm')}" for k, v in (out.get("model") or {}).items())
+    return f"For a {_g(out.get('nominal'), 'mm')} part, model the {of} at: {sizes}. " + calibration_clause(out.get("printerFit"))
+
+
+def _setup(out):
+    if "added" in out:
+        a = out["added"] or {}
+        return f"Setup {a.get('name')} made" + (f" with {_names(a.get('bodies'))}." if a.get("bodies") else ".")
+    if "setup" in out and isinstance(out["setup"], dict):
+        a = out["setup"]
+        return f"Setup {a.get('name')} now has {_names(a.get('bodies')) or 'no parts'}."
+    if "removed" in out:
+        return f"Setup {out['removed']} removed; its parts have no process now."
+    return "Setups read."
+
+
+def _embed(out):
+    p, pause = out.get("pocket") or {}, out.get("pause") or {}
+    s = f"Pocket for {out.get('what')} in {out.get('body')}, {_g(p.get('depth'), 'mm')} deep; the print pauses after layer {pause.get('afterLayer')} (Z {_g(pause.get('z'), 'mm')}) to put it in."
+    if out.get("warning"):
+        s += " " + out["warning"].split(" — ")[0] + "."
+    return s
+
+
+def _pauses(out):
+    ps = out.get("pauses") or []
+    if not ps:
+        return f"{out.get('body')} needs no pause: nothing is encased in it."
+    each = "; ".join(f"after layer {p.get('layer')} (Z {_g(p.get('z'), 'mm')})" + (f": {p.get('note')}" if p.get("note") else "") for p in ps)
+    return f"{out.get('body')} needs {len(ps)} pause{'s' if len(ps) > 1 else ''}: {each}."
+
+
+def _thread(out):
+    t = out.get("thread")
+    if t:
+        bits = [f"major {_g(t.get('major'), 'mm')}"]
+        if t.get("pitch") is not None:
+            bits.append(f"pitch {_g(t.get('pitch'), 'mm', 3)}" + (f" ({t['tpi']} TPI)" if t.get("tpi") else ""))
+        bits.append(f"tap drill {_g(t.get('tapDrill'), 'mm')}" + (f" ({t['tapDrillName']})" if t.get("tapDrillName") else ""))
+        if t.get("insert"):
+            bits.append(f"heat-set insert hole {_g(t['insert'].get('hole'), 'mm')}")
+        return f"{t.get('size')}: " + ", ".join(bits) + " (FreeCAD's thread tables)."
+    return f"{len(out.get('threads') or [])} thread sizes listed (FreeCAD's thread tables)."
+
+
+def _slice(out):
+    s = f"{out.get('body')} sliced with {out.get('slicer') or out.get('exe') or 'the slicer'}: {_file(out.get('gcode'))}"
+    if out.get("pauses"):
+        s += f", {len(out['pauses'])} pause{'s' if len(out['pauses']) > 1 else ''} written in"
+    return s + ". Starting the print is up to you."
+
+
+def _cut(out):
+    sh = out.get("sheet") or []
+    placed = out.get("placed") or []
+    s = f"Cut files for {len(placed)} part{'s' if len(placed) != 1 else ''}"
+    if len(sh) == 2:
+        s += f" on a {_g(sh[0])} × {_g(sh[1])} mm sheet"
+    files = out.get("files") or {}
+    names = [_file(v) for v in (files.values() if isinstance(files, dict) else files)]
+    s += (": " + ", ".join(names) if names else "") + "."
+    if out.get("left"):
+        s += f" {_names(out['left'].get('bodies'))} did not fit on the sheet."
+    return s
+
+
+def _mill(out):
+    st, sheet = out.get("step") or {}, out.get("setupSheet") or {}
+    n = out.get("findings") or 0
+    return (f"{out.get('body')} for milling: {_file(st.get('path'))} and the setup sheet {_file(sheet.get('path'))}; "
+            f"the mill check {VERDICT.get(out.get('verdict'), 'ran')}" + (f" with {n} finding{'s' if n != 1 else ''}." if n else "."))
+
+
+def _printer_status(out):
+    job = out.get("job") or {}
+    s = f"{out.get('printer')} is {str(out.get('state') or 'not saying its state').lower()}"
+    if job.get("file"):
+        s += f", printing {job['file']}" + (f" ({_g(job.get('progress'))} % done)" if job.get("progress") is not None else "")
+    return s + "."
+
+
+def _printer_send(out):
+    return f"{_file(out.get('uploaded'))} uploaded to {out.get('printer')}" + (", and started." if out.get("started") else "; not started (starting it is up to you).")
+
+
+SENTENCES = {"hw_hole": _hole, "fit": _fit, "setup": _setup, "hw_embed": _embed, "hw_pauses": _pauses, "thread_lookup": _thread,
+             "slice": _slice, "slice_with": _slice, "cut_export": _cut, "mill_export": _mill, "printer_status": _printer_status,
+             "printer_send": _printer_send}
+
+
+def sentence(tool, title, out):
+    """The Report view's line for a tool's answer: "Workshop: " and a
+    sentence with units. A tool with no sentence of its own says it is
+    done, never its raw fields."""
+    fn = SENTENCES.get(tool)
+    if fn is not None:
+        try:
+            return "Workshop: " + fn(out)
+        except Exception:  # noqa: BLE001 — an answer of another shape
+            pass
+    if tool in SHOWN:
+        try:
+            return "Workshop: " + SHOWN[tool](out)[2]
+        except Exception:  # noqa: BLE001
+            pass
+    return f"Workshop: {title} done."
