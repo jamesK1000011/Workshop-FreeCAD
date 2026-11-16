@@ -17,6 +17,7 @@ import Part
 
 from workshop_make import records as store
 
+from .. import bimnest
 from .. import sheetfile as sf
 
 
@@ -382,10 +383,33 @@ def cut_export(s, a):
         n = int(copies.get(o.Label, 1)) if isinstance(copies, dict) else int(copies)
         if n < 1 or n > 500:
             raise ToolError("invalid_input", "copies: 1 to 500 (a number, or { body: n }).")
+        try:
+            face = Part.Face(Part.Wire(outer.Edges)) if not holes else Part.Face([Part.Wire(w.Edges) for w in [outer] + holes])
+            face.translate(V(0, 0, -face.BoundBox.ZMin))  # on the sheet's plane
+        except Exception:  # noqa: BLE001 — no face for BIM Nest: the rows take it
+            face = None
         for _ in range(n):
-            parts.append((o.Label, prims, bb))
+            parts.append((o.Label, prims, bb, face))
     sw, sh = (float(sheet[0]), float(sheet[1])) if sheet else (None, None)
-    at = sf.shelf([(bb[2] - bb[0], bb[3] - bb[1]) for _, _, bb in parts], sw, sh, gap)
+    # Laid out by FreeCAD's BIM Nest where it is here and there is a sheet
+    # to nest in; else in rows, and the answer says which.
+    at, layout = None, None
+    if not a.get("nest", True):
+        layout = "rows (nest: false)"
+    elif not sheet:
+        layout = "rows: give sheet [w, h] for BIM Nest to nest in"
+    elif any(p[3] is None for p in parts):
+        layout = "rows: a profile could not be made a face for BIM Nest"
+    else:
+        moves, why = bimnest.nest([p[3] for p in parts], sw, sh, gap)
+        if moves is None:
+            layout = f"rows: {why}"
+        else:
+            at = [None if m is None else (bb[0] + m[0], bb[1] + m[1]) for (_, _, bb, _), m in zip(parts, moves)]
+            layout = "FreeCAD's BIM Nest"
+    if at is None:
+        at = sf.shelf([(bb[2] - bb[0], bb[3] - bb[1]) for _, _, bb, _ in parts], sw, sh, gap)
+    parts = [p[:3] for p in parts]
     items, placed, left = [], {}, {}
     for (label, prims, bb), pos in zip(parts, at):
         if pos is None:
@@ -426,7 +450,8 @@ def cut_export(s, a):
         with open(p, encoding="utf-8") as fh:
             back = sf.read_svg(fh.read())
         wrote["svg"] = {"path": p, "bytes": os.path.getsize(p), "readBack": {k: v for k, v in back.items() if v}}
-    out = {"files": wrote, "placed": placed, "sheet": [round(W, 2), round(H, 2)], "thickness": thick, "kerf": kerf, "compensated": comp, "gap": gap, "entities": want}
+    out = {"files": wrote, "placed": placed, "sheet": [round(W, 2), round(H, 2)], "thickness": thick, "kerf": kerf, "compensated": comp, "gap": gap, "entities": want,
+           "layout": layout}
     if left:
         out["left"] = {"bodies": left, "why": "no room on the sheet: a bigger sheet, fewer copies, or another sheet"}
     out["note"] = ("Profiles offset out by half the kerf (holes in): cut on the line." if comp else "Profiles as modelled: let the cutter's software take off the kerf.") + " Layers OUTER and HOLES; cut holes first."

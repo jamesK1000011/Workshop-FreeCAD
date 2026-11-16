@@ -13,6 +13,7 @@ tests/_fc.py
 tests/_stubs.py
 tests/_threadtable.py
 tests/test_api.py
+tests/test_bimnest.py
 tests/test_camjob.py
 tests/test_checkgeometry.py
 tests/test_cut.py
@@ -43,6 +44,7 @@ tools/gen_readme_tools.py
 workshop_make/__init__.py
 workshop_make/agentlink_families.py
 workshop_make/api.py
+workshop_make/bimnest.py
 workshop_make/camjob.py
 workshop_make/ccx.py
 workshop_make/commands.py

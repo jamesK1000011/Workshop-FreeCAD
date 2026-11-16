@@ -320,6 +320,8 @@ def _cut(out):
     files = out.get("files") or {}
     names = [_file(v) for v in (files.values() if isinstance(files, dict) else files)]
     s += (": " + ", ".join(names) if names else "") + "."
+    if out.get("layout"):
+        s += " Nested by FreeCAD's BIM Nest." if str(out["layout"]).startswith("FreeCAD") else " Laid out in rows."
     if out.get("left"):
         s += f" {_names(out['left'].get('bodies'))} did not fit on the sheet."
     return s
