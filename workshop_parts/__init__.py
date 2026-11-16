@@ -8,4 +8,4 @@ and baseplates, project boxes with lids, enclosures round a board.
 Every function takes and gives plain values in millimetres; a value out of
 range is refused (workshop_parts.refusal.Refused) with its range."""
 
-VERSION = "0.2.0"
+VERSION = "0.4.0"
