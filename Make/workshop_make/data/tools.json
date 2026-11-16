@@ -1147,7 +1147,7 @@
   },
   "mill_export": {
    "group": "mill",
-   "description": "STEP of a milled body (read back) and a setup sheet in Markdown beside it: stock, directions, tools, the check's findings and what was assumed. Takes mill_check's inputs.",
+   "description": "STEP of a milled body (read back) and its setup sheet by FreeCAD's CAM: the CAM Job that holds the body is reused as it is, else a new Job is made with the stock and least tool used here (cam: false skips CAM), and CAM's own Sanity report is the setup sheet (HTML), with Make's mill check added (verdict, findings, least wall, what was assumed, the stock material where CAM names none). Without CAM, Make's own Markdown sheet, and camNote says why. Takes mill_check's inputs.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -1191,12 +1191,16 @@
      },
      "name": {
       "type": "string"
+     },
+     "cam": {
+      "type": "boolean",
+      "description": "Use FreeCAD's CAM for the Job and setup sheet (true by default)."
      }
     },
     "required": [],
     "additionalProperties": false
    },
-   "changes": false,
+   "changes": true,
    "source": "Agent Link for FreeCAD 5b1bbde (moved to Workshop Make)",
    "date": "2026-11-14",
    "writes": true

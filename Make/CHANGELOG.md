@@ -25,6 +25,14 @@ The first tagged release, 0.3.0 (the version in `package.xml`), is being prepare
 
 ### Changed
 
+- Mill Export builds on FreeCAD's CAM: the CAM Job holding the part is
+  reused, else a Job is made with the stock and least tool used, and the
+  setup sheet is CAM's own Sanity report (HTML) with only Make's mill check
+  added (verdict, reach and undercut, thin wall and deep pocket findings,
+  least wall, assumptions, the stock material where CAM names none). The
+  STEP stays. Without CAM, Make's own sheet and `camNote` says why
+  (`cam: false` skips CAM). mill_export now counts as a change (it adds a
+  Job).
 - Part Review and DFM Check judge soundness with FreeCAD's own Check
   Geometry (Shape.check, as Part_CheckGeometry runs it, with its BOP-check
   preference) instead of Make's own validity test; Make keeps only what a

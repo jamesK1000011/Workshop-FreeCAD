@@ -13,7 +13,7 @@ import os
 import FreeCAD
 import Part
 
-from workshop_make import geo
+from workshop_make import camjob, geo
 from workshop_make import records as store
 
 
@@ -296,12 +296,45 @@ def mill_check(s, a):
 
 
 def mill_export(s, a):
+    """The STEP, and the setup sheet by FreeCAD's CAM: the part's CAM Job
+    (reused, else made with the mill setup's stock and least tool) and CAM's
+    own Sanity report, Make's mill check added to it. Without CAM, Make's
+    own sheet, and the answer says so."""
     o, setup, r = run_check(s, a)
     base = os.path.join(s.out_dir, a.get("name") or o.Label.replace(" ", "_") + "-mill")
     os.makedirs(os.path.dirname(base) or ".", exist_ok=True)
     step = base + ".step"
     o.Shape.exportStep(step)
     back = Part.read(step)
+    out = {"body": o.Label, "verdict": r["verdict"],
+           "step": {"path": step, "bytes": os.path.getsize(step), "volumeDiff": round(abs(back.Volume - o.Shape.Volume), 3), "solids": len(back.Solids)},
+           "findings": len(r["findings"])}
+    if a.get("cam", True):
+        job, why = camjob.find_job(s.doc, o), None
+        reused = job is not None
+        if job is None:
+            job, why = camjob.make_job(s.doc, o, r["stock"], r["tool"], f"{o.Label} mill")
+        if job is not None:
+            sheet = base + "-setup.html"
+            rep, why = camjob.sanity_report(job, sheet)
+            if rep is not None:
+                with open(sheet, "w", encoding="utf-8") as f:
+                    f.write(camjob.extras(rep, r, r["material"], os.path.basename(step)))
+                out.update({"setupSheet": {"path": sheet, "bytes": os.path.getsize(sheet), "by": "FreeCAD CAM's Sanity report, Make's mill check added"},
+                            "camJob": {"label": job.Label, "reused": reused}})
+                if not reused:
+                    out["camJob"]["note"] = "A new CAM Job with the stock and least tool used here; add its operations in CAM."
+                s.snapshot("mill_export")
+                return out
+            out["camJob"] = {"label": job.Label, "reused": reused}
+        out["camNote"] = f"{why}: the setup sheet is Make's own."
+    sheet = _own_sheet(o, setup, r, base, step)
+    out["setupSheet"] = {"path": sheet, "bytes": os.path.getsize(sheet), "by": "Workshop Make (FreeCAD's CAM not used)"}
+    return out
+
+
+def _own_sheet(o, setup, r, base, step):
+    """Make's own setup sheet, where FreeCAD's CAM cannot write one."""
     bb = o.Shape.BoundBox
     lines = [
         f"# Setup sheet: {o.Label}",
@@ -328,12 +361,7 @@ def mill_export(s, a):
     sheet = base + "-setup.md"
     with open(sheet, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
-    return {
-        "body": o.Label, "verdict": r["verdict"],
-        "step": {"path": step, "bytes": os.path.getsize(step), "volumeDiff": round(abs(back.Volume - o.Shape.Volume), 3), "solids": len(back.Solids)},
-        "setupSheet": {"path": sheet, "bytes": os.path.getsize(sheet)},
-        "findings": len(r["findings"]),
-    }
+    return sheet
 
 
 HANDLERS = {
