@@ -108,7 +108,9 @@ class Sheet:
             fill = ' fill="black"' if filled else ""
             out.append(f'<path d="{d}" stroke-width="{WEIGHT.get(kind, 0.25):g}"{extra}{fill}/>')
         out.append("</g>")
-        out.append('<g font-family="Helvetica, Arial, sans-serif" fill="black" stroke="none">')
+        # One family that exists on macOS: Qt's SVG renderer (TechDraw) warns of a
+        # missing "Sans-serif" for the generic name in the Report view.
+        out.append('<g font-family="Helvetica" fill="black" stroke="none">')
         for x, y, size, text, anchor in self.texts:
             if anchor == "vertical":
                 out.append(f'<text x="{x:.3f}" y="{y:.3f}" font-size="{size:g}" text-anchor="middle" transform="rotate(-90 {x:.3f} {y:.3f})">{_esc(text)}</text>')

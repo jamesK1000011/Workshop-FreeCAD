@@ -34,6 +34,7 @@ The first tagged release, 0.2.0 (the version in `package.xml`), is being prepare
 
 ### Changed
 
+- Drawing sheets name the Helvetica font only, so Qt no longer warns of a missing "Sans-serif" in the Report view (Agent Link's copy of sheets.py already does).
 - Exploded Drawing builds on FreeCAD 1.x Assembly where the parts are in
   one: the manual's moves become the Assembly's own Exploded View
   (Assembly_CreateView's Exploded View and Move objects), editable there,
