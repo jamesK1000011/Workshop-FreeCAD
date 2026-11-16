@@ -58,17 +58,24 @@ d = tempfile.mkdtemp()
 def write(page, p): open(p, "w").write("0\nSECTION\n")
 D.TechDraw.writeDXFPage = write
 gui = types.ModuleType("TechDrawGui")
+# As 1.1.3: the template is in the export only once the page was shown.
 gui.exportPageAsPdf = lambda page, p: open(p, "w").write("%PDF")
-gui.exportPageAsSvg = lambda page, p: open(p, "w").write("<svg/>")
+gui.exportPageAsSvg = lambda page, p: open(p, "w").write("<svg><text>StemV2</text></svg>" if page.shown else "<svg/>")
 sys.modules["TechDrawGui"] = gui
 D._wait_views = lambda vs: None
-page = types.SimpleNamespace(Views=[])
+page = types.SimpleNamespace(Views=[], shown=False, Template=types.SimpleNamespace(EditableTexts={"title": "StemV2", "scale": "1:1"}))
+page.ViewObject = types.SimpleNamespace(show=lambda: setattr(page, "shown", True))
 D.FreeCAD.GuiUp = False
 paths, why = D._export_page(page, d, "Box")
 OUT["headless"] = [sorted(os.path.basename(p) for p in paths.values()), sorted(why)]
 D.FreeCAD.GuiUp = True
 paths, why = D._export_page(page, d, "Box")
 OUT["gui"] = [sorted(os.path.basename(p) for p in paths.values()), why]
+page.ViewObject = types.SimpleNamespace(show=lambda: None)  # a TechDraw that still leaves it out
+page.shown = False
+paths, why = D._export_page(page, d, "Box3")
+OUT["no_template"] = [sorted(paths), why]
+page.ViewObject = types.SimpleNamespace(show=lambda: setattr(page, "shown", True))
 def broken(page, p): raise RuntimeError("no views")
 D.TechDraw.writeDXFPage = broken
 paths, why = D._export_page(page, d, "Box2")
@@ -76,6 +83,11 @@ OUT["broken"] = [sorted(paths), why.get("dxf", "")]
 ''')
         self.assertEqual(out["headless"], [["Box.dxf"], ["pdf", "svg"]])
         self.assertEqual(out["gui"], [["Box.dxf", "Box.pdf", "Box.svg"], {}])
+        # No frame or title block in TechDraw's export: neither SVG nor PDF
+        # kept (the sheet writer's, with its frame, are written instead).
+        self.assertEqual(out["no_template"][0], ["dxf"])
+        self.assertIn("template", out["no_template"][1]["svg"])
+        self.assertIn("template", out["no_template"][1]["pdf"])
         self.assertEqual(out["broken"][0], ["pdf", "svg"])
         self.assertIn("no views", out["broken"][1])
 
