@@ -12,6 +12,7 @@ from agentlink.protocol import ToolError
 from . import tooldefs
 from . import handlers
 from .handlers import make as H
+from .words import words as WORDS  # the window's words with the answer's figure (Agent Link's echo)
 
 GROUP = "make"
 WORKBENCHES = {"setup": "WorkshopMakeWorkbench", "dfm_check": "PartDesignWorkbench", "part_review": "PartDesignWorkbench", "slice": "WorkshopMakeWorkbench"}  # where the buttons are: the checks in Part Design (Make Checks), setups and slicing in Make

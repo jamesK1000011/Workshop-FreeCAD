@@ -12,6 +12,7 @@ from agentlink.protocol import ToolError
 from . import tooldefs
 from . import handlers
 from .handlers import mass as H
+from .words import words as WORDS  # the window's words with the answer's figure (Agent Link's echo)
 
 GROUP = "mass"
 WORKBENCHES = {"mass_properties": "PartDesignWorkbench"}  # where its button is (Make Checks, beside Check Geometry)

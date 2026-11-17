@@ -10,6 +10,7 @@ from agentlink.protocol import ToolError
 from . import tooldefs
 from . import handlers
 from .handlers import fits as H
+from .words import words as WORDS  # the window's words with the answer's figure (Agent Link's echo)
 
 GROUP = "fits"
 WORKBENCHES = {"fit": "WorkshopMakeWorkbench", "hw_hole": "PartDesignWorkbench"}  # where their buttons are (Hole for hardware after PartDesign_Hole)

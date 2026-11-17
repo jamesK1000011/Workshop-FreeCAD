@@ -117,6 +117,7 @@ tests/make/test_thread.py
 tests/make/test_threemf.py
 tests/make/test_tools.py
 tests/make/test_wall_readers.py
+tests/make/test_window_words.py
 tests/parts/test_api.py
 tests/parts/test_echo_words.py
 tests/parts/test_form.py
@@ -329,6 +330,7 @@ workshop_make/threads.py
 workshop_make/threemf.py
 workshop_make/tooldata.py
 workshop_make/tooldefs.py
+workshop_make/words.py
 workshop_make/workbench.py
 workshop_parts/__init__.py
 workshop_parts/api.py
