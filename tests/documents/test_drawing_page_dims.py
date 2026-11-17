@@ -217,5 +217,45 @@ OUT["missed"] = [m["item"] for m in missed]
         self.assertEqual(out["missed"], ["⌀9"])  # no circle of that size: still left off, said
 
 
+class PatentNumerals(unittest.TestCase):
+    """Found live (run 2, Documents model call 12): bodies ["Body"] drew the
+    body whose label is "Tut" (bodies takes an object's name), and numerals
+    { Body: 0 } was refused "Body is not among the bodies drawn — Tut" where
+    the number itself was what was wrong."""
+
+    CODE = r"""
+import types
+from workshop_documents.handlers import drawing as D
+objs = [types.SimpleNamespace(Label="Tut", Name="Body"), types.SimpleNamespace(Label="Base plate", Name="Box")]
+def tried(given):
+    try:
+        return D._numerals(objs, given)
+    except Exception as e:
+        return [getattr(e, "code", type(e).__name__), getattr(e, "message", str(e))]
+OUT["byName"] = tried({"Body": 30})
+OUT["byLabel"] = tried({"Tut": 30, "base plate": 12})
+OUT["none"] = tried({})
+OUT["zero"] = tried({"Body": 0})
+OUT["bool"] = tried({"Tut": True})
+OUT["unknown"] = tried({"Lid": 5})
+OUT["twice"] = tried({"Body": 5, "Tut": 6})
+OUT["same"] = tried({"Body": 5, "Box": 5})
+"""
+
+    def test_a_body_is_named_by_label_or_by_object_name(self):
+        out = run(self.CODE)
+        self.assertEqual(out["byName"], {"Tut": 30, "Base plate": 10})
+        self.assertEqual(out["byLabel"], {"Tut": 30, "Base plate": 12})
+        self.assertEqual(out["none"], {"Tut": 10, "Base plate": 20})
+        self.assertEqual(out["zero"][0], "invalid_input")
+        self.assertIn("numerals.Body: a whole number over 0", out["zero"][1])
+        self.assertEqual(out["bool"][0], "invalid_input")
+        self.assertEqual(out["unknown"][0], "not_found")
+        self.assertIn("Lid is not among the bodies drawn — Tut, Base plate", out["unknown"][1])
+        self.assertEqual(out["twice"][0], "invalid_input")
+        self.assertIn("the same body (Tut)", out["twice"][1])
+        self.assertEqual(out["same"][0], "invalid_input")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -24,6 +24,7 @@ from workshop_documents import geo
 from workshop_documents import iso286
 from workshop_documents import sheets
 from workshop_documents import records as store
+from workshop_documents.td_wait import settle_page as _settle_page
 from workshop_documents.td_wait import views_ready as _wait_views
 
 from .. import fcexplode, views
@@ -626,8 +627,22 @@ def template_in_svg(path, page):
         want = [str(v) for v in dict(page.Template.EditableTexts).values() if str(v).strip() and len(str(v)) > 2]
     except Exception:  # noqa: BLE001
         pass
-    want += ["tolerances", "Title", "Scale", "SCALE", "DRAWING"]
-    return any(w in text for w in want)
+    words = ["tolerances", "Title", "Scale", "SCALE", "DRAWING"]
+    if not want:
+        # A template with nothing of its own to find — TechDraw's blank
+        # one, as the patent figures' pages carry: its export cannot be
+        # told from one that left the template out, and there is no frame
+        # or title block to miss. Found live (run 2): every patent figure's
+        # files were taken from Workshop's sheet writer with "TechDraw left
+        # the template out of its export", though nothing was left out.
+        try:
+            with open(str(page.Template.Template), encoding="utf-8", errors="replace") as f:
+                own = f.read()
+        except Exception:  # noqa: BLE001 — no template file to read: judged by the words, as before
+            own = None
+        if own is not None and not any(w in own for w in words):
+            return True
+    return any(w in text for w in want + words)
 
 
 # ---- dimensions on the TechDraw page ---------------------------------------------------
@@ -1855,6 +1870,9 @@ def drawing_make(s, a):
                     made[k if k != "viewsNotReady" else "exportViewsNotReady"] = exported[k]
         frm = {k: "TechDraw page" for k in paths}
         frm.update({k: f"Workshop's sheet writer: {w}" for k, w in why.items()})
+        # Nothing of the page left marked as changed for the next call to
+        # be told to recompute (td_wait.settle_page).
+        _settle_page(page)
     rest = [k for k in ("svg", "pdf", "dxf") if k not in paths]
     if rest:
         paths.update(_write(s, base, sheet, rest, folder))
@@ -2118,21 +2136,30 @@ def _exploded_in_assembly(s, a, steps, order, seen, explode, direction, mid, ite
 
 # ---- patent_figures --------------------------------------------------------------------
 
-def patent_figures(s, a):
-    objs = _bodies(s, a.get("bodies"))
-    want = a.get("views") or ["iso", "front", "top", "right"]
-    bad = [v for v in want if v not in views.VIEWS]
-    if bad:
-        raise ToolError("invalid_input", f"views: {bad[0]} is not one — they are: {', '.join(views.VIEWS)}.")
-    given = a.get("numerals") or {}
+def _numerals(objs, given):
+    """{body label: reference numeral} for the bodies drawn: the numbers
+    given (by a body's label or its object's name), the rest counted on
+    from 10 in tens (in twos past nine bodies)."""
     numerals = {}
     step = 10 if len(objs) <= 9 else 2
     n = 10
+    # A body is named in numerals as it is in bodies: by its label or by its
+    # object's name (found live: bodies ["Body"] drew the body labelled
+    # "Tut", and numerals { Body: … } was then "not among the bodies drawn").
+    named = {}
+    for key in given:
+        o = next((x for x in objs if key == x.Label), None) or next((x for x in objs if key == x.Name), None) \
+            or next((x for x in objs if str(key).lower() in (x.Label.lower(), x.Name.lower())), None)
+        if o is not None:
+            if o.Label in named:
+                raise ToolError("invalid_input", f"numerals: {named[o.Label]} and {key} are the same body ({o.Label}) — one number for it.")
+            named[o.Label] = key
     for o in objs:
-        g = given.get(o.Label)
+        key = named.get(o.Label)
+        g = given.get(key) if key is not None else None
         if g is not None:
-            if not isinstance(g, int) or g <= 0:
-                raise ToolError("invalid_input", f"numerals.{o.Label}: a whole number over 0.")
+            if isinstance(g, bool) or not isinstance(g, int) or g <= 0:
+                raise ToolError("invalid_input", f"numerals.{key}: a whole number over 0.")
             numerals[o.Label] = g
     used = set(numerals.values())
     if len(used) != len(numerals):
@@ -2143,9 +2170,19 @@ def patent_figures(s, a):
                 n += step
             numerals[o.Label] = n
             used.add(n)
-    unknown = [k for k in given if k not in numerals]
+    unknown = [k for k in given if k not in named.values()]
     if unknown:
-        raise ToolError("not_found", f"numerals: {unknown[0]} is not among the bodies drawn — {', '.join(numerals)}.")
+        raise ToolError("not_found", f"numerals: {unknown[0]} is not among the bodies drawn — {', '.join(numerals)} (a body's label, or its object's name as bodies takes it).")
+    return numerals
+
+
+def patent_figures(s, a):
+    objs = _bodies(s, a.get("bodies"))
+    want = a.get("views") or ["iso", "front", "top", "right"]
+    bad = [v for v in want if v not in views.VIEWS]
+    if bad:
+        raise ToolError("invalid_input", f"views: {bad[0]} is not one — they are: {', '.join(views.VIEWS)}.")
+    numerals = _numerals(objs, a.get("numerals") or {})
     base = _safe(a.get("name") or "patent")
     # 37 CFR 1.84 margins on A4: top 2.5 cm, left 2.5, right 1.5, bottom 1.0.
     W, H = sheets.PAPER["A4P"]
@@ -2194,6 +2231,7 @@ def patent_figures(s, a):
             if pg is not None:
                 fig["page"] = pg.Label
                 got, why = _export_page(pg, s.out_dir, os.path.basename(fp), ("pdf", "svg"))
+                _settle_page(pg)
                 frm = {kk: "TechDraw page" for kk in got}
                 frm.update({kk: f"Workshop's sheet writer: {w}" for kk, w in why.items()})
             else:
