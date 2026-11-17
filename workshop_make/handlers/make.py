@@ -329,6 +329,7 @@ def slice(s, a):
         "gcode": gcode,
         "bytes": os.path.getsize(gcode),
         **read,
+        "verdict": api.slice_verdict(read),
         "setup": f"{setup['name']} ({setup['id']})",
         **({"pauses": pauses} if mags else {}),
         **({"material": f"{given} for this slice only (not recorded: material_set records it)"} if given else {}),

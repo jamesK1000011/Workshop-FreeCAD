@@ -24,6 +24,12 @@ COMMANDS = {"gen_make": "Workshop_Parts_GridfinityBin"}
 # Agent Link's echo to select and frame them (its OUT_MORE; an echo that
 # does not read this frames what is new in the document instead).
 OUT_MORE = {"gen_make": ("bodies",), "gen_part": ("bodies",)}
+# What a call did, in Agent Link's caption and Activity words (agentlink/
+# activity.py templates). measure: true builds the part only to answer its
+# sizes and adds nothing; said so, so an empty view (round 4 4001, 4007:
+# the model's measure calls) is not read as a part that failed to show.
+PHRASES = {"gen_make": ["Measured a {kind}, {measured}: nothing made if {measure}", "Made {bodies}, a {kind} of {measured}"],
+           "gen_part": ["Measured a {kind}, {measured}: nothing made if {measure}", "Made {bodies}, a {kind} of {measured}"]}
 
 
 def command_for(name, args):
@@ -60,7 +66,8 @@ def tools(session):
         return "; ".join(rows)
 
     reply = ("Reply: generator, values (every parameter as used, defaults filled in), parts [{ name, volume mm³, min, max, size }], bodies [labels], sound { label: true|false }, "
-             "printerFit (the calibration the holes took), movedBy (when it was put beside what is already there), step")
+             "printerFit (the calibration the holes took), movedBy (when it was put beside what is already there), step, "
+             "kind (the generator in words) and measured (the first piece's size in words, \"83.5 x 41.5 x 32.4 mm\", and a lid when there is one); with measure: true, made: false and no bodies")
     health = " A changing call's reply may also carry health { ok, verdict, todo } from the shared check."
     make_desc = ("Make a Gridfinity bin to size as a new body (open Gridfinity profile, 42 mm cells, 7 mm height units), centred on the origin in X and Y and standing on z = 0, or put 10 mm clear beside (+X of) what the document already holds. "
                  "generator: gridfinity_bin (the only one here; gen_part makes baseplates and boxes). name: the body's label (left out: \"Gridfinity bin 2x1x4\" style; a second of the same gets \" 2\"). "

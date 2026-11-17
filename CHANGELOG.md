@@ -11,6 +11,12 @@ Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
 
 ## [Unreleased]
 
+### Fixed
+
+- Fasteners: a fastener put on a round edge (`fastener_add`, `fastener_set { edge }`) is seated, its head on the open side of the edge and its shank into the material, whichever way FreeCAD's circle for the edge points (Fasteners puts the head where the circle's axis points; on a PartDesign Hole that can be into the plate). `invert` is now from seated. Answers say `headSide` and `shankOut` (how far a screw longer than its hole stands out of the far rim). Stand-in tests: `tests/fasteners/test_seat.py`.
+- Make: `slice`, `slice_with` and `fea_frame` answer a short `verdict` (and `fea_frame` `loadN` and `bodies`); words for a heavy read's first answer as a job ("… in the background"); `fea_frame` declares `SELECTS`.
+- Parts: `gen_make` and `gen_part` answer `kind` and `measured`, and their words say "nothing made" for `measure: true` (the window review's empty view and old Bin were those calls).
+
 ### Added
 
 - A Tutor lesson, Hole for hardware (an M4 countersunk hole through a

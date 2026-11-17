@@ -22,10 +22,16 @@ SHOWN = ("dfm_check", "part_review")
 # in the arguments or the answer wins). Heavy reads keep their own words, not
 # an earlier change's (window review round 3: 1009, 1010, 2008).
 PHRASES = {
-    "dfm_check": ["Checked {body} for printing: {verdict}"],
-    "part_review": ["Reviewed {body}: {verdict}"],
-    "slice": ["Sliced {body} with {slicer}: {time}, {filamentG} g", "Sliced {body} with {slicer}: {gcode}"],
+    "dfm_check": ["Checking {body} for printing in the background if {job}", "Checked {body} for printing: {verdict}"],
+    "part_review": ["Reviewing {body} in the background if {job}", "Reviewed {body}: {verdict}"],
+    "slice": ["Slicing {body} in the background if {job}", "Sliced {body} with {slicer}: {time}, {filamentG} g",
+              "Sliced {body} with {slicer}: {verdict}", "Sliced {body} with {slicer}: {gcode}"],
 }
+# A heavy read Agent Link runs as one of its jobs answers { job, tool,
+# status } first: "… in the background" then (the job's own words when its
+# answer comes), never the earlier call's. Each answer carries a short
+# verdict (dfm_check, part_review: theirs; slice: its time and filament)
+# that the words and Agent Link's result line use.
 # What a read worked on, by its answer's key, to select in the window (an
 # Agent Link that reads SELECTS; its echo selects a read's arguments only,
 # and never a whole Part Design body).

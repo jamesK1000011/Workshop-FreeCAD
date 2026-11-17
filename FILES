@@ -79,6 +79,7 @@ tests/electronics/test_taskpanels.py
 tests/fasteners/_fwb.py
 tests/fasteners/test_bridge.py
 tests/fasteners/test_keep.py
+tests/fasteners/test_seat.py
 tests/fasteners/test_settle.py
 tests/fasteners/test_stem_findings.py
 tests/make/_fc.py
@@ -117,6 +118,7 @@ tests/make/test_threemf.py
 tests/make/test_tools.py
 tests/make/test_wall_readers.py
 tests/parts/test_api.py
+tests/parts/test_echo_words.py
 tests/parts/test_form.py
 tests/parts/test_handlers.py
 tests/parts/test_icons.py

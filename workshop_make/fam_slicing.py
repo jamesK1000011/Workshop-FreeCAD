@@ -16,8 +16,10 @@ GROUP = "slice"
 AREAS = {"slice": "Slice"}
 # Activity and caption words (agentlink/activity.py templates; see fam_make).
 PHRASES = {
-    "slice_with": ["Sliced {body} with {slicer} into a project and G-code: {time}, {filamentG} g if {project}",
-                   "Sliced {body} with {slicer}: {time}, {filamentG} g", "Sliced {body} with {slicer}: {gcode}"],
+    "slice_with": ["Slicing {body} with {slicer} in the background if {job}", "Slicing {body} in the background if {job}",
+                   "Sliced {body} with {slicer} into a project and G-code: {time}, {filamentG} g if {project}",
+                   "Sliced {body} with {slicer}: {time}, {filamentG} g", "Sliced {body} with {slicer}: {verdict}",
+                   "Sliced {body} with {slicer}: {gcode}"],
     "slicer_presets": ["Put {slicer} presets on {setup}", "Exported the presets to {exported}", "Kept the presets bundle {imported}",
                        "Listed {slicer} presets"],
 }

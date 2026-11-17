@@ -11,6 +11,7 @@ import FreeCAD
 from workshop_make import ccx as ccx_io
 
 from .. import frame as FR
+from ..api import frame_verdict
 from ._lent import Refusal
 
 # Lent by the family layer when Agent Link binds these handlers (lend()); alone
@@ -119,6 +120,14 @@ def fea_frame(s, a):
     worst = min((r for r in res["members"] if r.get("safety")), key=lambda r: r["safety"], default=None)
     out = {**res, "members": res["members"], "elements": "B32 beams, expanded to solids by CalculiX", "worst": worst["member"] if worst else None,
            "note": "Joints between members are rigid; pinned and roller supports are held about the member's own axis. A frame model is a sizing look, not the connection design."}
+    # For the window's words and selection (Agent Link's echo: PHRASES,
+    # SELECTS): the load as one number, the verdict, the bodies it was made of.
+    tot = out.get("loadTotalN")
+    if isinstance(tot, (list, tuple)) and tot:
+        out["loadN"] = round(sum(float(x) ** 2 for x in tot) ** 0.5, 1)
+    out["verdict"] = frame_verdict(res["members"])
+    if a.get("bodies"):
+        out["bodies"] = [m["name"] for m in members[len(a.get("members") or []):]]
     return out
 
 

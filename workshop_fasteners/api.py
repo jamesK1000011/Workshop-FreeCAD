@@ -318,6 +318,134 @@ def bom_text(o):
     return f"{t} {fam} {d}" + (f"x{ln}" if ln not in (None, "") else "")
 
 
+# ---- which way a fastener faces on its edge ------------------------------------------------
+# Fasteners puts the head on the side its edge's circle axis points to, the
+# shank the other way (FastenerBase.FSMoveToObject: the part's +Z turned
+# onto Curve.Axis, Invert turning it round). Which way a hole's circle axis
+# points is OpenCASCADE's choice, not the hole's: on a PartDesign Hole it
+# can point into the plate, and the screw then stands out of the face it
+# should sit on. hw_hole's screw always corrected it (hole_screw); a screw
+# put on an edge by fastener_add never was. seat() tells the side of the
+# edge with no material, from the shape itself.
+
+def _vec_like(v, x, y, z):
+    return type(v)(x, y, z)
+
+
+def seat(obj, sub, delta=None):
+    """The open side of obj's round edge sub: +1 when the side its circle's
+    axis points to has no material next to the rim and the other side has
+    (a hole's rim on the top face of a plate whose axis points up), -1 the
+    other way round, 0 when it cannot tell (both sides or neither: a rim in
+    the middle of a counterbore, a shape that cannot say what is inside).
+    Points just past the rim (in and out of the circle) a little along
+    either way of the axis are tested with the shape's isInside."""
+    try:
+        e = obj.getSubObject(sub)
+        c = e.Curve
+        sh = obj.Shape
+        inside = sh.isInside
+    except Exception:  # noqa: BLE001 — no shape, or a stand-in without isInside
+        return 0
+    try:
+        a = _vec_like(c.Axis, c.Axis.x, c.Axis.y, c.Axis.z)
+        a.normalize()
+        t = _vec_like(a, 1.0, 0.0, 0.0) if abs(a.x) < 0.9 else _vec_like(a, 0.0, 1.0, 0.0)
+        u = a.cross(t)
+        u.normalize()
+        r = float(c.Radius)
+        d = float(delta) if delta else max(0.02, min(0.3, r / 4.0))
+        tol = d / 10.0
+
+        def material(sign):
+            for rr in (r + d, r - d):
+                for uu in (u, u * -1.0):
+                    p = c.Center + uu * rr + a * (sign * d)
+                    if inside(to_shape(obj, p), tol, True):
+                        return True
+            return False
+
+        along, back = material(1), material(-1)
+    except Exception:  # noqa: BLE001 — never stops adding a fastener
+        return 0
+    if along == back:
+        return 0
+    return -1 if along else 1
+
+
+def seated_invert(tgt, flip=False):
+    """Fasteners' Invert for a part on the edge tgt (object, "EdgeN") with
+    its head on the open side (a screw's shank, an insert's body into the
+    material; a nut or washer on the face it sits on); flip: turned end for
+    end from that. Where the side cannot be told: flip as given."""
+    s = seat(tgt[0], tgt[1]) if tgt else 0
+    return (s < 0) != bool(flip)
+
+
+def flipped(o):
+    """Whether o is turned end for end from seated on its edge (its Invert
+    against seat()); None when it is not on an edge or the side cannot be
+    told."""
+    try:
+        b = o.BaseObject
+        tgt = (b[0], b[1][0]) if b and b[0] is not None and b[1] else None
+    except Exception:  # noqa: BLE001
+        tgt = None
+    s = seat(tgt[0], tgt[1]) if tgt else 0
+    if not s:
+        return None
+    return bool(getattr(o, "Invert", False)) != (s < 0)
+
+
+def _far_rim(obj, sub):
+    """How deep the hole of the round edge sub goes: the distance along its
+    axis to the farthest coaxial round edge of the same radius (its other
+    rim), or None."""
+    try:
+        c0 = obj.getSubObject(sub).Curve
+        a = _vec_like(c0.Axis, c0.Axis.x, c0.Axis.y, c0.Axis.z)
+        a.normalize()
+        best = None
+        for _i, _e, c in _round_edges(obj.Shape):
+            if abs(float(c.Radius) - float(c0.Radius)) > 0.01:
+                continue
+            ca = _vec_like(c.Axis, c.Axis.x, c.Axis.y, c.Axis.z)
+            ca.normalize()
+            if abs(abs(ca.dot(a)) - 1) > 1e-6:
+                continue
+            q = to_global(obj, c.Center) if frame(obj) is not None else c.Center
+            off = q - c0.Center
+            if (off - a * off.dot(a)).Length > 0.05:
+                continue
+            depth = abs(off.dot(a))
+            if best is None or depth > best:
+                best = depth
+        return best if best and best > 1e-6 else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def placement_words(o):
+    """{headSide, shankOut?} for a fastener on an edge: where its head is
+    ("open side", or "in the material" when turned end for end), and for a
+    screw longer than its hole how far the shank stands out of the far
+    rim, mm. {} when it cannot be told."""
+    f = flipped(o)
+    if f is None:
+        return {}
+    out = {"headSide": "in the material" if f else "open side"}
+    try:
+        b = o.BaseObject
+        ln = _num(_length_of(o))
+        depth = _far_rim(b[0], b[1][0])
+        off = _num(getattr(o, "Offset", 0)) or 0.0
+        if not f and ln and depth and ln + off - depth > 0.05:
+            out["shankOut"] = _clean(round(ln + off - depth, 2))
+    except Exception:  # noqa: BLE001
+        pass
+    return out
+
+
 # Where add() put a fastener on another edge than the one picked: said once
 # in its answer. {(doc, object): sentence}.
 MOVED = {}
@@ -345,6 +473,7 @@ def describe(o):
             if b[1]:
                 c = b[0].getSubObject(b[1][0]).Curve
                 out["edgeDiameter"] = _clean(2 * c.Radius)
+                out.update(placement_words(o))
     except Exception:  # noqa: BLE001
         pass
     try:
@@ -447,7 +576,9 @@ def add(doc, ftype, size=None, length=None, thread="simple", edges=(), at=None, 
         o.Diameter = size if size else ("Auto" if tgt else o.Diameter)
         if hasattr(o, "Thread"):
             o.Thread = thread in ("real", True)
-        o.Invert = bool(invert)
+        # Head on the open side of the edge whichever way its circle's axis
+        # points (window round 4, 5011-5015); invert turns it end for end.
+        o.Invert = seated_invert(tgt, invert)
         o.Offset = float(offset or 0.0)
         doc.recompute()
         if size and size != "Auto" and str(o.Diameter) != str(size):
@@ -485,6 +616,7 @@ def change(doc, refs, ftype=None, size=None, length=None, thread=None, invert=No
     was = {o.Name for o in objs if keep._touched(o)}
     tgt = element(doc, edge) if edge else None
     for o in objs:
+        flip_was = flipped(o)
         if ftype:
             k = _check_type(F, ftype)
             ok = list(o.getEnumerationsOfProperty("Type")) if hasattr(o, "getEnumerationsOfProperty") else [k]
@@ -499,12 +631,22 @@ def change(doc, refs, ftype=None, size=None, length=None, thread=None, invert=No
             o.Diameter = size
         if thread is not None and hasattr(o, "Thread"):
             o.Thread = thread in ("real", True)
-        if invert is not None:
-            o.Invert = bool(invert)
         if offset is not None:
             o.Offset = float(offset)
         if tgt is not None:
+            # Moved: seated on the new edge, turned end for end only when
+            # asked now or it was before.
             o.BaseObject = (tgt[0], [tgt[1]])
+            o.Invert = seated_invert(tgt, invert if invert is not None else bool(flip_was))
+        elif invert is not None:
+            # invert: turned end for end from seated on its edge (its head
+            # into the material); false puts it back, head on the open side.
+            try:
+                b = o.BaseObject
+                here = (b[0], b[1][0]) if b and b[0] is not None and b[1] else None
+            except Exception:  # noqa: BLE001
+                here = None
+            o.Invert = seated_invert(here, invert)
     doc.recompute()
     if length is not None:
         for o in objs:
@@ -848,8 +990,9 @@ def hole_screw(doc, hole_args, hole_out, spec):
     # Shank into the material (away from the far side for a nut trap):
     # Fasteners puts the head on the edge's axis side, the shank opposite.
     want = d if inward else d * -1
-    if edge.Curve.Axis.dot(want) > 0:
-        o.Invert = True
+    inv = edge.Curve.Axis.dot(want) > 0
+    if bool(o.Invert) != inv:   # either way: add() seats it already, this has the hole's own direction
+        o.Invert = inv
         doc.recompute()
     out = describe(o)
     out["match"] = HOLE_MATCH[kind]

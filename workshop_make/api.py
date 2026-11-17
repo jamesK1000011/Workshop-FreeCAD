@@ -388,6 +388,38 @@ def dfm_verdict(findings):
     return "printable" + (f", {n(warns, 'warning')}" if warns else "")
 
 
+def slice_verdict(read):
+    """slice's and slice_with's verdict in a few words, from the G-code read
+    back: "12m 3s, 3.21 g", "12m 3s", "3.21 g", else "G-code written" (the window's
+    words use it: a sliced read kept an earlier call's caption, round 4
+    2008, 2010)."""
+    r = read if isinstance(read, dict) else {}
+    bits = []
+    if r.get("time"):
+        bits.append(str(r["time"]))
+    g = r.get("filamentG")
+    if isinstance(g, (int, float)) and not isinstance(g, bool):
+        bits.append(f"{g:.6g} g")
+    return ", ".join(bits) or "G-code written"
+
+
+def frame_verdict(members):
+    """fea_frame's verdict in a few words: the least safety factor and its
+    member ("least safety 2.4, Rafter"; "under yield: 0.8, Post" below 1),
+    or the largest von Mises stress where no member's material gives a yield
+    ("at most 12.5 MPa, no yield to judge")."""
+    rows = [r for r in members or [] if isinstance(r, dict)]
+    safe = [r for r in rows if isinstance(r.get("safety"), (int, float))]
+    if safe:
+        w = min(safe, key=lambda r: r["safety"])
+        head = "least safety" if w["safety"] >= 1 else "past yield: safety"
+        return f"{head} {w['safety']:g}, {w.get('member')}"
+    vm = [r["vonMisesMPa"] for r in rows if isinstance(r.get("vonMisesMPa"), (int, float))]
+    if vm:
+        return f"at most {max(vm):.3g} MPa, no yield to judge"
+    return "solved"
+
+
 def dfm(doc, body_obj, waive=None, last=None):
     """The printability check of a body as it stands on the bed, its
     print setup's rules. waive: {id, reason} of a finding of `last` (the

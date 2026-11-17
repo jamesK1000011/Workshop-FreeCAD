@@ -101,6 +101,23 @@ def _unique(doc, label):
     return f"{label} {i}"
 
 
+# A generator in words, for the window's caption and Activity ("Measured a
+# Gridfinity bin, 83.5 x 41.5 x 32.4 mm: nothing made").
+KIND_WORDS = {"gridfinity_bin": "Gridfinity bin", "gridfinity_baseplate": "Gridfinity baseplate", "project_box": "project box",
+              "board_box": "board box"}
+
+
+def measured_words(parts):
+    """The first piece's size in words ("83.5 x 41.5 x 32.4 mm"), and how
+    many more pieces there are ("…, and a lid" for two)."""
+    if not parts:
+        return ""
+    size = parts[0].get("size") or []
+    words = " x ".join(f"{float(v):g}" for v in size) + " mm" if size else parts[0].get("name", "")
+    more = len(parts) - 1
+    return words + ("" if not more else ", and a lid" if more == 1 else f", and {more} more pieces")
+
+
 def make(doc, generator, params=None, name=None, measure=False, placement=None):
     """Make a standard part in doc, each piece its own body (a box and its
     lid are two). measure: build it and give the sizes, add nothing.
@@ -113,8 +130,11 @@ def make(doc, generator, params=None, name=None, measure=False, placement=None):
     p, made, info = build(generator, params, cal)
     box = geo.box_of if generator == "gridfinity_bin" else tight_box
     parts = [{"name": n, "volume": round(sh.Volume, 1), **box(sh)} for (n, sh) in made]
-    out = {"generator": generator, "values": p, "parts": parts, **info, "printerFit": said}
+    out = {"generator": generator, "values": p, "parts": parts, **info, "printerFit": said,
+           "kind": KIND_WORDS.get(generator, generator.replace("_", " ")), "measured": measured_words(parts)}
     if measure:
+        # Built to answer its sizes, nothing added: the window shows no new
+        # part on purpose (round 4 4001, 4007 were these calls).
         return {**out, "made": False}
     if doc is None:
         raise Refused("No document to make it in: open or make one.", "invalid_state")
