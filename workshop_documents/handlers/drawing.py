@@ -24,7 +24,7 @@ from workshop_documents import geo
 from workshop_documents import iso286
 from workshop_documents import sheets
 from workshop_documents import records as store
-from workshop_documents.td_wait import settle_page as _settle_page
+from workshop_documents.td_wait import PageExport as _PageExport
 from workshop_documents.td_wait import views_ready as _wait_views
 
 from .. import fcexplode, views
@@ -375,6 +375,24 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
         return page, out
     except Exception as e:
         return None, f"the TechDraw page could not be made here ({e}); the files stand on their own"
+
+
+def _settle_timeout(made):
+    """How long a page's export may wait, afterwards, for the dimensions
+    TechDraw recomputes once more (td_wait.PageExport): four times what
+    the page's views took to be drawn the first time and two seconds, 5 s
+    at least and 30 s at most."""
+    took = made.get("viewsReadyIn") if isinstance(made, dict) else None
+    try:
+        return min(30.0, max(5.0, 4.0 * float(took or 0.0) + 2.0))
+    except (TypeError, ValueError):
+        return 5.0
+
+
+def _worth_saying(settled):
+    """A figure's row carries its page's settled reading only when it says
+    something: a mark left, one that may still arrive, or nothing watched."""
+    return isinstance(settled, dict) and any(settled.get(k) for k in ("late", "left", "unwatched"))
 
 
 def _export_page(page, out_dir, base, kinds=("dxf", "pdf", "svg"), report=None):
@@ -1861,8 +1879,12 @@ def drawing_make(s, a):
     paths, frm = {}, {}
     if page is not None:
         exported = {}
-        paths, why = _export_page(page, folder, base, report=exported)
+        with _PageExport(page, timeout=_settle_timeout(made)) as px:
+            paths, why = _export_page(page, folder, base, report=exported)
         if isinstance(made, dict):
+            # What the export left marked as changed and was taken off
+            # again, and how long that waited (td_wait.PageExport).
+            made["settled"] = px.settled
             # The wait just before the export, and whether the export holds the views.
             made["exportViewsReadyIn"] = exported.get("viewsReadyIn")
             for k in ("viewsNotReady", "viewsInExport", "exportScene", "exportSceneAgain"):
@@ -1870,9 +1892,6 @@ def drawing_make(s, a):
                     made[k if k != "viewsNotReady" else "exportViewsNotReady"] = exported[k]
         frm = {k: "TechDraw page" for k in paths}
         frm.update({k: f"Workshop's sheet writer: {w}" for k, w in why.items()})
-        # Nothing of the page left marked as changed for the next call to
-        # be told to recompute (td_wait.settle_page).
-        _settle_page(page)
     rest = [k for k in ("svg", "pdf", "dxf") if k not in paths]
     if rest:
         paths.update(_write(s, base, sheet, rest, folder))
@@ -2230,8 +2249,10 @@ def patent_figures(s, a):
             pg, note = _patent_page(s, objs, shapes, v, k, scale, centre, numerals, f"{a.get('name') or 'Patent'} FIG. {k}")
             if pg is not None:
                 fig["page"] = pg.Label
-                got, why = _export_page(pg, s.out_dir, os.path.basename(fp), ("pdf", "svg"))
-                _settle_page(pg)
+                with _PageExport(pg, timeout=_settle_timeout(note)) as px:
+                    got, why = _export_page(pg, s.out_dir, os.path.basename(fp), ("pdf", "svg"))
+                if _worth_saying(px.settled):
+                    fig["settled"] = px.settled
                 frm = {kk: "TechDraw page" for kk in got}
                 frm.update({kk: f"Workshop's sheet writer: {w}" for kk, w in why.items()})
             else:

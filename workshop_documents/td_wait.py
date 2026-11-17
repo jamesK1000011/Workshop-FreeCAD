@@ -42,9 +42,23 @@ def view_busy(v):
     return None
 
 
+# Over 0 while a turn of the event loop runs from here: what TechDraw does
+# then (a view's lines arriving from their thread, and what it recomputes
+# after them) is told apart from what a call does itself (PageExport).
+_TURNING = [0]
+
+
 def _pump():
     """One turn of the event loop: FreeCAD's window when it is up (its
     scene redrawn), else a Qt core loop. False when there is no Qt."""
+    _TURNING[0] += 1
+    try:
+        return _pump_once()
+    finally:
+        _TURNING[0] -= 1
+
+
+def _pump_once():
     try:
         import FreeCAD
 
@@ -65,6 +79,18 @@ def _pump():
     app = QtCore.QCoreApplication.instance() or QtCore.QCoreApplication([])
     app.processEvents()
     return True
+
+
+def _turn(pump):
+    """pump() counted as a turn of the event loop (a pump of the caller's
+    own, as the tests give one)."""
+    if pump is _pump:
+        return pump()
+    _TURNING[0] += 1
+    try:
+        return pump()
+    finally:
+        _TURNING[0] -= 1
 
 
 def views_ready(views_, timeout=30.0, pump=None, sleep=0.02):
@@ -95,12 +121,12 @@ def views_ready(views_, timeout=30.0, pump=None, sleep=0.02):
                     pass
         if time.time() - t0 >= timeout:
             break
-        if not pump():
+        if not _turn(pump):
             # No event loop to run: nothing more will arrive.
             break
         time.sleep(sleep)
     for _ in range(3):
-        if not pump():
+        if not _turn(pump):
             break
     left = [{"view": getattr(v, "Label", getattr(v, "Name", "?")), "why": view_busy(v)} for v in views_]
     return {"seconds": round(time.time() - t0, 2), "notReady": [x for x in left if x["why"]]}
@@ -113,31 +139,249 @@ def wait_views(views_, timeout=30.0):
     return got["seconds"] if got["seconds"] >= 0.05 or got["notReady"] else None
 
 
-def settle_page(page):
-    """After a page is made and exported: what on it is still marked as
-    changed and is not a view of a part — its template, dimensions,
-    balloons, notes, the page itself — recomputed once, each by itself.
-    Found live (run 2): the call after drawing_make read "6 objects not
-    recomputed yet" (the section page's template and five dimensions) and
-    was told to recompute, though nothing on the page was out of date. A
-    view of a part is left alone: recomputing one starts its lines afresh
-    (views_ready). Returns the names recomputed."""
-    done = []
+# ---- what an export leaves marked ----------------------------------------------------------
+# Found live (run 2): the call after a drawing_make read "6 objects not
+# recomputed yet" — the page's template and its five dimensions — though
+# nothing on the page was out of date. What marks them, from FreeCAD 1.1's
+# source (tag 1.1.0; the Mac runs 1.1.3):
+#
+# The template. Every time TechDraw's window draws a page's template it
+#   re-reads the SVG and writes its size back into the template object:
+#   QGISVGTemplate::draw and createClickHandles (src/Mod/TechDraw/Gui/
+#   QGISVGTemplate.cpp) call DrawSVGTemplate::processTemplate, which ends in
+#   extractTemplateAttributes: Width.setValue, Height.setValue,
+#   Orientation.setValue (src/Mod/TechDraw/App/DrawSVGTemplate.cpp). They
+#   are input properties, and a property set, even to the value it has,
+#   marks its object changed (src/App/DocumentObject.cpp, onChanged). The
+#   template is drawn when the page's tab is first shown
+#   (ViewProviderPage::showMDIViewPage) and by both exports
+#   (QGSPage::saveSvg and PagePrinter::renderPage call
+#   ViewProviderPage::setTemplateMarkers(false), which draws it).
+#
+# The dimensions. PagePrinter::printPdf ends with DrawPage::redrawCommand
+#   (src/Mod/TechDraw/Gui/PagePrinter.cpp): DrawPage::updateAllViews
+#   recomputes every part view by itself — its lines start afresh on
+#   another thread — and then every other view by itself. A dimension that
+#   executes checks its references against the geometry it saved
+#   (DrawViewDimension::execute, autocorrectReferences). The saved geometry
+#   is unscaled (ReferenceEntry::asCanonicalTopoShape) and the check reads
+#   the view's geometry as drawn, scaled and rotated
+#   (DimensionAutoCorrect::isMatchingGeometry, ReferenceEntry::getGeometry),
+#   so on a view at any scale but 1:1 they never match: the "repair" finds
+#   the very same vertex or edge and writes References2D again
+#   (setReferences2d), with SavedGeometry and BoxCorners after it. Inside a
+#   document recompute the mark is taken off when the object is done
+#   (Document::recompute, purgeTouched); an object recomputed by itself
+#   keeps it (Document::recomputeFeature). And when a restarted view's
+#   lines and faces are done — a turn of the event loop later, so often
+#   after the call has answered — TechDraw recomputes that view's
+#   dimensions by themselves once more (DrawViewPart::postHlrTasks,
+#   postFaceExtractionTasks): marked again.
+#
+# So nothing here is out of date, and recomputing each object by itself
+# (what this module did first) cannot take the mark off: that is the very
+# call that leaves it. PageExport watches the export, waits for the
+# dimensions TechDraw will recompute once more, and takes the mark off
+# (purgeTouched: no execute) only where everything written to the object
+# since the export began is one of TechDraw's own writes named above.
+# Anything else — a mark from before, a position or a text changed — stays
+# for the health check to say.
+
+OWN_WRITES = (
+    ("Template", frozenset({"Width", "Height", "Orientation"})),
+    ("DrawViewDimension", frozenset({"References2D", "References3D", "SavedGeometry", "BoxCorners"})),
+)
+SETTLE_TIMEOUT = 30.0
+QUIET_TURNS = 3
+
+
+def own_writes(o):
+    """The properties TechDraw itself writes on o when it draws or
+    re-reads it (OWN_WRITES), by its type; empty for any other object."""
+    kind = str(getattr(o, "TypeId", "") or "")
+    for word, props in OWN_WRITES:
+        if word in kind:
+            return props
+    return frozenset()
+
+
+def _marked(o):
     try:
-        objs = [getattr(page, "Template", None)] + list(getattr(page, "Views", None) or []) + [page]
-    except Exception:  # noqa: BLE001
-        return done
-    for o in objs:
-        if o is None or hasattr(o, "getVisibleEdges"):
-            continue
+        return "Touched" in list(getattr(o, "State", []) or [])
+    except Exception:  # noqa: BLE001 — an object already gone
+        return False
+
+
+def _is_part_view(o):
+    return hasattr(o, "getVisibleEdges")
+
+
+class _Watch:
+    """A FreeCAD document observer that keeps, in order, what was written
+    to and what was recomputed in one document: ("changed", name, property,
+    in a turn) and ("recomputed", name, None, in a turn) — in a turn: it
+    happened while the event loop ran from this module (_TURNING), which is
+    when a view's lines arrive and TechDraw recomputes what hangs on it."""
+
+    def __init__(self, doc_name):
+        self.doc_name = doc_name
+        self.log = []
+
+    def _mine(self, obj):
         try:
-            if "Touched" not in list(getattr(o, "State", []) or []):
+            return obj.Document.Name == self.doc_name
+        except Exception:  # noqa: BLE001
+            return False
+
+    def slotChangedObject(self, obj, prop):
+        if self._mine(obj):
+            self.log.append(("changed", obj.Name, str(prop), _TURNING[0] > 0))
+
+    def slotRecomputedObject(self, obj):
+        if self._mine(obj):
+            self.log.append(("recomputed", obj.Name, None, _TURNING[0] > 0))
+
+
+class PageExport:
+    """Round a page's export:
+
+        with PageExport(page) as px:
+            ... TechDrawGui.exportPageAsSvg / exportPageAsPdf ...
+        px.settled  # { cleared, waited, late?, left? }
+
+    On leaving, the page is settled (settle, below). With no FreeCAD
+    observer to watch with (a stand-in), nothing is waited for and nothing
+    cleared: settled is { cleared: [], waited: 0.0, unwatched: true }. An
+    export that raises is not settled (settled stays None) and the
+    exception goes on."""
+
+    def __init__(self, page, timeout=SETTLE_TIMEOUT, pump=None, sleep=0.02):
+        self.page, self.timeout, self.pump, self.sleep = page, timeout, pump, sleep
+        self.watch = None
+        self.before = set()
+        self.settled = None
+
+    def _objects(self):
+        """(part views, everything else of the page: template, dimensions,
+        balloons, notes, the page itself)."""
+        page = self.page
+        try:
+            views = list(getattr(page, "Views", None) or [])
+            tpl = getattr(page, "Template", None)
+        except Exception:  # noqa: BLE001
+            return [], []
+        parts = [v for v in views if _is_part_view(v)]
+        rest = [o for o in [tpl] + [v for v in views if not _is_part_view(v)] + [page] if o is not None]
+        return parts, rest
+
+    def __enter__(self):
+        _parts, rest = self._objects()
+        self.before = {getattr(o, "Name", "?") for o in rest if _marked(o)}
+        try:
+            import FreeCAD
+
+            w = _Watch(self.page.Document.Name)
+            FreeCAD.addDocumentObserver(w)
+            self.watch = w
+        except Exception:  # noqa: BLE001 — nothing to watch with: nothing is cleared
+            self.watch = None
+        return self
+
+    def __exit__(self, kind, _value, _tb):
+        try:
+            if kind is None:
+                self.settled = self.settle()
+        finally:
+            if self.watch is not None:
+                try:
+                    import FreeCAD
+
+                    FreeCAD.removeDocumentObserver(self.watch)
+                except Exception:  # noqa: BLE001
+                    pass
+        return False
+
+    def settle(self):
+        """After the export: waits for the dimensions TechDraw recomputes
+        once more when a view the export restarted has its lines again,
+        then takes the changed mark off what only TechDraw's own writes
+        marked. { cleared: [names], waited: seconds, late: [dimensions not
+        seen recomputed again within the timeout: a mark may still arrive
+        after the call], left: [{ object, why }] (marked, and not
+        cleared) }; late and left only when there are any."""
+        if self.watch is None:
+            return {"cleared": [], "waited": 0.0, "unwatched": True}
+        pump = self.pump or _pump
+        log = self.watch.log
+        parts, rest = self._objects()
+        t0 = time.time()
+        # The part views recomputed while the export was watched (by the
+        # PDF export's redraw, or by the wait for the views before it):
+        # each works its lines out afresh on another thread (a coarse view
+        # does it at once), and when they are there — in a turn of the
+        # event loop — TechDraw recomputes its dimensions once more.
+        restarted = {}
+        for v in parts:
+            try:
+                coarse = bool(getattr(v, "CoarseView", False))
+            except Exception:  # noqa: BLE001
+                coarse = False
+            last = max((i for i, (what, name, _p, _t) in enumerate(log) if what == "recomputed" and name == v.Name), default=None)
+            if last is not None and not coarse:
+                restarted[v.Name] = last
+        waiting = {}
+        for o in rest:
+            if "DrawViewDimension" not in str(getattr(o, "TypeId", "") or ""):
                 continue
-            o.recompute()
-            done.append(getattr(o, "Name", "?"))
-        except Exception:  # noqa: BLE001 — left as it is: the health check says so
-            continue
-    return done
+            try:
+                on = [x.Name for x in (getattr(o, "OutList", None) or [])]
+            except Exception:  # noqa: BLE001
+                on = []
+            since = [restarted[n] for n in on if n in restarted]
+            if since:
+                waiting[o.Name] = max(since)
+
+        def unseen():
+            return [n for n, since in waiting.items()
+                    if not any(what == "recomputed" and name == n and turn for what, name, _p, turn in log[since + 1:])]
+
+        while unseen() and time.time() - t0 < self.timeout:
+            if not _turn(pump):
+                break  # no event loop: nothing more will arrive
+            time.sleep(self.sleep)
+        late = unseen()
+        if restarted:
+            for _ in range(QUIET_TURNS):  # what the last view's end still has queued
+                if not _turn(pump):
+                    break
+        cleared, left = [], []
+        for o in rest:
+            if not _marked(o):
+                continue
+            name = getattr(o, "Name", "?")
+            if name in self.before:
+                left.append({"object": name, "why": "marked as changed before the export"})
+                continue
+            written = {p for what, n, p, _t in log if what == "changed" and n == name}
+            other = sorted(written - own_writes(o))
+            if not written:
+                left.append({"object": name, "why": "marked as changed with nothing written to it during the export"})
+            elif other:
+                left.append({"object": name, "why": f"{', '.join(other)} changed during the export"})
+            elif not callable(getattr(o, "purgeTouched", None)):
+                left.append({"object": name, "why": "this FreeCAD cannot take the mark off"})
+            else:
+                try:
+                    o.purgeTouched()
+                    cleared.append(name)
+                except Exception as e:  # noqa: BLE001
+                    left.append({"object": name, "why": f"the mark could not be taken off: {e}"})
+        out = {"cleared": cleared, "waited": round(time.time() - t0, 2)}
+        if late:
+            out["late"] = late
+        if left:
+            out["left"] = left
+        return out
 
 
 # ---- Documents' reading for the shared health check --------------------------------------
