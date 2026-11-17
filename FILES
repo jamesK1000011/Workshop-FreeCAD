@@ -60,6 +60,7 @@ tests/documents/test_drawing_page_dims.py
 tests/documents/test_drawing_sheet_fit.py
 tests/documents/test_drawing_views_grouped.py
 tests/documents/test_drawing_views_ready.py
+tests/documents/test_exploded_window_words.py
 tests/documents/test_fc_pages.py
 tests/documents/test_gui_text.py
 tests/documents/test_handlers.py
@@ -73,6 +74,7 @@ tests/documents/test_share.py
 tests/documents/test_sheets.py
 tests/electronics/test_api.py
 tests/electronics/test_electronics.py
+tests/electronics/test_electronics_window_words.py
 tests/electronics/test_handlers.py
 tests/electronics/test_icons.py
 tests/electronics/test_taskpanels.py

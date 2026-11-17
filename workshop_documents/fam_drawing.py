@@ -33,6 +33,30 @@ PAGES = ("drawing_",)
 # as it checks every writer's path (the home folder or the session's, never a
 # hidden folder or a script).
 WRITERS = {"drawing_make"}
+
+
+def WORDS(name, args, body):
+    """The window's words for drawing_exploded (Agent Link's echo): the
+    steps, the bill of materials and what the page shows, not only
+    "Drawing exploded" (window round 8; 15-021 had no counts). None for
+    another call. Never raises."""
+    if name != "drawing_exploded" or not isinstance(body, dict) or not isinstance(body.get("steps"), list):
+        return None
+    try:
+        n, items = len(body["steps"]), len(body.get("bom") or [])
+        title = (args or {}).get("title") or (args or {}).get("name") or "the assembly"
+        s = f"Drew the manual of {title}: {n} step{'' if n == 1 else 's'}, {items} BOM item{'' if items == 1 else 's'}"
+        if isinstance(body.get("explode"), (int, float)):
+            s += f", parts lifted {body['explode']:g} mm"
+        if body.get("explodedView"):
+            s += f"; Assembly view {body['explodedView']}"
+        elif body.get("page"):
+            s += f"; page {body['page']} shows step {n}"
+        return s[:160]
+    except Exception:  # noqa: BLE001
+        return None
+
+
 INFO = "Drawings and documents: dimensioned views as a TechDraw page with SVG, PDF and DXF; assembly manuals with exploded steps and a bill of materials; patent figures and a draft."
 
 handlers.lend(H, ToolError=ToolError, M=M, picks=picks)
