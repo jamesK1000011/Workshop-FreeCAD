@@ -2174,7 +2174,36 @@ def drawing_exploded(s, a):
     if apart:
         out["warnings"] = [f"{', '.join(apart)} lie apart from the parts before them, not where they go: each part is lifted over its place in the document, so put them there first (object_set Placement — a lid printed top down turns over about X), then again. view_render shows where they are."]
     out.update(_exploded_in_assembly(s, a, steps, order, seen, explode, direction, mid, item_of, items))
+    if out.get("route") == OWN_ROUTE and a.get("page", True) and made_steps:
+        out.update(_steps_page(s, a.get("title") or a.get("name") or "Assembly", made_steps[-1]))
     return out
+
+
+def _steps_page(s, title, last):
+    """Parts in no Assembly: the last step's picture (every part, the last
+    ones still lifted off with their trails and balloons) on a blank
+    TechDraw page as a symbol, so the window shows the result (window
+    15-021: the picture showed a clipped 3D view and nothing of the
+    manual). {page, pageShows} or {pageNote}."""
+    try:
+        with open(last["svg"], encoding="utf-8") as f:
+            svg = f.read()
+        page = _page(s.doc, f"{title} steps", "A4", blank=True)
+        sym = s.doc.addObject("TechDraw::DrawViewSymbol", "Symbol")
+        page.addView(sym)
+        sym.Label = f"Step {last['step']}"
+        sym.Symbol = svg
+        W, H = sheets.PAPER["A4"]
+        sym.X, sym.Y = W / 2, H / 2
+        try:
+            sym.ScaleType = "Custom"
+            sym.Scale = 1.2  # the 210 x 148 step sheet on A4
+        except Exception:  # noqa: BLE001
+            pass
+        s.doc.recompute()
+        return {"page": page.Label, "pageShows": f"step {last['step']} of the manual (its SVG)"}
+    except Exception as e:  # noqa: BLE001 — the manual stands without it
+        return {"pageNote": f"the TechDraw page of the steps could not be made here ({e})"}
 
 
 OWN_ROUTE = "Workshop's own exploded shapes"
