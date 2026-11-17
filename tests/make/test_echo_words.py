@@ -72,7 +72,9 @@ rows = [("dfm_check", {"body": "Bracket"}, {"body": "Bracket", "verdict": "print
         ("slice", {"body": "Bracket"}, {"body": "Bracket", "slicer": "prusa-slicer", "gcode": "/out/Bracket.gcode", "verdict": "G-code written"}),
         ("fea_frame", {"bodies": ["Rafter", "Post"]}, {"loadTotalN": [0, 0, -500], "loadN": 500, "verdict": "least safety 2.4, Rafter",
                                                       "bodies": ["Rafter", "Post"]}),
-        ("fea_frame", {}, {"loadTotalN": [0, 0, -500], "loadN": 500, "verdict": "least safety 2.4, M1"})]
+        ("fea_frame", {}, {"loadTotalN": [0, 0, -500], "loadN": 500, "verdict": "least safety 2.4, M1"}),
+        ("fea_frame", {}, {"loadTotalN": [0, 0, -10000], "loadN": 10000, "verdict": "at most 15.1 MPa, no yield to judge",
+                           "deflectionMaxMm": 0.156})]
 print(json.dumps([activity.did(n, a, b) for n, a, b in rows]))
 """
         import json
@@ -87,7 +89,8 @@ print(json.dumps([activity.did(n, a, b) for n, a, b in rows]))
             "Solved the frame under 500 N: least safe member Rafter", "Solved the frame under 500 N",
             "Checking Bracket for printing in the background", "Slicing Bracket with orcaslicer in the background",
             "Sliced Bracket with prusa-slicer: G-code written", "Solved the frame of Rafter and Post under 500 N: least safety 2.4, Rafter",
-            "Solved the frame under 500 N: least safety 2.4, M1"])
+            "Solved the frame under 500 N: least safety 2.4, M1",
+            "Solved the frame under 10000 N: at most 15.1 MPa, no yield to judge; sags 0.156 mm"])
 
 
 class Verdict(unittest.TestCase):
@@ -117,3 +120,20 @@ OUT["f"] = [api.frame_verdict([{"member": "Rafter", "safety": 2.4}, {"member": "
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FrameMarks(unittest.TestCase):
+    def test_members_supports_and_sag_for_the_window(self):
+        # Round 7, make 04-085: the frame is only in the deck, so the view
+        # kept the last bodies; the answer's sceneMarks are what Agent Link's
+        # echo draws and frames.
+        out = run(r"""
+from workshop_make.handlers import frame
+OUT["m"] = frame.scene_marks([{"name": "Beam", "from": [0, 0, 0], "to": [1000, 0, 0]}],
+                             [{"member": "Beam", "deflectionMm": 0.156}],
+                             [{"at": [0, 0, 0], "kind": "pinned"}, {"at": [1000, 0, 0], "kind": "roller"}, {"at": [1, 2]}])
+""")
+        m = out["m"]
+        self.assertEqual(m["lines"], [[[0.0, 0.0, 0.0], [1000.0, 0.0, 0.0]]])
+        self.assertEqual(m["points"], [[0.0, 0.0, 0.0], [1000.0, 0.0, 0.0]])
+        self.assertEqual(m["labels"], [[[500.0, 0.0, 0.0], "Beam: sags 0.156 mm"]])
