@@ -16,6 +16,8 @@ from . import handlers
 from .handlers import frame as H
 
 GROUP = "strength"
+# Activity and caption words (agentlink/activity.py templates; see fam_make).
+PHRASES = {"fea_frame": ["Solved the frame under {loadTotalN} N: least safe member {worst}", "Solved the frame under {loadTotalN} N"]}
 INFO = "Strength by finite elements (Gmsh and CalculiX): set up a body, hold faces, load them, solve for stress, displacement and safety factor."
 
 handlers.lend(H, matfam=matfam, ToolError=ToolError)

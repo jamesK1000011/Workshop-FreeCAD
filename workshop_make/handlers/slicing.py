@@ -121,6 +121,64 @@ def slice_with(s, a):
     return out
 
 
+# slicer_presets list: names shown of each kind after the person's own
+# (all of their own always): LIST_FEW when the call narrows nothing, else
+# LIST_SOME; limit asks for up to LIST_MOST. A list of every kind answered 60
+# names of each with the folders read on every call, about 10 000
+# characters (window review round 3).
+LIST_FEW, LIST_SOME, LIST_MOST = 10, 50, 500
+
+
+def compact_listing(got, limit):
+    """orcalink's listing ({kind: {count, presets [{name, own?}]}}, own
+    first) as each kind's count, how many are the person's own, their own in
+    full ({name, own: true}), then the first `limit` other names as plain
+    strings, and how many more there are. Plain Python."""
+    out = {}
+    for k, v in (got or {}).items():
+        if not isinstance(v, dict):
+            continue
+        rows = [r if isinstance(r, dict) else {"name": r} for r in (v.get("presets") or [])]
+        own = [{"name": r.get("name"), "own": True} for r in rows if r.get("own")]
+        other = [r.get("name") for r in rows if not r.get("own")]
+        count = v.get("count", len(rows))
+        shown = other[:limit]
+        entry = {"count": count, "own": len(own), "presets": own + shown}
+        more = count - len(own) - len(shown)
+        if more > 0:
+            entry["more"] = more
+        out[k] = entry
+    return out
+
+
+def presets_listing(slicer, kind, query, limit):
+    """The presets by kind (compact_listing), every match read so that the
+    counts and "more" are whole; an orcalink without its limit argument
+    gives its own first 60 of each kind."""
+    try:
+        got = SP.listing(slicer, kind, query, limit=LIST_MOST + 1000)
+    except TypeError:
+        got = SP.listing(slicer, kind, query)
+    return compact_listing(got, limit)
+
+
+def _say_once(s, slicer, roots):
+    """The preset folders, the first time this session lists that slicer's
+    presets or when they changed since; None when they were said."""
+    said = getattr(s, "_presets_from", None)
+    if not isinstance(said, dict):
+        said = {}
+        try:
+            s._presets_from = said
+        except Exception:  # noqa: BLE001 — a session that takes no attribute: said every time
+            return list(roots)
+    key = list(roots)
+    if said.get(slicer) == key:
+        return None
+    said[slicer] = key
+    return key
+
+
 def slicer_presets(s, a):
     action = a.get("action", "list")
     slicer = (a.get("slicer") or "bambustudio").lower()
@@ -133,8 +191,18 @@ def slicer_presets(s, a):
             kind = a.get("kind")
             if kind and kind not in SP.KINDS:
                 raise ToolError("invalid_input", f"kind: {', '.join(SP.KINDS)}.")
-            out = {"slicer": slicer, "from": SP.roots(slicer), **SP.listing(slicer, kind, a.get("query")), "saved": SP.saved(s.out_dir),
-                   "next": "slicer_presets use { machine, process, filament } (names from here) or { bundle } (a saved one) for a body's print setup."}
+            limit = a.get("limit")
+            if limit is None:
+                limit = LIST_FEW if not (kind or a.get("query")) else LIST_SOME
+            if isinstance(limit, bool) or not isinstance(limit, int) or not 0 <= limit <= LIST_MOST:
+                raise ToolError("invalid_input", f"limit: names to show of each kind after the person's own, 0 to {LIST_MOST}.")
+            out = {"slicer": slicer, **presets_listing(slicer, kind, a.get("query"), limit), "saved": SP.saved(s.out_dir)}
+            said = _say_once(s, slicer, SP.roots(slicer))
+            if said:
+                out = {"slicer": slicer, "from": said, **{k: v for k, v in out.items() if k != "slicer"},
+                       "next": "slicer_presets use { machine, process, filament } (names from here) or { bundle } (a saved one) for a body's print setup."}
+            else:
+                out["saidBefore"] = ["from", "next"]
             if slicer == "orcaslicer" and SP.packed_only(slicer) and not SP.orca_cached():
                 out["note"] = "This OrcaSlicer packs its system presets (.opc), which cannot be read here: slicer_presets fetch { vendors: [\"BBL\", …] } brings the same version's as JSON. The person's own presets are read either way."
             return out

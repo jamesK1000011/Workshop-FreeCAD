@@ -86,6 +86,7 @@ def make_job(doc, body, stock, tool, label=None):
             set_tool(tcs[0], tool)
         doc.recompute()
         settle_new(doc, had)
+        hide_new_shapes(doc, had, keep=(job,))
         return job, None
     except Exception as e:  # noqa: BLE001
         for n in [o.Name for o in doc.Objects if o.Name not in had]:
@@ -141,13 +142,84 @@ def set_tool(tc, d):
 
 def sanity_report(job, path):
     """CAM's own setup sheet for job (the CAM Sanity report, HTML), as text,
-    or (None, why not)."""
+    or (None, why not). The report's image builder is let go (and so its
+    own visibility restore run) before this returns, so restore_visibility
+    after it has the last word."""
+    import gc
+
     try:
         from Path.Main.Sanity import Sanity
 
-        return Sanity.CAMSanity(job, path).get_output_report(), None
+        sanity = Sanity.CAMSanity(job, path)
+        try:
+            return sanity.get_output_report(), None
+        finally:
+            del sanity
+            gc.collect()
     except Exception as e:  # noqa: BLE001
         return None, f"FreeCAD's CAM Sanity report could not be made here ({e})"
+
+
+# CAM's Sanity report hides the document to take its pictures: with the
+# window up its image builder (FreeCAD 1.1 source: src/Mod/CAM/Path/Main/
+# Sanity/ImageBuilder.py, GuiImageBuilder) records the objects shown and
+# hides every object (record_visibility) before EACH picture — the base
+# model, the datum, the stock, each tool — showing only the one it draws,
+# and puts back only what the LAST record held, and only in __del__
+# (restore_visibility). The second record is taken with everything already
+# hidden, so the parts stay hidden and the last picture's object, the stock
+# box drawn as a wireframe, stays shown (found live, window review round 3:
+# after mill_export only a wireframe stock box was left in the view). Make
+# records every object's Visibility before CAM runs and puts it back after.
+
+def visibility(doc):
+    """{object name: shown} for every object of doc (its Visibility, which
+    FreeCAD keeps from marking an object touched or the document changed)."""
+    out = {}
+    for o in getattr(doc, "Objects", []):
+        try:
+            out[o.Name] = bool(o.Visibility)
+        except Exception:  # noqa: BLE001
+            continue
+    return out
+
+
+def restore_visibility(doc, before):
+    """Every object of doc that was in before shown or hidden as it was.
+    The labels of those put back."""
+    back = []
+    for o in getattr(doc, "Objects", []):
+        want = before.get(getattr(o, "Name", None))
+        if want is None:
+            continue
+        try:
+            if bool(o.Visibility) != want:
+                o.Visibility = want
+                back.append(o.Label)
+        except Exception:  # noqa: BLE001
+            continue
+    return back
+
+
+def hide_new_shapes(doc, had, keep=()):
+    """New objects (not in had) that are shown and have a shape, hidden as
+    CAM's own Job leaves its stock and tools (Path/Main/Job.py setupStock,
+    setupToolTable): the box stock made here and a tool bit's model would
+    otherwise sit over the part. keep: objects left as they are (the Job).
+    The names hidden."""
+    hidden = []
+    skip = {getattr(k, "Name", k) for k in keep}
+    for o in getattr(doc, "Objects", []):
+        if o.Name in had or o.Name in skip:
+            continue
+        try:
+            sh = getattr(o, "Shape", None)
+            if o.Visibility and sh is not None and not sh.isNull():
+                o.Visibility = False
+                hidden.append(o.Name)
+        except Exception:  # noqa: BLE001
+            continue
+    return hidden
 
 
 def _li(text):

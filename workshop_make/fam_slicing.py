@@ -14,6 +14,14 @@ from .handlers import slicing as H
 
 GROUP = "slice"
 AREAS = {"slice": "Slice"}
+# Activity and caption words (agentlink/activity.py templates; see fam_make).
+PHRASES = {
+    "slice_with": ["Sliced {body} with {slicer} into a project and G-code: {time}, {filamentG} g if {project}",
+                   "Sliced {body} with {slicer}: {time}, {filamentG} g", "Sliced {body} with {slicer}: {gcode}"],
+    "slicer_presets": ["Put {slicer} presets on {setup}", "Exported the presets to {exported}", "Kept the presets bundle {imported}",
+                       "Listed {slicer} presets"],
+}
+SELECTS = {"slice_with": "body"}
 INFO = "Slicing with PrusaSlicer, OrcaSlicer or Bambu Studio, profiles by path, the encased parts' pauses written in."
 
 handlers.lend(H, ToolError=ToolError)

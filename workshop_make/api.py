@@ -373,6 +373,21 @@ def rules_of(doc, body):
     return printability.rules_for(s.get("nozzle", "0.4"), s.get("printer")), s
 
 
+def dfm_verdict(findings):
+    """dfm_check's verdict in a few words, from the findings not waived:
+    "not printable: 1 problem, 2 warnings", "printable, 2 warnings" or
+    "printable" (results.dfm says the same to the person)."""
+    open_ = [f for f in findings or [] if not f.get("waived")]
+    errors = sum(1 for f in open_ if f.get("severity") == "error")
+    warns = sum(1 for f in open_ if f.get("severity") == "warning")
+
+    def n(k, word):
+        return f"{k} {word}{'' if k == 1 else 's'}"
+    if errors:
+        return "not printable: " + n(errors, "problem") + (f", {n(warns, 'warning')}" if warns else "")
+    return "printable" + (f", {n(warns, 'warning')}" if warns else "")
+
+
 def dfm(doc, body_obj, waive=None, last=None):
     """The printability check of a body as it stands on the bed, its
     print setup's rules. waive: {id, reason} of a finding of `last` (the
@@ -389,6 +404,7 @@ def dfm(doc, body_obj, waive=None, last=None):
     rules, setup = rules_of(doc, body_obj.Label)
     out = printability.check(body_obj.Shape, rules, [x for x in waivers if x.get("body") == body_obj.Label])
     out["body"] = body_obj.Label
+    out["verdict"] = dfm_verdict(out.get("findings"))
     if setup:
         out["setup"] = f"{setup['name']} ({setup['id']})"
     return out
