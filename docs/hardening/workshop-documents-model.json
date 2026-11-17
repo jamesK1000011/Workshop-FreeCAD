@@ -48,7 +48,7 @@
     "name": "Tutorial part",
     "file": "tutorial-drawing"
    },
-   "expect": "a NEW page \"Tutorial part drawing\" beside the tutorial's two: views front, top, right, iso; paper A4 or A3 and a standard scale (the tutorial uses 2:1 on A4 for its projection group); projection and projectionFrom; page { views 4, viewsReadyIn, extentDimensions 3 (or fewer with page.notOnPage saying why), extents each { view, axis, dimension, measured, value } with one value 53, template, titleBlockEmptied, viewsInExport, exportScene [show, activate, paint, redraw, process] }; files { svg, pdf, dxf } named tutorial-drawing.*, filesFrom all \"TechDraw page\" with the window up; health ok (no view left undrawn, nothing red)"
+   "expect": "a NEW page \"Tutorial part drawing\" beside the tutorial's two: views front, top, right, iso; paper A4 or A3 and a standard scale (the tutorial uses 2:1 on A4 for its projection group); projection and projectionFrom; page { views 4, viewsReadyIn, extentDimensions 3 (or fewer with page.notOnPage saying why), extents each { view, axis, dimension, measured, value } with one value 53, template, titleBlockEmptied, viewsInExport, exportScene [show, activate, paint, redraw, process] }; files { svg, pdf, dxf } named tutorial-drawing.*, filesFrom all \"TechDraw page\" with the window up; health ok (no view left undrawn, nothing red); and, new: page.settled { cleared: the page's template (always: TechDraw's export draws it, which marks it) and, at a scale other than 1:1, its three dimensions; waited: seconds, usually under 1 } with no late and no left"
   },
   {
    "tool": "td_list",
@@ -80,7 +80,7 @@
      "generalTolerance": "ISO 2768-m"
     }
    },
-   "expect": "another page: section { view \"front\", label \"B-B\", plane, cutFaces ≥ 1, cutLineIn (top or right) }, page.section (a TechDraw Section view in place of the plain front view), holes [] or the part's round holes with labels (\"⌀…\"), calloutsOff / holeTable where no view sees one end on, page.titleBlock listing the template keys filled (title, part number, revision, tolerance, scale, date) and titleBlockEmptied the sample texts emptied; paper \"A3\""
+   "expect": "another page: section { view \"front\", label \"B-B\", plane, cutFaces ≥ 1, cutLineIn (top or right) }, page.section (a TechDraw Section view in place of the plain front view), holes [] or the part's round holes with labels (\"⌀…\"), calloutsOff / holeTable where no view sees one end on, page.titleBlock listing the template keys filled (title, part number, revision, tolerance, scale, date) and titleBlockEmptied the sample texts emptied; paper \"A3\"; page.settled.cleared names this page's template and its five dimensions (three extents and the two hole callouts: in run 2 these six were what the NEXT call read as \"6 objects not recomputed yet\"); no late, no left. If left is there, its why says what else changed; if late is there, the next call may still read those dimensions as not recomputed (tell me both)"
   },
   {
    "tool": "drawing_make",
@@ -92,7 +92,7 @@
     "dimensions": false,
     "file": "tutorial-files-only"
    },
-   "expect": "no page added (techdrawPage null, pageNote or no page key), files from \"Workshop's sheet writer: no TechDraw page\"; the document's object count is unchanged"
+   "expect": "no page added (techdrawPage null, pageNote or no page key), files from \"Workshop's sheet writer: no TechDraw page\"; the document's object count is unchanged. ITS health IS THE CHECK of the section drawing before it: ok, with no needRecompute and no \"objects not recomputed yet\" (run 2: Template001 and Dimension003 to Dimension007)"
   },
   {
    "tool": "drawing_make",
@@ -157,7 +157,7 @@
     ],
     "name": "tutorial"
    },
-   "expect": "CHANGES the document (a changing tool since this pass): figures [{ fig 1, view iso, page \"tutorial FIG. 1\", svg, pdf, filesFrom }, { fig 2, view front … }], numerals { Body: 10 }, list (tutorial_numerals.md); two new TechDraw pages on the blank A4 portrait template, each with one view and a balloon \"10\" without a bubble; one undo step; health present"
+   "expect": "CHANGES the document (a changing tool since this pass): figures [{ fig 1, view iso, page \"tutorial FIG. 1\", svg, pdf, filesFrom }, { fig 2, view front … }], numerals { Body: 10 }, list (tutorial_numerals.md); two new TechDraw pages on the blank A4 portrait template, each with one view and a balloon \"10\" without a bubble; one undo step; health present. After each figure's export its page's blank template is unmarked again: a figure's row carries settled only when a mark stayed (left: e.g. a balloon, with why) or may still arrive (late) — none expected; the next changing call's health reads no \"objects not recomputed yet\""
   },
   {
    "tool": "patent_figures",
@@ -217,7 +217,7 @@
     ],
     "name": "Base plate"
    },
-   "expect": "a second body under the part (not from the tutorial: drawing_exploded needs two)"
+   "expect": "a second body under the part (not from the tutorial: drawing_exploded needs two); health with no needRecompute (the check that the pages patent_figures made at call 10 left nothing marked)"
   },
   {
    "tool": "drawing_exploded",

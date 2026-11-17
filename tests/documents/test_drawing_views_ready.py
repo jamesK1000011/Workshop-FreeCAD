@@ -226,31 +226,283 @@ OUT["no_doc"] = T.page_reading(types.SimpleNamespace(doc=None), "x", [])
         self.assertEqual(out["no_doc"], [])
 
 
-class PageSettled(unittest.TestCase):
-    def test_what_is_left_marked_changed_is_recomputed_but_never_a_part_view(self):
-        # Found live (run 2): the call after drawing_make was told "6
-        # objects not recomputed yet" (the page's template and dimensions).
-        out = run(r"""
+# A page as FreeCAD 1.1's TechDraw source reads (see td_wait.py, "what an
+# export leaves marked"): a property set marks its object changed and tells
+# the document's observers; an object recomputed by itself executes, tells
+# them, and keeps its mark (Document::recomputeFeature) — only purgeTouched
+# or a document recompute takes it off; drawing the template writes its
+# size back; a dimension on a view at a scale other than 1 writes its
+# references again whenever it executes; a part view recomputed by itself
+# starts its lines afresh and, some turns of the event loop later,
+# recomputes its dimensions.
+TECHDRAW_AS_THE_SOURCE_READS = r"""
 import types
+import FreeCAD
 from workshop_documents import td_wait
-class O:
-    def __init__(self, name, touched, view=False):
-        self.Name, self.State, self.n = name, (["Touched"] if touched else []), 0
-        if view:
-            self.getVisibleEdges = lambda: ["e"]
-    def recompute(self):
-        self.n += 1
+
+observers = []
+FreeCAD.addDocumentObserver = observers.append
+FreeCAD.removeDocumentObserver = observers.remove
+doc = types.SimpleNamespace(Name="Doc")
+queue = []   # [turns left, fn]: what a view's thread hands back to the event loop
+
+
+class Obj:
+    def __init__(self, name, kind):
+        self.Name, self.TypeId, self.Document, self.State, self.executed, self.OutList = name, kind, doc, [], 0, []
+
+    def write(self, prop):                      # a property set, to any value
+        if "Touched" not in self.State:
+            self.State.append("Touched")
+        for o in list(observers):
+            o.slotChangedObject(self, prop)
+
+    def execute(self):
+        self.executed += 1
+
+    def recompute(self):                        # by itself: the mark stays
+        self.execute()
+        for o in list(observers):
+            o.slotRecomputedObject(self)
+
+    def purgeTouched(self):
         self.State = []
-tpl, dim, clean, view = O("Template001", True), O("Dimension003", True), O("Dimension004", False), O("View", True, view=True)
-page = O("Page001", True)
-page.Template, page.Views = tpl, [view, dim, clean]
-OUT["done"] = td_wait.settle_page(page)
-OUT["n"] = [tpl.n, dim.n, clean.n, view.n, page.n]
-OUT["none"] = td_wait.settle_page(types.SimpleNamespace())
+
+
+class Template(Obj):
+    def __init__(self, name):
+        super().__init__(name, "TechDraw::DrawSVGTemplate")
+
+    def draw(self):                             # QGISVGTemplate::draw -> processTemplate
+        for p in ("Width", "Height", "Orientation"):
+            self.write(p)
+
+
+class PartView(Obj):
+    def __init__(self, name, scale=2.0, late=2):
+        super().__init__(name, "TechDraw::DrawViewPart")
+        self.Scale, self.late, self.CoarseView, self.dims = scale, late, False, []
+
+    def getVisibleEdges(self):
+        return ["e"]
+
+    def execute(self):
+        super().execute()
+        if not self.CoarseView:                 # lines afresh on a thread; faces after them
+            queue.append([self.late, lambda: [d.recompute() for d in self.dims]])
+
+
+class Dimension(Obj):
+    def __init__(self, name, view):
+        super().__init__(name, "TechDraw::DrawViewDimension")
+        self.view, self.OutList = view, [view]
+        view.dims.append(self)
+
+    def execute(self):
+        super().execute()
+        if self.view.Scale != 1.0:              # the saved geometry is unscaled, the check reads it scaled
+            for p in ("References2D", "SavedGeometry", "BoxCorners"):
+                self.write(p)
+
+
+turns = []
+def pump():
+    turns.append(1)
+    for item in list(queue):
+        item[0] -= 1
+        if item[0] <= 0:
+            queue.remove(item)
+            item[1]()
+    return True
+
+
+def export_svg(page):                           # QGSPage::saveSvg
+    page.Template.draw()
+
+
+def export_pdf(page):                           # PagePrinter::printPdf -> DrawPage::redrawCommand
+    page.Template.draw()
+    for v in page.Views:
+        if isinstance(v, PartView):
+            v.recompute()
+    for v in page.Views:
+        if not isinstance(v, PartView):
+            v.recompute()
+
+
+def sheet(scale=2.0, late=2):
+    tpl = Template("Template001")
+    front, top = PartView("View", scale, late), PartView("View001", scale, late + 1)
+    dims = [Dimension("Dimension003", front), Dimension("Dimension004", front), Dimension("Dimension005", top)]
+    page = Obj("Page001", "TechDraw::DrawPage")
+    page.Template, page.Views = tpl, [front, top] + dims
+    return page, tpl, [front, top], dims
+
+
+def marked(page):
+    return [o.Name for o in [page.Template] + page.Views + [page] if "Touched" in o.State]
+"""
+
+
+class PageSettled(unittest.TestCase):
+    """Found live (run 2): the call after drawing_make read "6 objects not
+    recomputed yet" — the section page's template and its five dimensions.
+    The first fix recomputed each of them by itself, which is the very call
+    that leaves the mark."""
+
+    def test_recomputing_each_by_itself_never_took_the_mark_off(self):
+        out = run(TECHDRAW_AS_THE_SOURCE_READS + r"""
+page, tpl, views, dims = sheet()
+export_svg(page)
+export_pdf(page)
+for _ in range(6):
+    pump()
+OUT["after"] = marked(page)
+for o in [tpl] + dims:
+    o.recompute()                               # what settle_page did
+OUT["after_old_fix"] = marked(page)
 """)
-        self.assertEqual(out["done"], ["Template001", "Dimension003", "Page001"])
-        self.assertEqual(out["n"], [1, 1, 0, 0, 1])  # the part view is not recomputed: its lines would start afresh
-        self.assertEqual(out["none"], [])
+        self.assertEqual(out["after"], ["Template001", "Dimension003", "Dimension004", "Dimension005"])
+        self.assertEqual(out["after_old_fix"], out["after"])
+
+    def test_an_export_leaves_the_page_unmarked_and_waits_for_what_arrives_late(self):
+        out = run(TECHDRAW_AS_THE_SOURCE_READS + r"""
+page, tpl, views, dims = sheet()
+with td_wait.PageExport(page, timeout=5, pump=pump, sleep=0) as px:
+    export_svg(page)
+    export_pdf(page)
+OUT["settled"] = px.settled
+OUT["marked"] = marked(page)
+OUT["turns"] = len(turns)
+OUT["views_executed"] = [v.executed for v in views]
+OUT["dims_executed"] = [d.executed for d in dims]
+for _ in range(10):                             # and nothing arrives after the call
+    pump()
+OUT["marked_later"] = marked(page)
+OUT["observers"] = len(observers)
+""")
+        s = out["settled"]
+        self.assertEqual(s["cleared"], ["Template001", "Dimension003", "Dimension004", "Dimension005"])
+        self.assertNotIn("late", s)
+        self.assertNotIn("left", s)
+        self.assertEqual((out["marked"], out["marked_later"]), ([], []))
+        # waited for the later of the two views (3 turns), then the quiet turns
+        self.assertGreaterEqual(out["turns"], 3)
+        # nothing recomputed by the settle itself: a part view would start its lines afresh
+        self.assertEqual(out["views_executed"], [1, 1])
+        self.assertEqual(out["dims_executed"], [2, 2, 2])  # the export's redraw, and when its view's lines came
+        self.assertEqual(out["observers"], 0)  # the watch is taken away again
+
+    def test_an_svg_only_export_waits_for_nothing(self):
+        out = run(TECHDRAW_AS_THE_SOURCE_READS + r"""
+page, tpl, views, dims = sheet()
+with td_wait.PageExport(page, timeout=5, pump=pump, sleep=0) as px:
+    export_svg(page)
+OUT["settled"] = px.settled
+OUT["turns"] = len(turns)
+OUT["marked"] = marked(page)
+""")
+        self.assertEqual(out["settled"]["cleared"], ["Template001"])
+        self.assertEqual((out["turns"], out["marked"]), (0, []))
+
+    def test_at_one_to_one_only_the_template_is_marked(self):
+        out = run(TECHDRAW_AS_THE_SOURCE_READS + r"""
+page, tpl, views, dims = sheet(scale=1.0)
+with td_wait.PageExport(page, timeout=5, pump=pump, sleep=0) as px:
+    export_pdf(page)
+OUT["settled"] = px.settled
+OUT["marked"] = marked(page)
+""")
+        self.assertEqual(out["settled"]["cleared"], ["Template001"])
+        self.assertEqual(out["marked"], [])
+
+    def test_what_was_marked_before_or_changed_otherwise_keeps_its_mark(self):
+        out = run(TECHDRAW_AS_THE_SOURCE_READS + r"""
+page, tpl, views, dims = sheet()
+dims[0].write("FormatSpec")                     # before the export: someone's change, not recomputed yet
+with td_wait.PageExport(page, timeout=5, pump=pump, sleep=0) as px:
+    export_pdf(page)
+    dims[1].write("X")                          # during it: a position moved
+    page.State.append("Touched")                # marked with nothing written (touch())
+OUT["settled"] = px.settled
+OUT["marked"] = marked(page)
+""")
+        s = out["settled"]
+        self.assertEqual(s["cleared"], ["Template001", "Dimension005"])
+        self.assertEqual([x["object"] for x in s["left"]], ["Dimension003", "Dimension004", "Page001"])
+        self.assertIn("before the export", s["left"][0]["why"])
+        self.assertIn("X changed during the export", s["left"][1]["why"])
+        self.assertIn("nothing written", s["left"][2]["why"])
+        self.assertEqual(out["marked"], ["Dimension003", "Dimension004", "Page001"])
+
+    def test_a_dimension_not_seen_again_in_time_is_said(self):
+        out = run(TECHDRAW_AS_THE_SOURCE_READS + r"""
+page, tpl, views, dims = sheet(late=10 ** 6)    # its lines never arrive
+with td_wait.PageExport(page, timeout=0.05, pump=pump, sleep=0.01) as px:
+    export_pdf(page)
+OUT["settled"] = px.settled
+OUT["marked"] = marked(page)
+""")
+        s = out["settled"]
+        self.assertEqual(s["late"], ["Dimension003", "Dimension004", "Dimension005"])
+        # what is marked now is still taken off; the mark that may follow is named, not hidden
+        self.assertEqual(s["cleared"], ["Template001", "Dimension003", "Dimension004", "Dimension005"])
+        self.assertEqual(out["marked"], [])
+
+    def test_a_coarse_view_is_not_waited_for_and_no_event_loop_is_no_wait(self):
+        out = run(TECHDRAW_AS_THE_SOURCE_READS + r"""
+page, tpl, views, dims = sheet()
+for v in views:
+    v.CoarseView = True                         # its lines at once: nothing arrives later
+with td_wait.PageExport(page, timeout=5, pump=pump, sleep=0) as px:
+    export_pdf(page)
+OUT["coarse"] = px.settled
+OUT["coarse_turns"] = len(turns)
+page, tpl, views, dims = sheet()
+with td_wait.PageExport(page, timeout=5, pump=lambda: False, sleep=0) as px:
+    export_pdf(page)
+OUT["no_loop"] = px.settled
+""")
+        self.assertNotIn("late", out["coarse"])
+        self.assertEqual(out["coarse_turns"], 0)
+        self.assertEqual(out["no_loop"]["late"], ["Dimension003", "Dimension004", "Dimension005"])
+        self.assertLess(out["no_loop"]["waited"], 1.0)
+
+    def test_an_export_that_raises_is_not_settled_and_nothing_to_watch_with_clears_nothing(self):
+        out = run(TECHDRAW_AS_THE_SOURCE_READS + r"""
+page, tpl, views, dims = sheet()
+px = td_wait.PageExport(page, timeout=5, pump=pump, sleep=0)
+try:
+    with px:
+        export_svg(page)
+        raise RuntimeError("the export failed")
+except RuntimeError as e:
+    OUT["raised"] = str(e)
+OUT["settled"] = px.settled
+OUT["observers"] = len(observers)
+OUT["marked"] = marked(page)
+def refuse(o):
+    raise RuntimeError("no observers here")
+FreeCAD.addDocumentObserver = refuse
+with td_wait.PageExport(page, timeout=5, pump=pump, sleep=0) as px2:
+    export_svg(page)
+OUT["unwatched"] = px2.settled
+OUT["marked_unwatched"] = marked(page)
+""")
+        self.assertEqual((out["raised"], out["settled"], out["observers"]), ("the export failed", None, 0))
+        self.assertEqual(out["marked"], ["Template001"])
+        self.assertEqual(out["unwatched"], {"cleared": [], "waited": 0.0, "unwatched": True})
+        self.assertEqual(out["marked_unwatched"], ["Template001"])
+
+    def test_the_wait_is_sized_by_how_long_the_views_took(self):
+        out = run(r"""
+from workshop_documents.handlers import drawing as D
+OUT["t"] = [D._settle_timeout(x) for x in ({"viewsReadyIn": 0.24}, {"viewsReadyIn": 3.0}, {"viewsReadyIn": 60}, {}, None, "no page")]
+OUT["say"] = [D._worth_saying(x) for x in ({"cleared": ["Template"], "waited": 0.0}, {"cleared": [], "waited": 5.0, "late": ["Dimension"]},
+                                             {"cleared": [], "waited": 0.0, "unwatched": True}, None)]
+""")
+        self.assertEqual(out["t"], [5.0, 14.0, 30.0, 5.0, 5.0, 5.0])
+        self.assertEqual(out["say"], [False, True, True, False])
 
 
 if __name__ == "__main__":
