@@ -58,6 +58,9 @@ class Drawing(unittest.TestCase):
         self.assertAlmostEqual(dims["y"], 60, delta=0.01)
         self.assertAlmostEqual(dims["z"], 30, delta=0.01)
         self.assertIn(d["scale"], ("1:1", "1:2"))
+        # Where the time went: always the sheet and the total; the page's parts when a page was made.
+        self.assertGreaterEqual(d["timing"]["total"], d["timing"]["sheet"])
+        self.assertEqual(set(d["timing"]) - {"page", "export", "settle"}, {"sheet", "turns", "turnMs", "total"})
         # The page in the document, when TechDraw could make it here.
         if d["techdrawPage"]:
             self.assertTrue(any(o.TypeId == "TechDraw::DrawPage" for o in self.session.doc.Objects))
@@ -152,6 +155,9 @@ class Drawing(unittest.TestCase):
         self.assertFalse(err, p)
         print("\npatent:", json.dumps({k: p.get(k) for k in ("numerals", "notSeenIn")}))
         self.assertEqual(len(p["figures"]), 4)
+        self.assertEqual(p["timing"]["figures"], 4)
+        self.assertTrue(all(f["timing"]["total"] >= f["timing"]["sheet"] >= 0 for f in p["figures"]))
+        self.assertGreaterEqual(p["timing"]["total"], sum(f["timing"]["total"] for f in p["figures"]) - 5)
         self.assertEqual(p["numerals"], {"Box": 10, "Box lid": 20})
         with open(p["figures"][0]["svg"], encoding="utf-8") as f:
             svg = f.read()

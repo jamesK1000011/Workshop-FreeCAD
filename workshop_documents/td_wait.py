@@ -46,16 +46,42 @@ def view_busy(v):
 # then (a view's lines arriving from their thread, and what it recomputes
 # after them) is told apart from what a call does itself (PageExport).
 _TURNING = [0]
+# Every turn of the event loop run from here, counted and timed: [turns,
+# seconds inside them]. A turn runs whatever the window has waiting, not
+# only TechDraw's work, so what a wait costs is the turns it ran and how
+# long each took; an answer that gives both (turns_since) tells a wait
+# that needed many turns from a window that is slow to turn. Found live
+# (run 3): drawing_make took 4.6 and 5.7 s where it had taken 0.8 s, with
+# 2 to 2.6 s that no field of the answer accounted for.
+_TURNS = [0, 0.0]
+
+
+def turns_now():
+    """A mark for turns_since: the turns run so far and their time."""
+    return (_TURNS[0], _TURNS[1])
+
+
+def turns_since(mark):
+    """{ turns, turnMs }: the turns of the event loop run from this module
+    since mark (turns_now) and the milliseconds spent inside them."""
+    return {"turns": _TURNS[0] - mark[0], "turnMs": int(round((_TURNS[1] - mark[1]) * 1000))}
+
+
+def _counted(fn):
+    _TURNING[0] += 1
+    t0 = time.perf_counter()
+    try:
+        return fn()
+    finally:
+        _TURNING[0] -= 1
+        _TURNS[0] += 1
+        _TURNS[1] += time.perf_counter() - t0
 
 
 def _pump():
     """One turn of the event loop: FreeCAD's window when it is up (its
     scene redrawn), else a Qt core loop. False when there is no Qt."""
-    _TURNING[0] += 1
-    try:
-        return _pump_once()
-    finally:
-        _TURNING[0] -= 1
+    return _counted(_pump_once)
 
 
 def _pump_once():
@@ -86,20 +112,20 @@ def _turn(pump):
     own, as the tests give one)."""
     if pump is _pump:
         return pump()
-    _TURNING[0] += 1
-    try:
-        return pump()
-    finally:
-        _TURNING[0] -= 1
+    return _counted(pump)
 
 
-def views_ready(views_, timeout=30.0, pump=None, sleep=0.02):
+def views_ready(views_, timeout=30.0, pump=None, sleep=0.02, draw=True):
     """Waits until every view's lines are worked out: a view with a change
     not yet recomputed is recomputed once (never one that is ready: that
     starts its lines afresh), and the event loop is run until none is
     waiting and each has edges, or timeout seconds. Then a few more turns
-    so the window's scene draws them. {"seconds": waited, "notReady":
-    [{"view", "why"}]} (notReady empty when all are ready)."""
+    so the window's scene draws them — left out with draw: False, for a
+    caller that only asks whether the views are ready and either needs no
+    scene (a dimension is placed on a view's geometry, not on its picture)
+    or readies the scene itself straight after (the export does:
+    drawing.page_scene_ready). {"seconds": waited, "notReady": [{"view",
+    "why"}]} (notReady empty when all are ready)."""
     pump = pump or _pump
     views_ = list(views_)
     t0 = time.time()
@@ -125,7 +151,7 @@ def views_ready(views_, timeout=30.0, pump=None, sleep=0.02):
             # No event loop to run: nothing more will arrive.
             break
         time.sleep(sleep)
-    for _ in range(3):
+    for _ in range(3 if draw else 0):
         if not _turn(pump):
             break
     left = [{"view": getattr(v, "Label", getattr(v, "Name", "?")), "why": view_busy(v)} for v in views_]
@@ -247,19 +273,28 @@ class PageExport:
 
         with PageExport(page) as px:
             ... TechDrawGui.exportPageAsSvg / exportPageAsPdf ...
-        px.settled  # { cleared, waited, late?, left? }
+        px.settled  # { cleared, waited, exportMs, turns, turnMs, seen, late?, left? }
 
     On leaving, the page is settled (settle, below). With no FreeCAD
     observer to watch with (a stand-in), nothing is waited for and nothing
-    cleared: settled is { cleared: [], waited: 0.0, unwatched: true }. An
-    export that raises is not settled (settled stays None) and the
-    exception goes on."""
+    cleared: settled is { cleared: [], waited: 0.0, unwatched: true,
+    exportMs }. An export that raises is not settled (settled stays None)
+    and the exception goes on.
+
+    Where the time went is in the answer: exportMs, what ran inside the
+    with (the export itself, whatever it waited for before); waited, the
+    seconds after it; turns and turnMs, the turns of the event loop that
+    wait ran and the milliseconds inside them (the rest of waited is the
+    pause between turns, `sleep` each); seen { changed, recomputed }, how
+    many property writes and recomputes of the page's document were
+    watched — each one a call into Python while the watch is on."""
 
     def __init__(self, page, timeout=SETTLE_TIMEOUT, pump=None, sleep=0.02):
         self.page, self.timeout, self.pump, self.sleep = page, timeout, pump, sleep
         self.watch = None
         self.before = set()
         self.settled = None
+        self.entered = None
 
     def _objects(self):
         """(part views, everything else of the page: template, dimensions,
@@ -285,12 +320,16 @@ class PageExport:
             self.watch = w
         except Exception:  # noqa: BLE001 — nothing to watch with: nothing is cleared
             self.watch = None
+        self.entered = time.perf_counter()
         return self
 
     def __exit__(self, kind, _value, _tb):
         try:
             if kind is None:
+                export_ms = int(round((time.perf_counter() - self.entered) * 1000)) if self.entered is not None else None
                 self.settled = self.settle()
+                if export_ms is not None:
+                    self.settled["exportMs"] = export_ms
         finally:
             if self.watch is not None:
                 try:
@@ -308,13 +347,17 @@ class PageExport:
         marked. { cleared: [names], waited: seconds, late: [dimensions not
         seen recomputed again within the timeout: a mark may still arrive
         after the call], left: [{ object, why }] (marked, and not
-        cleared) }; late and left only when there are any."""
+        cleared) }; late and left only when there are any. Also turns and
+        turnMs (the event loop's turns during the wait and the time inside
+        them) and seen { changed, recomputed } (what the watch was told of
+        since the export began)."""
         if self.watch is None:
             return {"cleared": [], "waited": 0.0, "unwatched": True}
         pump = self.pump or _pump
         log = self.watch.log
         parts, rest = self._objects()
         t0 = time.time()
+        mark = turns_now()
         # The part views recomputed while the export was watched (by the
         # PDF export's redraw, or by the wait for the views before it):
         # each works its lines out afresh on another thread (a coarse view
@@ -376,7 +419,8 @@ class PageExport:
                     cleared.append(name)
                 except Exception as e:  # noqa: BLE001
                     left.append({"object": name, "why": f"the mark could not be taken off: {e}"})
-        out = {"cleared": cleared, "waited": round(time.time() - t0, 2)}
+        out = {"cleared": cleared, "waited": round(time.time() - t0, 2), **turns_since(mark),
+               "seen": {"changed": sum(1 for e in log if e[0] == "changed"), "recomputed": sum(1 for e in log if e[0] == "recomputed")}}
         if late:
             out["late"] = late
         if left:

@@ -16,6 +16,7 @@ import glob
 import math
 import os
 import re
+import time
 
 import FreeCAD
 import TechDraw  # noqa: F401 — the family stands on TechDraw; left out without it
@@ -25,6 +26,8 @@ from workshop_documents import iso286
 from workshop_documents import sheets
 from workshop_documents import records as store
 from workshop_documents.td_wait import PageExport as _PageExport
+from workshop_documents.td_wait import turns_now as _turns_now
+from workshop_documents.td_wait import turns_since as _turns_since
 from workshop_documents.td_wait import views_ready as _wait_views
 
 from .. import fcexplode, views
@@ -37,12 +40,27 @@ M = None  # Agent Link's measure family
 picks = None  # Agent Link's picks family
 
 
-def _settle(vs):
+def _ms(t0):
+    """Milliseconds since t0 (time.perf_counter)."""
+    return int(round((time.perf_counter() - t0) * 1000))
+
+
+def _settle(vs, draw=True):
     """Every view's lines worked out before anything is placed on them or
     the page exported: {"seconds", "notReady"} as td_wait.views_ready (a
-    stand-in that answers None: all ready at once)."""
+    stand-in that answers None: all ready at once). draw: False asks only
+    whether they are ready and leaves out the turns of the event loop that
+    draw the window's scene (td_wait.views_ready): for a second look
+    before dimensions go on, and before an export that readies its scene
+    itself."""
     try:
-        got = _wait_views(list(vs))
+        if draw:
+            got = _wait_views(list(vs))
+        else:
+            try:
+                got = _wait_views(list(vs), draw=False)
+            except TypeError:  # a wait that knows no draw (a stand-in)
+                got = _wait_views(list(vs))
     except Exception as e:  # noqa: BLE001
         return {"seconds": 0.0, "notReady": [{"view": "?", "why": f"the wait failed: {type(e).__name__}: {e}"}]}
     if not isinstance(got, dict):
@@ -362,7 +380,9 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
             # The dimensions and hole callouts on the page itself, each on
             # its own (one failing never drops the rest), added to what is
             # already listed as not on the page, never in place of it.
-            again = _settle([v for _, v in made])
+            # Only asked: a dimension goes on a view's geometry, and the
+            # scene is drawn by the export (page_scene_ready).
+            again = _settle([v for _, v in made], draw=False)
             if again["notReady"]:
                 out["viewsNotReady"] = again["notReady"]
             try:
@@ -403,11 +423,22 @@ def _export_page(page, out_dir, base, kinds=("dxf", "pdf", "svg"), report=None):
     hold the views' lines, not only the template and dimensions: exported
     once more after a further wait when it does not, and neither SVG nor
     PDF kept from the page when it still does not. report (a dict) is
-    filled with viewsReadyIn, viewsNotReady and viewsInExport."""
+    filled with viewsReadyIn, viewsNotReady, viewsInExport and ms: where
+    the export's time went, in milliseconds — wait (for the views, before
+    anything is written), dxf, scene (the page's tab shown and painted:
+    page_scene_ready), svg (TechDraw's export; twice when it had to be
+    made again), check (the SVG read back for the views' lines and the
+    template), pdf (TechDraw's export, which ends by redrawing every view
+    of the page: what the wait after the export is for)."""
     paths, why = {}, {}
     report = {} if report is None else report
+    ms = report["ms"] = {}
     pv = _part_views(page)
-    ready = _settle(pv)
+    t0 = time.perf_counter()
+    # Asked only: with a window the scene is readied just below, and
+    # without one nothing draws it.
+    ready = _settle(pv, draw=False)
+    ms["wait"] = _ms(t0)
     report["viewsReadyIn"] = ready["seconds"]
     if ready["notReady"]:
         # Never a page whose views have no lines yet: its export held only
@@ -419,6 +450,7 @@ def _export_page(page, out_dir, base, kinds=("dxf", "pdf", "svg"), report=None):
         return paths, why
     p = os.path.join(out_dir, f"{base}.dxf")
     if "dxf" in kinds:
+        t0 = time.perf_counter()
         try:
             TechDraw.writeDXFPage(page, p)
             if os.path.isfile(p) and os.path.getsize(p) > 0:
@@ -427,12 +459,15 @@ def _export_page(page, out_dir, base, kinds=("dxf", "pdf", "svg"), report=None):
                 why["dxf"] = "TechDraw wrote nothing"
         except Exception as e:  # noqa: BLE001
             why["dxf"] = f"TechDraw could not write it ({e})"
+        ms["dxf"] = _ms(t0)
     gui = getattr(FreeCAD, "GuiUp", False)
     if gui and any(k in kinds for k in ("pdf", "svg")):
         # TechDrawGui's exports draw the page's scene (the QGraphicsScene of
         # its tab), not the page object: shown, made the active tab, each
         # view asked to repaint and the event loop run before exporting.
+        t0 = time.perf_counter()
         report["exportScene"] = page_scene_ready(page)
+        ms["scene"] = _ms(t0)
     for k, fn in (("svg", "exportPageAsSvg"), ("pdf", "exportPageAsPdf")):
         if k not in kinds:
             continue
@@ -446,26 +481,74 @@ def _export_page(page, out_dir, base, kinds=("dxf", "pdf", "svg"), report=None):
         try:
             import TechDrawGui
 
+            t0 = time.perf_counter()
             getattr(TechDrawGui, fn)(page, p)
-            if k == "svg" and pv and os.path.isfile(p) and not views_in_svg(p, page, pv, report):
-                # The views' lines missing from the scene the export draws:
-                # wait for them again (the window redrawn) and export once more.
-                again = _settle(pv)
-                report["viewsReadyIn"] = round(report["viewsReadyIn"] + again["seconds"], 2)
-                report["exportSceneAgain"] = page_scene_ready(page, turns=SCENE_TURNS * 2)
-                getattr(TechDrawGui, fn)(page, p)
+            ms[k] = _ms(t0)
+            # The SVG is read back once for the views' lines: the answer
+            # stands for the file as long as it is not written again (it
+            # was read, and every path in it counted, a second time just
+            # below).
+            held = None
+            if k == "svg" and pv and os.path.isfile(p):
+                t0 = time.perf_counter()
+                held = views_in_svg(p, page, pv, report)
+                ms["check"] = ms.get("check", 0) + _ms(t0)
+                if not held:
+                    # The views' lines missing from the scene the export draws:
+                    # wait for them again (the window redrawn) and export once more.
+                    t0 = time.perf_counter()
+                    again = _settle(pv)
+                    report["viewsReadyIn"] = round(report["viewsReadyIn"] + again["seconds"], 2)
+                    ms["wait"] += _ms(t0)
+                    t0 = time.perf_counter()
+                    report["exportSceneAgain"] = page_scene_ready(page, turns=SCENE_TURNS * 2)
+                    ms["scene"] = ms.get("scene", 0) + _ms(t0)
+                    t0 = time.perf_counter()
+                    getattr(TechDrawGui, fn)(page, p)
+                    ms[k] += _ms(t0)
+                    held = None  # another file now
+            t0 = time.perf_counter()
             if not (os.path.isfile(p) and os.path.getsize(p) > 0):
                 why[k] = "TechDraw wrote nothing"
             elif k == "svg" and not template_in_svg(p, page):
                 why[k] = "TechDraw left the template out of its export (no frame or title block in it)"
-            elif k == "svg" and pv and not views_in_svg(p, page, pv, report):
+            elif k == "svg" and pv and not (views_in_svg(p, page, pv, report) if held is None else held):
                 why[k] = ("TechDraw's export held no view geometry (only the template and dimensions), twice; "
                           "the page itself is fine: File ▸ Export it in FreeCAD's window")
             else:
                 paths[k] = p
+            if k == "svg":
+                ms["check"] = ms.get("check", 0) + _ms(t0)
         except Exception as e:  # noqa: BLE001
             why[k] = f"TechDraw could not write it ({e})"
     return paths, why
+
+
+def _timing(started, turns_mark, sheet_ms, page_ms, exported, settled):
+    """Where a drawing's time went, for the answer: { sheet, page, export
+    { wait, dxf, scene, svg, check, pdf }, settle, turns, turnMs, total },
+    milliseconds. sheet: Workshop's own projection of the views, the
+    layout, the dimensions and callouts of the files (no TechDraw). page:
+    the TechDraw page made — its views, section and dimensions, the wait
+    for the views' lines among it (page.viewsReadyIn, seconds). export:
+    _export_page's own split (TechDraw's exports and what they need
+    first). settle: the wait after the export for what TechDraw
+    recomputes late, and the marks taken off (page.settled.waited is the
+    same wait, in seconds). turns and turnMs: every turn of the event
+    loop the call ran, in page, export and settle together, and the time
+    inside them — a turn runs whatever the window has waiting, not only
+    TechDraw's work. total: from the call's start to here. A part left
+    out did not run."""
+    out = {"sheet": sheet_ms}
+    if page_ms is not None:
+        out["page"] = page_ms
+    if isinstance(exported, dict) and exported.get("ms"):
+        out["export"] = dict(exported["ms"])
+    if isinstance(settled, dict) and "waited" in settled:
+        out["settle"] = int(round(float(settled["waited"]) * 1000))
+    out.update(_turns_since(turns_mark))
+    out["total"] = _ms(started)
+    return out
 
 
 SCENE_TURNS = 4
@@ -1620,6 +1703,7 @@ def default_projection(asked):
 
 
 def drawing_make(s, a):
+    started, turns_mark = time.perf_counter(), _turns_now()
     objs = _bodies(s, a.get("bodies"))
     want = a.get("views") or ["front", "top", "right", "iso"]
     bad = [v for v in want if v not in views.VIEWS]
@@ -1869,16 +1953,19 @@ def drawing_make(s, a):
     title_block_grid(sheet, tb)
     folder, base = out_place(s.out_dir, a.get("file"), name)
     page, made = (None, "not asked for")
+    sheet_ms, page_ms = _ms(started), None
     if a.get("page", True):
+        t_page = time.perf_counter()
         page, made = _techdraw_page(s.doc, objs, [(v, L["centres"][v]) for v in want], scale, paper, f"{name} drawing", a.get("dimensions", True), specs, drawn,
                                      {**section_out, "origin": sec_origin} if section_out else None, tb, scales,
                                      {v: L["boxes"][v] for v in want if v in views.AXES}, projection, hole_table or None, extent)
+        page_ms = _ms(t_page)
     # The files are the page's own exports where TechDraw can write them;
     # Workshop's sheet writer (the same views by Open CASCADE's hidden-line
     # removal) writes the rest, and the answer says which is which.
     paths, frm = {}, {}
+    exported, px = {}, None
     if page is not None:
-        exported = {}
         with _PageExport(page, timeout=_settle_timeout(made)) as px:
             paths, why = _export_page(page, folder, base, report=exported)
         if isinstance(made, dict):
@@ -1920,6 +2007,9 @@ def drawing_make(s, a):
         "step": len(s.steps),
     }
     out["page" if page is not None else "pageNote"] = made
+    # Where the call's time went (found live, run 3: 4.6 and 5.7 s a
+    # drawing with 2 to 2.6 s no field accounted for).
+    out["timing"] = _timing(started, turns_mark, sheet_ms, page_ms, exported, px.settled if px is not None else None)
     if a.get("dimensions", True):
         out["note"] = ("The drawing is the TechDraw page (edit it in TechDraw: its views, section, dimensions and title block are TechDraw's own; "
                        "page.dimensions, and any it could not place under page.notOnPage). The files are the page's exports where TechDraw can write them "
@@ -2209,7 +2299,9 @@ def patent_figures(s, a):
     aw, ah = W - left - right, H - top - bottom - 20
     figs, unseen = [], {}
     shapes = [o.Shape for o in objs]
+    call_started, call_turns = time.perf_counter(), _turns_now()
     for k, v in enumerate(want, 1):
+        started, turns_mark = time.perf_counter(), _turns_now()
         d = views.project(shapes, v)
         bw, bh = d["box"][2] - d["box"][0], d["box"][3] - d["box"][1]
         scale = min((aw - 60) / max(bw, 1e-6), (ah - 60) / max(bh, 1e-6))
@@ -2245,12 +2337,15 @@ def patent_figures(s, a):
         fp = os.path.join(s.out_dir, f"{base}_fig{k}")
         fig = {"fig": k, "view": v}
         got, frm = {}, {}
+        sheet_ms, page_ms, exported, px = _ms(started), None, {}, None
         if a.get("page", True):
+            t_page = time.perf_counter()
             pg, note = _patent_page(s, objs, shapes, v, k, scale, centre, numerals, f"{a.get('name') or 'Patent'} FIG. {k}")
+            page_ms = _ms(t_page)
             if pg is not None:
                 fig["page"] = pg.Label
                 with _PageExport(pg, timeout=_settle_timeout(note)) as px:
-                    got, why = _export_page(pg, s.out_dir, os.path.basename(fp), ("pdf", "svg"))
+                    got, why = _export_page(pg, s.out_dir, os.path.basename(fp), ("pdf", "svg"), report=exported)
                 if _worth_saying(px.settled):
                     fig["settled"] = px.settled
                 frm = {kk: "TechDraw page" for kk in got}
@@ -2266,6 +2361,9 @@ def patent_figures(s, a):
                 f.write(sheet.pdf())
             frm.setdefault("pdf", "Workshop's sheet writer: no TechDraw page")
         fig.update({"svg": fp + ".svg", "pdf": fp + ".pdf", "filesFrom": frm})
+        # Where this figure's time went (found live, run 3: 6.6 s for two
+        # figures, none of it in the answer).
+        fig["timing"] = _timing(started, turns_mark, sheet_ms, page_ms, exported, px.settled if px is not None else None)
         figs.append(fig)
     lines = [f"# Reference numerals — {a.get('name') or 'figures'}", ""]
     lines += [f"- FIG. {f['fig']} is {views.WORDS[f['view']]}." for f in figs]
@@ -2278,6 +2376,7 @@ def patent_figures(s, a):
            "Each figure is an ordinary TechDraw page (page), its numerals TechDraw balloons with no bubble, editable in TechDraw; the files are its exports where TechDraw can write them (filesFrom)."}
     if unseen:
         out["notSeenIn"] = unseen
+    out["timing"] = {"figures": len(figs), **_turns_since(call_turns), "total": _ms(call_started)}
     return out
 
 
