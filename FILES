@@ -50,6 +50,8 @@ safetynet/settings.py
 safetynet/startup.py
 safetynet/theme.py
 safetynet/workbench.py
+scripts/ste_check.py
+scripts/ste_originals.json
 tests/_narrowqt.py
 tests/documents/_stubs.py
 tests/documents/test_api.py
@@ -147,6 +149,7 @@ tests/test_placement.py
 tests/test_release.py
 tests/test_shared.py
 tests/test_stale.py
+tests/test_ste_lint.py
 tests/test_tools_menu.py
 tools/gen_readme_tools.py
 workshop/__init__.py

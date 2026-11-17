@@ -41,3 +41,10 @@ SPDX-License-Identifier = "LGPL-2.1-or-later"
 # Lessons for the Tutor (Tutor-FreeCAD, same licence), copied from its
 # docs/examples/workshop/lessons/; the Tutor finds them in the lessons/
 # folder beside workshop/agentlink_families.py.
+
+[[annotations]]
+path = "scripts/ste_originals.json"
+SPDX-FileCopyrightText = "Workshop for FreeCAD contributors"
+SPDX-License-Identifier = "CC-BY-4.0 AND LGPL-2.1-or-later"
+# The tool descriptions as main held them before the ASD-STE100 rewrite: the
+# data/tools.json texts (CC-BY-4.0) and the Python ones (LGPL-2.1-or-later).
