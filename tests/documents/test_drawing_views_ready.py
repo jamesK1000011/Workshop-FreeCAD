@@ -491,7 +491,8 @@ OUT["marked_unwatched"] = marked(page)
 """)
         self.assertEqual((out["raised"], out["settled"], out["observers"]), ("the export failed", None, 0))
         self.assertEqual(out["marked"], ["Template001"])
-        self.assertEqual(out["unwatched"], {"cleared": [], "waited": 0.0, "unwatched": True})
+        self.assertEqual(out["unwatched"], {"cleared": [], "waited": 0.0, "unwatched": True, "exportMs": out["unwatched"]["exportMs"]})
+        self.assertGreaterEqual(out["unwatched"]["exportMs"], 0)
         self.assertEqual(out["marked_unwatched"], ["Template001"])
 
     def test_the_wait_is_sized_by_how_long_the_views_took(self):
@@ -503,6 +504,153 @@ OUT["say"] = [D._worth_saying(x) for x in ({"cleared": ["Template"], "waited": 0
 """)
         self.assertEqual(out["t"], [5.0, 14.0, 30.0, 5.0, 5.0, 5.0])
         self.assertEqual(out["say"], [False, True, True, False])
+
+
+class WhereTheTimeGoes(unittest.TestCase):
+    """Found live (run 3): with the wait after the export in, drawing_make
+    took 4.6 and 5.7 s where it had taken 0.8 s, and patent_figures 6.6 s
+    for 1.2 s; page.settled.waited said 0.95 and 1.49 s of it, and 2 to
+    2.6 s a drawing (5.3 s in patent_figures) were in no field. The answer
+    now carries the split, the turns of the event loop a call ran are
+    counted and timed, and two things that were done twice are done once:
+    the turns that draw the window's scene before an export that readies
+    its scene itself, and reading the exported SVG back."""
+
+    def test_a_wait_that_only_asks_runs_no_turns_to_draw_the_scene(self):
+        out = run(LATE_VIEW + r'''
+from workshop_documents import td_wait
+views = [View("Front", 0), View("Top", 0)]
+td_wait.views_ready(views, timeout=5, pump=pump, sleep=0)
+OUT["drawn"] = len(turns)
+del turns[:]
+got = td_wait.views_ready(views, timeout=5, pump=pump, sleep=0, draw=False)
+OUT["asked"] = [len(turns), got["notReady"]]
+del turns[:]
+views = [View("Front", 0), View("Top", 4)]
+got = td_wait.views_ready(views, timeout=5, pump=pump, sleep=0, draw=False)
+OUT["waited"] = [len(turns), got["notReady"], [v.late for v in views]]
+''')
+        self.assertEqual(out["drawn"], 3)                 # as before: three turns for the scene
+        self.assertEqual(out["asked"], [0, []])           # ready at once: nothing run
+        self.assertEqual(out["waited"], [4, [], [0, 0]])  # still waits for lines that are late, and no longer
+
+    def test_turns_are_counted_and_timed(self):
+        out = run(LATE_VIEW + r'''
+import time
+from workshop_documents import td_wait
+def slow():
+    time.sleep(0.01)
+    return pump()
+mark = td_wait.turns_now()
+views = [View("Top", 2)]
+td_wait.views_ready(views, timeout=5, pump=slow, sleep=0)
+OUT["since"] = td_wait.turns_since(mark)
+OUT["none"] = td_wait.turns_since(td_wait.turns_now())
+OUT["turning_after"] = td_wait._TURNING[0]
+''')
+        self.assertEqual(out["since"]["turns"], 5)        # two to wait, three to draw
+        self.assertGreaterEqual(out["since"]["turnMs"], 45)
+        self.assertLess(out["since"]["turnMs"], 2000)
+        self.assertEqual(out["none"], {"turns": 0, "turnMs": 0})
+        self.assertEqual(out["turning_after"], 0)
+
+    def test_settled_says_what_the_export_and_the_wait_cost(self):
+        out = run(TECHDRAW_AS_THE_SOURCE_READS + r"""
+import time
+page, tpl, views, dims = sheet()
+with td_wait.PageExport(page, timeout=5, pump=pump, sleep=0) as px:
+    export_svg(page)
+    time.sleep(0.03)                            # the export itself
+    export_pdf(page)
+OUT["settled"] = px.settled
+OUT["turns"] = len(turns)
+OUT["marked"] = marked(page)
+""")
+        s = out["settled"]
+        self.assertEqual(set(s), {"cleared", "waited", "exportMs", "turns", "turnMs", "seen"})
+        self.assertEqual(s["cleared"], ["Template001", "Dimension003", "Dimension004", "Dimension005"])  # the proven result, unchanged
+        self.assertEqual(out["marked"], [])
+        self.assertGreaterEqual(s["exportMs"], 30)
+        self.assertLess(s["exportMs"], 2000)
+        self.assertEqual(s["turns"], out["turns"])        # every turn the wait ran, and no other
+        self.assertGreaterEqual(s["turnMs"], 0)
+        # the template drawn twice (3 writes each), two views and three
+        # dimensions recomputed by the redraw, the dimensions once more when
+        # their views' lines came; a dimension writes 3 properties each time
+        self.assertEqual(s["seen"], {"changed": 6 + 9 + 9, "recomputed": 2 + 3 + 3})
+
+    def test_the_export_gives_its_split_and_reads_the_svg_back_once(self):
+        out = run(EXPORT + r'''
+asked, reads = [], []
+D._wait_views = lambda vs, **kw: (asked.append(kw), td_wait.views_ready(vs, timeout=0.05, pump=pump, sleep=0, **kw))[1]
+real = D.views_in_svg
+def counted(*a, **k):
+    reads.append(1)
+    return real(*a, **k)
+D.views_in_svg = counted
+page.drawn = lambda: True
+rep = {}
+paths, why = D._export_page(page, d, "Stem", report=rep)
+OUT["good"] = [sorted(paths), why, rep["viewsInExport"]["ok"], sorted(rep["ms"]), len(reads), list(asked), len(turns), len(exports)]
+del reads[:], asked[:], exports[:]
+state = {"n": 0}
+def drawn():
+    state["n"] += 1
+    return state["n"] > 1
+page.drawn = drawn
+rep = {}
+paths, why = D._export_page(page, d, "Stem2", report=rep)
+OUT["again"] = [sorted(paths), why, rep["viewsInExport"]["ok"], len(reads), list(asked), len(exports)]
+del reads[:], exports[:]
+page.drawn = lambda: False
+rep = {}
+paths, why = D._export_page(page, d, "Stem3", report=rep)
+OUT["never"] = [sorted(paths), sorted(why), len(reads), len(exports)]
+OUT["ints"] = all(isinstance(v, int) and v >= 0 for v in rep["ms"].values())
+''')
+        paths, why, ok, keys, reads, asked, n_turns, n_exports = out["good"]
+        self.assertEqual((paths, why, ok), (["dxf", "pdf", "svg"], {}, True))
+        self.assertEqual(keys, ["check", "dxf", "pdf", "scene", "svg", "wait"])
+        self.assertEqual(reads, 1)                        # before: read and counted twice
+        self.assertEqual(asked, [{"draw": False}])        # the wait before the export only asks
+        self.assertEqual(n_exports, 1)
+        # written again when its views are missing: that file is read again, and the wait then draws
+        paths, why, ok, reads, asked, n_exports = out["again"]
+        self.assertEqual((paths, why, ok, reads, n_exports), (["dxf", "pdf", "svg"], {}, True, 2, 2))
+        self.assertEqual(asked, [{"draw": False}, {}])
+        paths, why, reads, n_exports = out["never"]
+        self.assertEqual((paths, why, reads, n_exports), (["dxf"], ["pdf", "svg"], 2, 2))
+        self.assertTrue(out["ints"])
+
+    def test_a_wait_that_knows_no_draw_is_still_used(self):
+        out = run(EXPORT + r'''
+page.drawn = lambda: True
+rep = {}
+paths, why = D._export_page(page, d, "Stem", report=rep)   # EXPORT's wait takes the views only
+OUT["r"] = [sorted(paths), why, rep.get("viewsNotReady")]
+''')
+        self.assertEqual(out["r"], [["dxf", "pdf", "svg"], {}, None])
+
+    def test_the_answers_timing(self):
+        out = run(r"""
+import time
+from workshop_documents import td_wait
+from workshop_documents.handlers import drawing as D
+t0, mark = time.perf_counter(), td_wait.turns_now()
+td_wait.views_ready([], pump=lambda: True, sleep=0)       # three turns
+whole = D._timing(t0, mark, 12, 340, {"ms": {"wait": 1, "dxf": 2, "scene": 30, "svg": 40, "check": 5, "pdf": 60}, "viewsReadyIn": 0.0},
+                  {"cleared": ["Template"], "waited": 0.95, "exportMs": 140, "turns": 9, "turnMs": 20})
+OUT["whole"] = whole
+OUT["files_only"] = D._timing(t0, td_wait.turns_now(), 12, None, {}, None)
+OUT["no_export"] = D._timing(t0, td_wait.turns_now(), 12, 5, {}, None)
+""")
+        w = out["whole"]
+        self.assertEqual(list(w), ["sheet", "page", "export", "settle", "turns", "turnMs", "total"])
+        self.assertEqual((w["sheet"], w["page"], w["settle"], w["turns"]), (12, 340, 950, 3))
+        self.assertEqual(w["export"], {"wait": 1, "dxf": 2, "scene": 30, "svg": 40, "check": 5, "pdf": 60})
+        self.assertGreaterEqual(w["total"], 0)
+        self.assertEqual(list(out["files_only"]), ["sheet", "turns", "turnMs", "total"])  # page: false — a part left out did not run
+        self.assertEqual(list(out["no_export"]), ["sheet", "page", "turns", "turnMs", "total"])
 
 
 if __name__ == "__main__":
