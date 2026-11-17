@@ -43,6 +43,10 @@ class Words(unittest.TestCase):
         self.assertTrue({"dfm_check", "part_review", "slice", "slice_with", "fea_frame"} <= set(got))
         sel = {**(declared(FAMS[0], "SELECTS") or {}), **(declared(FAMS[1], "SELECTS") or {})}
         self.assertEqual(sel, {"dfm_check": "body", "part_review": "body", "slice": "body", "slice_with": "body"})
+        self.assertEqual(declared(FAMS[2], "SELECTS"), {"fea_frame": "bodies"})
+        # A job's first answer has words of its own (not the earlier call's).
+        for name in ("dfm_check", "part_review", "slice", "slice_with", "fea_frame"):
+            self.assertTrue(any(t.endswith(" if {job}") for t in got[name]), name)
 
     @unittest.skipUnless(hub(), "Agent Link's checkout is not at hand")
     def test_filled_by_agent_links_templates(self):
@@ -62,7 +66,13 @@ rows = [("dfm_check", {"body": "Bracket"}, {"body": "Bracket", "verdict": "print
          {"body": "Bracket", "slicer": "orcaslicer", "project": "/out/b.3mf", "time": "1h 2m", "filamentG": 12.5}),
         ("slice_with", {"body": "Bracket"}, {"body": "Bracket", "slicer": "bambustudio", "time": "9m", "filamentG": 2}),
         ("fea_frame", {}, {"loadTotalN": 500, "worst": "Rafter"}),
-        ("fea_frame", {}, {"loadTotalN": 500, "worst": None})]
+        ("fea_frame", {}, {"loadTotalN": 500, "worst": None}),
+        ("dfm_check", {"body": "Bracket"}, {"job": "job-1", "tool": "dfm_check", "status": "running"}),
+        ("slice_with", {"body": "Bracket", "slicer": "orcaslicer"}, {"job": "job-2", "tool": "slice_with", "status": "running"}),
+        ("slice", {"body": "Bracket"}, {"body": "Bracket", "slicer": "prusa-slicer", "gcode": "/out/Bracket.gcode", "verdict": "G-code written"}),
+        ("fea_frame", {"bodies": ["Rafter", "Post"]}, {"loadTotalN": [0, 0, -500], "loadN": 500, "verdict": "least safety 2.4, Rafter",
+                                                      "bodies": ["Rafter", "Post"]}),
+        ("fea_frame", {}, {"loadTotalN": [0, 0, -500], "loadN": 500, "verdict": "least safety 2.4, M1"})]
 print(json.dumps([activity.did(n, a, b) for n, a, b in rows]))
 """
         import json
@@ -74,7 +84,10 @@ print(json.dumps([activity.did(n, a, b) for n, a, b in rows]))
             "Checked Bracket for printing: printable, 2 warnings", "Reviewed Bracket: pass",
             "Sliced Bracket with prusa-slicer: 12m 3s, 3.21 g", "Sliced Bracket with prusa-slicer: Bracket.gcode",
             "Sliced Bracket with orcaslicer into a project and G-code: 1h 2m, 12.5 g", "Sliced Bracket with bambustudio: 9m, 2 g",
-            "Solved the frame under 500 N: least safe member Rafter", "Solved the frame under 500 N"])
+            "Solved the frame under 500 N: least safe member Rafter", "Solved the frame under 500 N",
+            "Checking Bracket for printing in the background", "Slicing Bracket with orcaslicer in the background",
+            "Sliced Bracket with prusa-slicer: G-code written", "Solved the frame of Rafter and Post under 500 N: least safety 2.4, Rafter",
+            "Solved the frame under 500 N: least safety 2.4, M1"])
 
 
 class Verdict(unittest.TestCase):
@@ -86,6 +99,20 @@ OUT["v"] = [api.dfm_verdict([]), api.dfm_verdict([{"severity": "warning"}, {"sev
             api.dfm_verdict([{"severity": "error", "waived": True}, {"severity": "error"}, {"severity": "error"}])]
 """)
         self.assertEqual(out["v"], ["printable", "printable, 2 warnings", "not printable: 1 problem, 1 warning", "not printable: 2 problems"])
+
+    def test_slice_and_frame_verdicts(self):
+        out = run(r"""
+from workshop_make import api
+OUT["s"] = [api.slice_verdict({"time": "12m 3s", "filamentG": 3.21}), api.slice_verdict({"time": "9m", "filamentG": None}),
+            api.slice_verdict({"filamentG": 2.0}), api.slice_verdict({})]
+OUT["f"] = [api.frame_verdict([{"member": "Rafter", "safety": 2.4}, {"member": "Post", "safety": 5.0}]),
+            api.frame_verdict([{"member": "Post", "safety": 0.8}]),
+            api.frame_verdict([{"member": "M1", "vonMisesMPa": 12.53}]), api.frame_verdict([])]
+""")
+        self.assertEqual(out["s"], ["12m 3s, 3.21 g", "9m", "2 g", "G-code written"])
+        self.assertEqual(out["f"], ["least safety 2.4, Rafter", "past yield: safety 0.8, Post", "at most 12.5 MPa, no yield to judge", "solved"])
+        for v in out["s"] + out["f"]:
+            self.assertLessEqual(len(v), 40)   # Agent Link reads a verdict of at most 40 characters as the result
 
 
 if __name__ == "__main__":

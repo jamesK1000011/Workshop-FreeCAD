@@ -220,3 +220,120 @@ list of 3 kinds of 70-90 names is under 2 500 characters).
 **Live check.** `slicer_presets {}` twice: the second has no `from`;
 `slicer_presets { kind: "filament", query: "pla", limit: 500 }` shows every
 match; `own` counts the person's own presets.
+
+# Second round: window review round 4
+
+Source: the round 4 window review (Workshop pictures 1009-7041). A
+picture's number is its section and its call's place in that section's
+model (`docs/hardening/workshop-*-model.json`, `calls`, from 0): 5015 is
+the fasteners model's call 15, 4001 the parts model's call 1. Worked from
+the code, FreeCAD 1.1.3's source and Fasteners Workbench's source (read
+only); no FreeCAD here.
+
+## 8. fastener_set leaves the screw outside the body (5015, 6002)
+
+**What the code does.** Fasteners places a part on its edge in every
+recompute (`FastenersCmd.FSScrewObject.execute` →
+`FastenerBase.FSMoveToObject(fp, edge, Invert, Offset, OffsetAngle)`): the
+part's +Z (its head side; the shank runs to -Z) is turned onto the edge
+circle's `Curve.Axis`, `Invert` turns it round, `Offset` moves it along
+that way, and the placement is the circle's centre. Nothing else decides
+the side. `fastener_set { length }` only sets Length; the placement comes
+out of the same execute on the same edge, so a length change alone cannot
+move the screw off its hole (the keeper re-finds an edge only within the
+hole's radius, never the far rim 10 mm away).
+
+Two things can put the screw "outside":
+
+1. `fastener_add` never chose the side. The circle's axis of a hole's rim
+   is OpenCASCADE's choice (a PartDesign Hole's revolved profile); when it
+   points into the plate, Fasteners puts the head into the plate and the
+   shank 16 mm up out of the top face. `hw_hole { screw }` always corrected
+   this (`api.hole_screw`: Invert from the hole's direction);
+   `fastener_add` with `edges` did not. Sure from the code; whether the
+   Bracket's rim points down in FreeCAD 1.1.3 is for the probe.
+2. The model itself asks for it: `fastener_set { length: 20 }` on an M6
+   in a 10 mm plate leaves 10 mm of shank out of the bottom face (it was 6
+   with 16), which reads as "the screw below the body" in a picture from
+   above when the plate is not see-through.
+
+**Change.** `workshop_fasteners/api.py`: `seat(obj, sub)` tells the open
+side of a round edge from the shape (`isInside` just past the rim, a
+little along either way of the axis): +1 along the circle's axis, -1
+against it, 0 when it cannot tell. `seated_invert()`: Fasteners' Invert
+for the head on the open side. `fastener_add` seats every part it attaches
+(invert: turned end for end from seated); `fastener_set { edge }` seats it
+on the new edge (keeping a turn it had); `fastener_set { invert }` is from
+seated. `hole_screw` sets Invert either way from the hole's direction (it
+only ever set it true). `describe()` adds `headSide` ("open side" | "in
+the material") and `shankOut` (mm out of the hole's far rim). Tool data:
+facts added. Tests: `tests/fasteners/test_seat.py` (a plate whose rim
+circle points into it; a stand-in for Fasteners' execute that places as
+FSMoveToObject does).
+
+**Probe (exact).** In the fasteners model, after call 11 (`fastener_add`)
+and again after call 15 (`fastener_set { objects: ["M6x16-Screw"], length:
+20 }`):
+
+1. `object_get { object: "M6x16-Screw" }` (after 15: `"M6x20-Screw"`):
+   `Placement.Base` and `Placement.Rotation`, `BaseObject`, `Invert`.
+2. The answer's `made[0]` / `changed[0]`: `attachedTo`, `headSide`,
+   `shankOut`, `invert`, `at`.
+3. `shape_query { body: "Bracket", kind: "edge", radius: 3.3 }`: the
+   round edges of the hole, each with its centre and axis — the one named
+   in `attachedTo` and its axis direction (+z or -z).
+
+Read: `at` z 10 with `headSide` "open side" and `shankOut` 6 (then 10) is
+right — the picture shows the 20 mm screw's shank out of the bottom, as
+the model asks; make the plate see-through or set length 10 to see it
+seated. `at` z 0 means the bottom rim was taken (report `attachedTo` with
+the edge's centre). `headSide` "in the material" after this change means
+`seat()` read the shape wrong (report the edge's axis and the Bracket's
+`Shape.isInside` at [13.5, 20, 10.2] and [13.5, 20, 9.8]).
+
+## 9. gen_make shows an empty view; gen_part shows the old Bin (4001, 4007)
+
+**Settled (from the model).** 4001 is the parts model's call 1,
+`gen_make { …, measure: true }`, and 4007 its call 7, `gen_part {
+generator: "gridfinity_baseplate", …, measure: true }`: both build the part
+only to answer its sizes and add nothing (`api.make`: `made: false`). The
+empty view of the new document (4001) and the Bin made by call 2 (4007)
+are what the window should show. Nothing is made in another document,
+hidden or left unrecomputed (`make()` adds shown `Part::Feature`s to the
+session's document and recomputes).
+
+**Change.** Words that say so: `api.make` answers `kind` ("Gridfinity
+bin") and `measured` ("83.5 x 41.5 x 32.4 mm", ", and a lid");
+`fam_parts.PHRASES`: "Measured a Gridfinity bin, 83.5 x 41.5 x 32.4 mm:
+nothing made" for measure, "Made Bin, a Gridfinity bin of …" for a made
+part. `OUT_MORE` (bodies) stays. Test: `tests/parts/test_echo_words.py`.
+
+**Live check.** Parts model calls 1 and 2: `session_state` echo words
+"Measured a Gridfinity bin, …: nothing made", then "Made Bin, …" with
+`made` ["Bin"] in the trace and Bin selected.
+
+## 10. Stale captions on dfm_check, part_review, slice, slice_with, fea_frame
+
+**Cause.** As item 1: heavy reads run as Agent Link's jobs; the hub is
+adding words for job results and reading `SELECTS` / `OUT_MORE`.
+
+**Change.** Declarations under the hub's names: `SELECTS` = {tool: the
+answer's key of what it worked on} (a name, or a list of names):
+`fam_make` dfm_check / part_review / slice → body, `fam_slicing`
+slice_with → body, `fam_frame` fea_frame → bodies (new: the labels of
+the bodies a frame was made from). `OUT_MORE` = {tool: (answer keys,)}:
+`fam_parts` gen_make / gen_part → bodies. Each read answers a short
+`verdict` (40 characters at most, Agent Link's result reads it):
+dfm_check and part_review had theirs; slice and slice_with now "12m 3s,
+3.21 g" (`api.slice_verdict`), fea_frame "least safety 2.4, Rafter"
+(`api.frame_verdict`) with `loadN` (the load as one number: `loadTotalN`
+is a vector and read as "0, 0 and -500"). `PHRASES` use them and have
+words for a job's first answer ({ job, tool, status }): "Checking Bracket
+for printing in the background", "Slicing …", "Solving the frame …".
+Tool data: facts added. Tests: `tests/make/test_echo_words.py`.
+
+**Live check.** `dfm_check { body: "Bracket" }`, `session_state`: words
+"Checked Bracket for printing: printable…" (or "Checking … in the
+background" then, at `job_status`, the result). `fea_frame` from bodies:
+words "Solved the frame of … under … N: least safety …", the bodies
+selected.

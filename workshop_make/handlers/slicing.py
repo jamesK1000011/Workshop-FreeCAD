@@ -13,6 +13,7 @@ from workshop_make.materials import DENSITY  # Make's filament table
 from .. import orcalib, printability
 from ._lent import Refusal
 from .embed import pauses_for
+from ..api import slice_verdict
 
 # Lent by the family layer when Agent Link binds these handlers (lend()); alone
 # a refusal is this add-on's own and Agent Link's helpers are absent.
@@ -100,7 +101,7 @@ def slice_with(s, a):
     done = slicers.insert_pauses(gcode, want, cmd) if want else []
     out = {
         "body": o.Label, "slicer": name, "exe": os.path.basename(exe), "profiles": f"the person's presets: {preset_note}" if preset_note else used, "gcode": gcode, "bytes": os.path.getsize(gcode),
-        **read, "setup": f"{setup['name']} ({setup['id']})",
+        **read, "verdict": slice_verdict(read), "setup": f"{setup['name']} ({setup['id']})",
     }
     if a.get("overrides"):
         out["overrides"] = a["overrides"]
