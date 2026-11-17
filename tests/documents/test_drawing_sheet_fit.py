@@ -264,6 +264,26 @@ OUT["r"] = [D.template_in_svg(a, page), D.template_in_svg(b, page)]
 """)
         self.assertEqual(out["r"], [False, True])
 
+    def test_a_blank_template_has_nothing_to_be_left_out(self):
+        # Found live (run 2, patent_figures): on TechDraw's blank template
+        # the check found none of a title block's words in the export and
+        # said "TechDraw left the template out", so the figure's files came
+        # from Workshop's sheet writer, not the page that was made.
+        out = run(r"""
+import os, tempfile, types
+from workshop_documents.handlers import drawing as D
+d = tempfile.mkdtemp()
+blank, framed, svg = (os.path.join(d, n) for n in ("blank.svg", "framed.svg", "out.svg"))
+open(blank, "w").write("<svg width='210mm' height='297mm'></svg>")
+open(framed, "w").write("<svg><text>Title</text><text>Scale</text></svg>")
+open(svg, "w").write("<svg><g><path d='M0 0'/></g></svg>")
+page = lambda path, texts: types.SimpleNamespace(Template=types.SimpleNamespace(EditableTexts=texts, Template=path))
+OUT["blank"] = D.template_in_svg(svg, page(blank, {}))
+OUT["framed"] = D.template_in_svg(svg, page(framed, {}))
+OUT["gone"] = D.template_in_svg(svg, page(os.path.join(d, "none.svg"), {}))
+""")
+        self.assertEqual((out["blank"], out["framed"], out["gone"]), (True, False, False))
+
 
 if __name__ == "__main__":
     unittest.main()

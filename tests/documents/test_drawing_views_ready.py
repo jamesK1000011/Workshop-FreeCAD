@@ -226,5 +226,32 @@ OUT["no_doc"] = T.page_reading(types.SimpleNamespace(doc=None), "x", [])
         self.assertEqual(out["no_doc"], [])
 
 
+class PageSettled(unittest.TestCase):
+    def test_what_is_left_marked_changed_is_recomputed_but_never_a_part_view(self):
+        # Found live (run 2): the call after drawing_make was told "6
+        # objects not recomputed yet" (the page's template and dimensions).
+        out = run(r"""
+import types
+from workshop_documents import td_wait
+class O:
+    def __init__(self, name, touched, view=False):
+        self.Name, self.State, self.n = name, (["Touched"] if touched else []), 0
+        if view:
+            self.getVisibleEdges = lambda: ["e"]
+    def recompute(self):
+        self.n += 1
+        self.State = []
+tpl, dim, clean, view = O("Template001", True), O("Dimension003", True), O("Dimension004", False), O("View", True, view=True)
+page = O("Page001", True)
+page.Template, page.Views = tpl, [view, dim, clean]
+OUT["done"] = td_wait.settle_page(page)
+OUT["n"] = [tpl.n, dim.n, clean.n, view.n, page.n]
+OUT["none"] = td_wait.settle_page(types.SimpleNamespace())
+""")
+        self.assertEqual(out["done"], ["Template001", "Dimension003", "Page001"])
+        self.assertEqual(out["n"], [1, 1, 0, 0, 1])  # the part view is not recomputed: its lines would start afresh
+        self.assertEqual(out["none"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

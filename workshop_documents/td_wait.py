@@ -113,6 +113,33 @@ def wait_views(views_, timeout=30.0):
     return got["seconds"] if got["seconds"] >= 0.05 or got["notReady"] else None
 
 
+def settle_page(page):
+    """After a page is made and exported: what on it is still marked as
+    changed and is not a view of a part — its template, dimensions,
+    balloons, notes, the page itself — recomputed once, each by itself.
+    Found live (run 2): the call after drawing_make read "6 objects not
+    recomputed yet" (the section page's template and five dimensions) and
+    was told to recompute, though nothing on the page was out of date. A
+    view of a part is left alone: recomputing one starts its lines afresh
+    (views_ready). Returns the names recomputed."""
+    done = []
+    try:
+        objs = [getattr(page, "Template", None)] + list(getattr(page, "Views", None) or []) + [page]
+    except Exception:  # noqa: BLE001
+        return done
+    for o in objs:
+        if o is None or hasattr(o, "getVisibleEdges"):
+            continue
+        try:
+            if "Touched" not in list(getattr(o, "State", []) or []):
+                continue
+            o.recompute()
+            done.append(getattr(o, "Name", "?"))
+        except Exception:  # noqa: BLE001 — left as it is: the health check says so
+            continue
+    return done
+
+
 # ---- Documents' reading for the shared health check --------------------------------------
 
 HEALTH_OWNER = "workshop_documents"
