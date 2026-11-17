@@ -34,8 +34,8 @@ def tools(session):
     h = handlers.bound(session)
 
     return [
-        Tool("history_checkpoint", "Save a copy of the document now (name: optional; named ones are kept), to come back to with history_restore or measure from with history_diff { since } — past FreeCAD's 20-step undo and across restarts. list: true lists this document's checkpoints. The person's file is never touched.",
+        Tool("history_checkpoint", "Save a copy of the document now. name: optional; named copies are kept. Come back to the copy with history_restore, or measure from it with history_diff { since }. This works past the 20-step undo of FreeCAD, and across restarts. list: true lists the checkpoints of this document. The file of the person is never touched.",
              obj({"name": {"type": "string"}, "list": {"type": "boolean"}}), plain(h["history_checkpoint"])),
-        Tool("history_restore", "Go back to a checkpoint (its id, cp3, or its name): by undo while the stack reaches it, else by reopening its saved copy (the state before is checkpointed first, so a restore can be undone the same way).",
+        Tool("history_restore", "Go back to a checkpoint: its id (cp3), or its name. While the undo stack reaches the checkpoint, it goes back by undo. Else it reopens the saved copy of the checkpoint. The state before is checkpointed first, so you can undo a restore the same way.",
              obj({"checkpoint": {"type": "string"}}, ["checkpoint"]), plain(h["history_restore"])),
     ]
