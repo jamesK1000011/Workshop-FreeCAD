@@ -128,7 +128,32 @@ def fea_frame(s, a):
     out["verdict"] = frame_verdict(res["members"])
     if a.get("bodies"):
         out["bodies"] = [m["name"] for m in members[len(a.get("members") or []):]]
+    sag = [r["deflectionMm"] for r in res["members"] if isinstance(r.get("deflectionMm"), (int, float))]
+    if sag:
+        out["deflectionMaxMm"] = max(sag)
+    out["sceneMarks"] = scene_marks(members, res["members"], a.get("supports") or [])
     return out
+
+
+def scene_marks(members, rows, supports):
+    """What the window draws for a frame (Agent Link's echo: an answer's
+    sceneMarks, round 7, make 04-085): the frame is only in the deck, so the
+    view kept the last bodies. Each member's centre line, a word at its middle
+    (name and sag), a mark at each support. Plain Python."""
+    sag = {r.get("member"): r.get("deflectionMm") for r in rows or () if isinstance(r, dict)}
+
+    def p3(v):
+        return [round(float(c), 3) for c in v]
+
+    lines, labels = [], []
+    for m in members[:200]:
+        a, b = p3(m["from"]), p3(m["to"])
+        lines.append([a, b])
+        d = sag.get(m["name"])
+        word = m["name"] + (f": sags {d:g} mm" if isinstance(d, (int, float)) else "")
+        labels.append([[round((a[i] + b[i]) / 2, 3) for i in range(3)], word])
+    points = [p3(sp["at"]) for sp in supports[:200] if isinstance(sp, dict) and isinstance(sp.get("at"), (list, tuple)) and len(sp["at"]) == 3]
+    return {"lines": lines, "points": points, "labels": labels}
 
 
 HANDLERS = {

@@ -18,7 +18,9 @@ from .handlers import frame as H
 GROUP = "strength"
 # Activity and caption words (agentlink/activity.py templates; see fam_make).
 PHRASES = {"fea_frame": ["Solving the frame in the background if {job}",
+                         "Solved the frame of {bodies} under {loadN} N: {verdict}; sags {deflectionMaxMm} mm",
                          "Solved the frame of {bodies} under {loadN} N: {verdict}",
+                         "Solved the frame under {loadN} N: {verdict}; sags {deflectionMaxMm} mm",
                          "Solved the frame under {loadN} N: {verdict}",
                          "Solved the frame under {loadTotalN} N: least safe member {worst}", "Solved the frame under {loadTotalN} N"]}
 # What the frame was made of (its bodies' labels, when made from bodies), to
