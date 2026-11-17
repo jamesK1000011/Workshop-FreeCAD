@@ -26,6 +26,14 @@ OUT["cal"] = W("mass_calibrate", {}, {"scale": 1.04, "expected": 17.8, "weighed"
 OUT["hole"] = W("hw_hole", {}, {"size": "M3", "kind": "counterbore", "body": "Bracket", "depth": "through", "route": "PartDesign Hole"})
 OUT["setup"] = W("setup", {}, {"added": {"name": "Print", "bodies": ["Bracket"]}})
 OUT["spec"] = W("part_spec", {}, {"spec": {"load": "5 kg"}, "materials": {}})
+OUT["spec2"] = W("part_spec", {}, {"spec": {"minWall": 1.2, "massMax": 60}, "materials": {"Bracket": "petg"},
+                                  "freecadMaterial": {"Bracket": {"note": "FreeCAD's library has no card for PETG (Material)"}}})
+OUT["spec3"] = W("part_spec", {}, {"spec": {}, "materials": {"Box": "pla"}, "freecadMaterial": {"Box": {"card": "PLA"}}})
+OUT["embed"] = W("hw_embed", {}, {"id": "E1", "what": "6x2 magnet", "body": "Bracket plain", "pocket": {"shape": "round", "size": [6.4], "depth": 2.2},
+                                 "pause": {"afterLayer": 26, "z": 5.2}})
+OUT["unembed"] = W("hw_unembed", {}, {"body": "Bracket plain", "removed": "E1", "pocket": "filled", "solids": 1})
+OUT["thread"] = W("thread_cut", {}, {"thread": {"body": "Bracket", "size": "M6", "mode": "cosmetic", "kind": "hole", "depth": 10}, "removed": 4.5,
+                                    "route": "PartDesign Hole"})
 OUT["other"] = W("dfm_check", {}, {"verdict": "printable"})
 OUT["refused"] = W("mass_properties", {}, {"error": {"message": "no"}})
 ''')
@@ -38,6 +46,12 @@ OUT["refused"] = W("mass_properties", {}, {"error": {"message": "no"}})
         self.assertEqual(out["hole"], "M3 counterbored hole in Bracket, through")
         self.assertEqual(out["setup"], "Setup Print made with Bracket")
         self.assertEqual(out["spec"], "Part spec: load 5 kg")
+        # Round 7 (04-012): never a dict's text.
+        self.assertEqual(out["spec2"], "Material set: Bracket in PETG (no FreeCAD card); spec minWall 1.2, massMax 60")
+        self.assertEqual(out["spec3"], "Material set: Box in PLA")
+        self.assertEqual(out["embed"], "Pocket for 6x2 magnet in Bracket plain: 2.2 mm deep, pause after layer 26")
+        self.assertEqual(out["unembed"], "Took E1 out of Bracket plain: pocket filled")
+        self.assertEqual(out["thread"], "M6 cosmetic thread in Bracket, 10 mm deep, 4.5 mm³ removed")
         self.assertIsNone(out["other"])
         self.assertIsNone(out["refused"])
 
