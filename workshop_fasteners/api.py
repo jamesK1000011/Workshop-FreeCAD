@@ -482,6 +482,7 @@ def change(doc, refs, ftype=None, size=None, length=None, thread=None, invert=No
     bad = [o.Label for o in objs if not detect.is_fastener(o)]
     if bad:
         raise Missing(f"{bad[0]}: not a Fasteners object — fastener_list lists them.", "invalid_input")
+    was = {o.Name for o in objs if keep._touched(o)}
     tgt = element(doc, edge) if edge else None
     for o in objs:
         if ftype:
@@ -514,7 +515,22 @@ def change(doc, refs, ftype=None, size=None, length=None, thread=None, invert=No
     for o in objs:
         if label is not None or keep.read(o) is not None or tgt is not None:
             keep.adopt(doc, o, label=label or None)
+    settle(doc, objs, was)
     return objs
+
+
+def settle(doc, objs, was=()):
+    """One more recompute when a fastener this call changed is left
+    "not recomputed yet" (touched) and was not before it: what the call
+    set after the last recompute (Fasteners' own refill of the Length
+    list, a record or label written outside a recompute) leaves nothing
+    for the next call's health check (window review round 3: fastener_set
+    left objects touched). True when it recomputed."""
+    left = [o for o in objs if keep._touched(o) and o.Name not in set(was)]
+    if not left:
+        return False
+    doc.recompute()
+    return True
 
 
 def repeats(o):

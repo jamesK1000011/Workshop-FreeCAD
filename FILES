@@ -12,6 +12,7 @@ docs/combine-design.md
 docs/documents.md
 docs/electronics.md
 docs/fasteners.md
+docs/hardening/r3-findings.md
 docs/hardening/workshop-documents-model.json
 docs/hardening/workshop-electronics-model.json
 docs/hardening/workshop-fasteners-model.json
@@ -78,6 +79,7 @@ tests/electronics/test_taskpanels.py
 tests/fasteners/_fwb.py
 tests/fasteners/test_bridge.py
 tests/fasteners/test_keep.py
+tests/fasteners/test_settle.py
 tests/fasteners/test_stem_findings.py
 tests/make/_fc.py
 tests/make/_stubs.py
@@ -87,6 +89,7 @@ tests/make/test_bimnest.py
 tests/make/test_camjob.py
 tests/make/test_checkgeometry.py
 tests/make/test_cut.py
+tests/make/test_echo_words.py
 tests/make/test_embed.py
 tests/make/test_fcmaterials.py
 tests/make/test_frame.py
@@ -100,6 +103,7 @@ tests/make/test_mass_words.py
 tests/make/test_mill.py
 tests/make/test_panel.py
 tests/make/test_pdhole.py
+tests/make/test_presets_list.py
 tests/make/test_printed.py
 tests/make/test_printer.py
 tests/make/test_printmass.py

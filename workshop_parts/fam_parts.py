@@ -20,6 +20,10 @@ INFO = "Standard parts made to size (Workshop for FreeCAD · Parts): Gridfinity 
 WORKBENCHES = {"gen_": "PartDesignWorkbench"}  # Standard Parts, beside the additive primitives
 AREAS = {"gen_": "Parts"}
 COMMANDS = {"gen_make": "Workshop_Parts_GridfinityBin"}
+# The answer's keys that name what a call made (its bodies' labels), for
+# Agent Link's echo to select and frame them (its OUT_MORE; an echo that
+# does not read this frames what is new in the document instead).
+OUT_MORE = {"gen_make": ("bodies",), "gen_part": ("bodies",)}
 
 
 def command_for(name, args):

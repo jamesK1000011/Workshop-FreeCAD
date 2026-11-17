@@ -127,5 +127,54 @@ OUT["quiet"] = [C.settle_new(d, had), d.runs]
         self.assertEqual(out["quiet"], [False, 1])
 
 
+
+class SanityLeavesTheViewAsItWas(unittest.TestCase):
+    # Window review round 3 (3009): after mill_export every part was hidden
+    # and only CAM's box stock showed, as a wireframe. CAM's Sanity report
+    # hides every object for each of its pictures and puts back only what
+    # its last record held (Path/Main/Sanity/ImageBuilder.py).
+    def test_restored_and_new_stock_hidden(self):
+        out = run(FAKES + r'''
+class Sh:
+    def __init__(self, null=False): self.null = null
+    def isNull(self): return self.null
+class Builder:
+    """GuiImageBuilder as FreeCAD 1.1 has it: record and hide all before
+    each picture, the target shown, the last record put back on __del__."""
+    def __init__(self, doc): self.doc, self.visible = doc, []
+    def build(self, target):
+        self.visible = [o for o in self.doc.Objects if o.Visibility]
+        for o in self.doc.Objects:
+            o.Visibility = False
+        target.Visibility = True
+    def __del__(self):
+        for o in self.visible:
+            o.Visibility = True
+block = O("Block", Visibility=True, Shape=Sh())
+plate = O("Plate", Visibility=True, Shape=Sh())
+hidden = O("Spare", Visibility=False, Shape=Sh())
+d = D([block, plate, hidden])
+shown = C.visibility(d)
+had = set(shown)
+stock = O("Stock", Visibility=True, Shape=Sh())
+bit = O("Endmill", Visibility=True, Shape=Sh())
+job = O("Job", Visibility=True, Shape=Sh(True))
+d.Objects += [job, stock, bit]
+OUT["hidden_new"] = C.hide_new_shapes(d, had, keep=(job,))
+b = Builder(d)
+for t in (block, stock, bit):
+    b.build(t)
+del b
+OUT["after_cam"] = {o.Name: o.Visibility for o in d.Objects}
+OUT["back"] = C.restore_visibility(d, shown)
+C.hide_new_shapes(d, had, keep=(job,))
+OUT["end"] = {o.Name: o.Visibility for o in d.Objects}
+''')
+        self.assertEqual(out["hidden_new"], ["Stock", "Endmill"])
+        self.assertFalse(out["after_cam"]["Block"])      # what CAM leaves: the parts hidden
+        self.assertTrue(out["after_cam"]["Stock"])       # and the stock picture's object shown
+        self.assertEqual(sorted(out["back"]), ["Block", "Plate"])
+        self.assertEqual(out["end"], {"Block": True, "Plate": True, "Spare": False, "Job": False, "Stock": False, "Endmill": False})
+
 if __name__ == "__main__":
     unittest.main()

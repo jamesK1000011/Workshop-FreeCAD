@@ -22,6 +22,25 @@ Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
 
 ### Fixed
 
+- `mill_export` left every part hidden and only CAM's box stock shown, as a
+  wireframe: CAM's Sanity report hides the whole document for each of its
+  pictures and puts back only what its last record held. Every object is
+  now shown or hidden again as before the call (`camJob.shownAgain`), and a
+  new Job's box stock and tool model are hidden, as CAM's own Job leaves
+  them; what CAM made is recomputed once more after the report.
+- `fastener_set` recomputes once more when a fastener it changed is left
+  "not recomputed yet" (and was not before the call).
+- `slicer_presets list` answers each kind's count, how many are the
+  person's own, their own in full (`own: true`) and the first `limit`
+  other names (10, or 50 with kind or query; up to 500), with `more`; the
+  preset folders (`from`) and `next` once a session. A list of every kind
+  was about 10 000 characters.
+- Agent Link's echo words: `PHRASES` for `dfm_check`, `part_review`,
+  `slice`, `slice_with`, `slicer_presets` and `fea_frame`, with their own
+  figures; `dfm_check` answers `verdict` ("printable, 2 warnings");
+  `SELECTS` and Parts' `OUT_MORE` name what a call worked on or made, for
+  an Agent Link that reads them.
+
 - A cut written into a parametric object was lost without a word. FreeCAD
   rebuilds a PartDesign Body from its tip, and a Part::Box, a boolean or an
   extrusion from its own properties, at the recompute that follows a write to

@@ -310,13 +310,24 @@ def mill_export(s, a):
            "step": {"path": step, "bytes": os.path.getsize(step), "volumeDiff": round(abs(back.Volume - o.Shape.Volume), 3), "solids": len(back.Solids)},
            "findings": len(r["findings"])}
     if a.get("cam", True):
+        # Each object shown or hidden as it was before CAM ran (camjob.py:
+        # CAM's Sanity report hides the document for its pictures and puts
+        # back only part of it), and what CAM made left recomputed.
+        shown = camjob.visibility(s.doc)
+        had = set(shown)
         job, why = camjob.find_job(s.doc, o), None
         reused = job is not None
         if job is None:
             job, why = camjob.make_job(s.doc, o, r["stock"], r["tool"], f"{o.Label} mill")
+        rep = None
         if job is not None:
             sheet = base + "-setup.html"
-            rep, why = camjob.sanity_report(job, sheet)
+            try:
+                rep, why = camjob.sanity_report(job, sheet)
+            finally:
+                back = camjob.restore_visibility(s.doc, shown)
+                camjob.hide_new_shapes(s.doc, had, keep=(job,))   # what the report's last picture left shown of the new Job's
+                camjob.settle_new(s.doc, had)
             if rep is not None:
                 with open(sheet, "w", encoding="utf-8") as f:
                     f.write(camjob.extras(rep, r, r["material"], os.path.basename(step)))
@@ -324,6 +335,8 @@ def mill_export(s, a):
                             "camJob": {"label": job.Label, "reused": reused}})
                 if not reused:
                     out["camJob"]["note"] = "A new CAM Job with the stock and least tool used here; add its operations in CAM."
+                if back:
+                    out["camJob"]["shownAgain"] = len(back)
                 s.snapshot("mill_export")
                 return out
             out["camJob"] = {"label": job.Label, "reused": reused}
