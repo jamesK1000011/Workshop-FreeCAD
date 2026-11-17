@@ -53,6 +53,31 @@ def command_for(name, args):
     return COMMANDS.get(name)
 
 
+def WORDS(name, args, body):
+    """The window's words for fastener_add (Agent Link's echo): what was put
+    where, not only "Added Fasteners" (window review round 6, 5011). None
+    for another call. Never raises."""
+    if name != "fastener_add" or not isinstance(body, dict) or body.get("error"):
+        return None
+    try:
+        made = [m for m in (body.get("made") or []) if isinstance(m, dict)]
+        if not made:
+            return None
+        m = made[0]
+        s = "Added " + str(m.get("type") or "a fastener")
+        if m.get("size"):
+            s += " " + str(m["size"])
+        if m.get("length") is not None:
+            s += " x " + str(m["length"])
+        if m.get("attachedTo"):
+            s += " in " + str(m["attachedTo"])
+        if len(made) > 1:
+            s += f" and {len(made) - 1} more"
+        return s[:120]
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def tools(session):
     return tooldata.build(tooldata.here(__file__), GROUP, {k: (lambda a, fn=fn: fn(session, a)) for k, fn in handlers.HANDLERS.items()}, "Workshop · Fasteners bridge")
 
