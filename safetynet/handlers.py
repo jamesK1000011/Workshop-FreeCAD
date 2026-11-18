@@ -6,6 +6,7 @@
 # them with no agent. A refusal is a Refused; the family layer turns it into
 # Agent Link's. Nothing here imports Agent Link.
 import os
+import re
 import shutil
 import sys
 import time
@@ -51,7 +52,7 @@ def app_recover(s, a):
 
     action = a.get("action", "list")
     if action == "list":
-        return {"documents": recovery.listing(), "note": "action auto { documents } opens the newest good copy of each beside its file; accept { document, confirm } saves one over its file."}
+        return {"documents": recovery.listing(), "note": "action auto { documents } opens the newest good copy of each beside its file; accept { document } saves one over its file, after the person's approval (approve_file)."}
     if action == "auto":
         docs = a.get("documents")
         if not isinstance(docs, list) or not docs:
@@ -64,12 +65,40 @@ def app_recover(s, a):
             s.switch(FreeCAD.getDocument((rec or reopened)[0]["document"]))
         return {"recovered": rec, **({"reopened": reopened} if reopened else {}), **({"failed": failed} if failed else {}),
                 **({"notRecoveredAgain": again, "why": recovery.NOT_AGAIN} if again else {}),
-                "note": "Opened beside the person's files as \"(recovered …)\"; their files are untouched. accept { document, confirm: \"save over <file name>\" } typed by them saves one over its file."}
+                "note": "Opened beside the person's files as \"(recovered …)\"; their files are untouched. accept { document } saves one over its file, after the person's approval (approve_file)."}
     if action == "accept":
-        nd, out = recovery.accept(a.get("document"), a.get("confirm"))
+        ask = PERSON_OK
+        # With Agent Link, the approval is approve_file (the client's tool
+        # permission). Without it (SafetyNet alone: no agent), the person's
+        # own typed confirm in SafetyNet's dialog.
+        approve = (lambda nd, target: _recover_ok(ask, nd, target)) if ask is not None else None
+        nd, out = recovery.accept(a.get("document"), a.get("confirm"), approve)
+        if out.get("pending"):
+            return out
         s.switch(nd)
         return out
-    raise bad("action: list | auto { documents, since } | accept { document, confirm }.")
+    raise bad("action: list | auto { documents, since } | accept { document }.")
+
+
+def _recover_ok(ask, nd, target):
+    """None once the person approved saving nd over target (approve_file),
+    else the pending answer. The fingerprint names the copy and the file as
+    it is now: a changed file needs a new approval."""
+    import hashlib
+    import json
+
+    try:
+        st = os.stat(target)
+        now = [st.st_size, st.st_mtime_ns]
+    except OSError:
+        now = None
+    fp = "sha256:" + hashlib.sha256(json.dumps([nd.Name, nd.Label, os.path.abspath(target), now]).encode("utf-8")).hexdigest()
+    got = _ask(ask, "recover", nd.Name, f"Save the recovered copy {nd.Label} over {os.path.basename(target)}",
+               [f"Recovered copy: {nd.Label}", f"File: {target}", "The old file is kept under ~/AgentLink/replaced."], fp, None,
+               {"document": nd.Label, "file": target})
+    if got.get("ok"):
+        return None
+    return {**got, "saved": None, "changed": False}
 
 # ---- settings -------------------------------------------------------------------------
 
@@ -197,15 +226,20 @@ def macro_show(s, a):
             "text": text if len(text) <= 6000 else text[:6000] + f"\n… ({len(text)} characters in all)"}
 
 
-# Agent Link's OK in the window (hooks.person_ok), set by the family layer
+# Agent Link's approval (hooks.person_ok), set by the family layer
 # (fam_safety.py): this module never imports Agent Link.
 PERSON_OK = None
+# Agent Link's Approve dialog in the window for a person's own click
+# (hooks.approval_in_window), set the same way; None without it.
+APPROVAL_IN_WINDOW = None
 
 
 def macro_approve(s, a):
-    """The person's OK for a macro: a press in the FreeCAD window (Agent
-    Link's person_ok), never a typed confirm, which an agent can type itself
-    (red team, 2026-11-18). The hash shown is the hash approved."""
+    """The person's approval for a macro (Agent Link's hooks.person_ok):
+    the answer is pending with the approve_code arguments, which the person
+    sets in the client's tool permissions (the owner, 18 Nov 2026). Never a
+    typed confirm, which an agent can type itself. The hash shown is the
+    hash approved."""
     name = a.get("name")
     p = _macro(name)
     if not os.path.isfile(p):
@@ -215,24 +249,38 @@ def macro_approve(s, a):
         return {"approved": name, "sha256": sha, "note": "It was approved already. macro_run runs it."}
     ask = PERSON_OK
     if ask is None:
-        raise Refused("unavailable", "This Agent Link has no OK in the window (person_ok). Update Agent Link, then ask again. Nothing was changed.")
+        raise Refused("unavailable", "This Agent Link has no approval (person_ok). Update Agent Link, then ask again. Nothing was changed.")
     with open(p, encoding="utf-8", errors="replace") as f:
         text = f.read(20000)
 
-    def on_ok():
+    def on_ok(*_by):
         if os.path.isfile(p) and macros.sha256_file(p) == sha:
             macros.approve(name, p)
 
     lines = [f"Macro: {name}", f"File: {p}", f"sha256: {sha[:16]}…", "A macro is Python that runs with the full reach of this computer.", "Its text:"]
     lines += text.splitlines()[:30]
+    m = re.search(r"^__Author__\s*=\s*['\"]([^'\"\n]{1,120})['\"]", text, re.M)
+    shown = {"source": p, "version": f"sha256 {sha}", "author": m.group(1) if m else "not given"}
     try:
-        got = ask("macro", name, f"Approve the macro {name}?", lines, sha, on_ok)
-    except Exception as e:  # noqa: BLE001 — person_ok.Refused: no window
+        got = _ask(ask, "macro", name, f"Run the macro {name} (Python with the full reach of this computer)", lines, sha, on_ok, shown)
+    except Exception as e:  # noqa: BLE001 — Agent Link's Refused
         raise Refused(getattr(e, "code", "unavailable"), getattr(e, "message", str(e)))
     if macros.approval_state(name, p) == "approved":
         return {"approved": name, "sha256": sha, "note": "macro_run runs it from now on; a change to its file needs approving again."}
-    return {"approved": False, "pending": True, "macro": name, "sha256": sha, "next": got.get("next"),
+    return {"approved": False, "pending": True, "macro": name, "sha256": sha, **({"approve": got["approve"]} if got.get("approve") else {}), "next": got.get("next"),
             "note": "Then macro_list shows it approved, and macro_run runs it."}
+
+
+def _ask(ask, kind, name, title, lines, sha, on_ok, shown):
+    """Agent Link's approval (hooks.person_ok): with the facts the client
+    shows the person (shown) when this Agent Link takes them."""
+    import inspect
+
+    try:
+        takes = "shown" in inspect.signature(ask).parameters
+    except (TypeError, ValueError):
+        takes = False
+    return ask(kind, name, title, lines, sha, on_ok, shown=shown) if takes else ask(kind, name, title, lines, sha, on_ok)
 
 
 def macro_unapprove(s, a):
@@ -250,7 +298,7 @@ def macro_run(s, a):
     state = macros.approval_state(name, p)
     if state != "approved":
         why = "its file changed since it was approved" if state == "changed" else "it has not been approved"
-        raise Refused("not_allowed", f"{name} is not run: {why}. The person approves it: macro_approve {{ name: \"{name}\" }} shows the OK in the FreeCAD window, and the person presses Approve there (macro_show shows it first).")
+        raise Refused("not_allowed", f"{name} is not run: {why}. The person approves it: macro_approve {{ name: \"{name}\" }} answers pending with the approve_code arguments; the person approves through the client (macro_show shows it first).")
     with open(p, encoding="utf-8") as f:
         text = f.read()
     params = a.get("params") or {}

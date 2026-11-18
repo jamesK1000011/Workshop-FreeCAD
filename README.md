@@ -148,7 +148,7 @@ separate add-ons):
 | `macro_save` | safety | Save the changing calls of this session as a FreeCAD macro. |
 | `macro_list` | safety | List the macros in the macro folder of FreeCAD. |
 | `macro_show` | safety | Show the text of one macro, its named sizes, how many calls it makes, and whether it is approved. |
-| `macro_approve` | safety | Ask the person for the OK to run a macro. |
+| `macro_approve` | safety | Ask for the person's approval to run a macro. |
 | `macro_unapprove` | safety | Take a macro off the approved list. |
 | `macro_run` | safety | Run an approved macro as the Macro dialog of FreeCAD runs it. |
 | `app_recover` | safety | Get documents back after a crash or a hang. |

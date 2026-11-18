@@ -152,6 +152,25 @@ class Run(Home):
         self.assertEqual(seen[0]["kind"], "macro")
         self.assertEqual(seen[0]["sha"], macros.sha256_file(os.path.join(self.mdir, "Mark.FCMacro")))
 
+    def test_the_client_prompt_shows_source_version_and_author(self):
+        # The owner, 18 Nov 2026: the approval is approve_code; its arguments
+        # (what the client shows the person) name source, version, author.
+        p = write(self.mdir, "Mark.FCMacro", "__Author__ = 'Pat'\nx = 1\n")
+        from safetynet import handlers
+
+        seen = []
+
+        def person_ok(kind, name, title, lines, sha=None, on_ok=None, shown=None):
+            seen.append(shown)
+            return {"pending": True, "approve": {"tool": "approve_code", "arguments": {"kind": kind, "id": name}}, "next": "call approve_code"}
+
+        handlers.PERSON_OK = person_ok
+        with mock.patch.dict(sys.modules, {"FreeCAD": self.freecad(None)}):
+            ok, r = local.run("macro_approve", {"name": "Mark"})
+        self.assertTrue(ok, r)
+        self.assertEqual(r["approve"]["tool"], "approve_code")
+        self.assertEqual(seen[0], {"source": p, "version": "sha256 " + macros.sha256_file(p), "author": "Pat"})
+
     def test_without_the_window_ok_nothing_is_approved(self):
         write(self.mdir, "Mark.FCMacro", "x = 1\n")
         from safetynet import handlers
