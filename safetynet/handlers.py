@@ -164,7 +164,7 @@ def macro_save(s, a):
         f"{name}: made by Agent Link {VERSION} from {len(picked)} calls of a session on {time.strftime('%Y-%m-%d %H:%M')}",
         f"Makes: {', '.join(made) or 'the changes below'} in {s.doc.Label if s.doc else 'the document'}",
         "Runs through agentlink.run(tool, arguments): the same refusals and undo steps as live calls.",
-        "Run by Agent Link only once approved (macro_approve, the person's typed OK); a change to this file needs approving again.",
+        "Run by Agent Link only once approved (macro_approve, the person's press in the window); a change to this file needs approving again.",
     ]
     text = macros.macro_text(name, picked, params, header)
     compile(text, p, "exec")
@@ -174,7 +174,7 @@ def macro_save(s, a):
     state = macros.approval_state(name, p)
     consts, _ = macros.macro_calls(text)
     return {"macro": name, "path": p, "calls": len(picked), "constants": consts, "approved": state == "approved",
-            "note": "Saved in FreeCAD's macro folder (Macro › Macros… runs it by hand too). Agent Link runs it only after the person approves it: macro_approve { name, confirm: \"approve " + name + "\" } typed by them."}
+            "note": "Saved in FreeCAD's macro folder (Macro › Macros… runs it by hand too). Agent Link runs it only after the person approves it: macro_approve { name } shows the OK in the FreeCAD window, and the person presses Approve there."}
 
 
 def macro_list(s, a):
@@ -197,16 +197,42 @@ def macro_show(s, a):
             "text": text if len(text) <= 6000 else text[:6000] + f"\n… ({len(text)} characters in all)"}
 
 
+# Agent Link's OK in the window (hooks.person_ok), set by the family layer
+# (fam_safety.py): this module never imports Agent Link.
+PERSON_OK = None
+
+
 def macro_approve(s, a):
+    """The person's OK for a macro: a press in the FreeCAD window (Agent
+    Link's person_ok), never a typed confirm, which an agent can type itself
+    (red team, 2026-11-18). The hash shown is the hash approved."""
     name = a.get("name")
     p = _macro(name)
     if not os.path.isfile(p):
         raise Refused("not_found", f"No macro {name}: macro_list lists them.")
-    want = f"approve {name}"
-    if (a.get("confirm") or "").strip() != want:
-        raise Refused("not_allowed", f"confirm: \"{want}\", word for word, typed by the person — a macro is Python that runs with the Mac's full reach, so approving it is theirs. Show them macro_show first. Nothing was changed.")
-    e = macros.approve(name, p)
-    return {"approved": name, "sha256": e["sha256"], "note": "macro_run runs it from now on; a change to its file needs approving again."}
+    sha = macros.sha256_file(p)
+    if macros.approval_state(name, p) == "approved":
+        return {"approved": name, "sha256": sha, "note": "It was approved already. macro_run runs it."}
+    ask = PERSON_OK
+    if ask is None:
+        raise Refused("unavailable", "This Agent Link has no OK in the window (person_ok). Update Agent Link, then ask again. Nothing was changed.")
+    with open(p, encoding="utf-8", errors="replace") as f:
+        text = f.read(20000)
+
+    def on_ok():
+        if os.path.isfile(p) and macros.sha256_file(p) == sha:
+            macros.approve(name, p)
+
+    lines = [f"Macro: {name}", f"File: {p}", f"sha256: {sha[:16]}…", "A macro is Python that runs with the full reach of this computer.", "Its text:"]
+    lines += text.splitlines()[:30]
+    try:
+        got = ask("macro", name, f"Approve the macro {name}?", lines, sha, on_ok)
+    except Exception as e:  # noqa: BLE001 — person_ok.Refused: no window
+        raise Refused(getattr(e, "code", "unavailable"), getattr(e, "message", str(e)))
+    if macros.approval_state(name, p) == "approved":
+        return {"approved": name, "sha256": sha, "note": "macro_run runs it from now on; a change to its file needs approving again."}
+    return {"approved": False, "pending": True, "macro": name, "sha256": sha, "next": got.get("next"),
+            "note": "Then macro_list shows it approved, and macro_run runs it."}
 
 
 def macro_unapprove(s, a):
@@ -224,7 +250,7 @@ def macro_run(s, a):
     state = macros.approval_state(name, p)
     if state != "approved":
         why = "its file changed since it was approved" if state == "changed" else "it has not been approved"
-        raise Refused("not_allowed", f"{name} is not run: {why}. The person approves it: macro_approve {{ name: \"{name}\", confirm: \"approve {name}\" }} typed by them (macro_show shows it first).")
+        raise Refused("not_allowed", f"{name} is not run: {why}. The person approves it: macro_approve {{ name: \"{name}\" }} shows the OK in the FreeCAD window, and the person presses Approve there (macro_show shows it first).")
     with open(p, encoding="utf-8") as f:
         text = f.read()
     params = a.get("params") or {}

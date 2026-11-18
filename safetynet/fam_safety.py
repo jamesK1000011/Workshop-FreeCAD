@@ -4,9 +4,10 @@
 # person approved. The answers are safetynet.handlers'; this layer only
 # names, describes and binds them.
 #
-# The person's calls stay the person's: saving over their file and approving
-# a macro each need their own words in chat (a typed confirm), never the
-# agent's.
+# The person's calls stay the person's: saving over their file needs their
+# own words in chat (a typed confirm); approving a macro needs their press on
+# Approve in the FreeCAD window (Agent Link's person_ok), which no tool can
+# make (red team, 2026-11-18).
 from agentlink.protocol import Tool
 
 from . import handlers
@@ -25,14 +26,22 @@ PINNED_FREE = {"app_recover"}
 
 def tools(s):
     h = handlers.bound(s)
+    try:
+        from agentlink import hooks
+
+        for n in ("macro_approve", "macro_unapprove", "macro_run", "app_recover"):
+            getattr(hooks, "keep_unextended", lambda _n: None)(n)  # no other add-on wraps these
+        handlers.PERSON_OK = getattr(hooks, "person_ok", None)
+    except ImportError:
+        pass
     st = {"type": "string"}
     return [
         Tool("macro_save", "Save the changing calls of this session as a FreeCAD macro (.FCMacro in the macro folder of the person). name: the name of the macro. from / to: a checkpoint or step; the whole session by default. params { wall: 2.0, length: 60 }: the key sizes. They are named at the top of the macro and put in place of each value in the calls. It runs (macro_run) only after the person approves it.",
              obj({"name": st, "from": {"type": ["string", "integer"]}, "to": {"type": ["string", "integer"]}, "params": {"type": "object"}, "overwrite": {"type": "boolean"}}, ["name"]), plain(h["macro_save"])),
         Tool("macro_list", "List the macros in the macro folder of FreeCAD: .FCMacro and .py, as Macro › Macros… lists them. Each one is approved, changed (its code moved since the OK) or not approved. Changes nothing.", obj({}), plain(h["macro_list"])),
         Tool("macro_show", "Show the text of one macro, its named sizes, how many calls it makes, and whether it is approved. Changes nothing.", obj({"name": st}, ["name"]), plain(h["macro_show"])),
-        Tool("macro_approve", "Record that the person approves a macro to be run by Agent Link. confirm: \"approve <name>\", typed by the person, never by the agent. A macro is Python with the full reach of the Mac. Approval holds until its file changes.",
-             obj({"name": st, "confirm": st}, ["name", "confirm"]), plain(h["macro_approve"])),
+        Tool("macro_approve", "Ask the person for the OK to run a macro. name: the name of the macro. A macro is Python with the full reach of the Mac. Show macro_show to the person first. The tool shows the OK dialog in the FreeCAD window. Only a press on Approve by the person counts. The agent never gives the OK: no tool can press Approve, and a typed confirm is not taken. Answer: pending, with the next step. After the press, macro_list shows the macro approved. The OK holds until its file changes. Headless, the tool refuses.",
+             obj({"name": st}, ["name"]), plain(h["macro_approve"])),
         Tool("macro_unapprove", "Take a macro off the approved list.", obj({"name": st}, ["name"]), plain(h["macro_unapprove"])),
         Tool("macro_run", "Run an approved macro as the Macro dialog of FreeCAD runs it. params { CONSTANT: value } changes its named sizes for this run. One checkpoint is made before. A failure part way rolls the whole run back. An unapproved or changed macro is refused.",
              obj({"name": st, "params": {"type": "object"}}, ["name"]), plain(h["macro_run"])),

@@ -283,10 +283,10 @@ class Macros(_Cmd):
             m = call("macro_show", {"name": name})
             if m:
                 show_text(f"{name} · read before approving", m.get("text", ""))
-                t = typed("Approve Macro", f"approve {name}", "A macro is Python that runs with the computer's full reach.")
-                if t:
-                    if call("macro_approve", {"name": name, "confirm": t}):
-                        say(f"{name} is approved. It runs until its file changes.", "Macro approved")
+                # The OK is the press in Agent Link's OK dialog, which this call shows.
+                r = call("macro_approve", {"name": name})
+                if r and r.get("approved"):
+                    say(f"{name} is approved. It runs until its file changes.", "Macro approved")
         elif what == "run":
             done = call("macro_run", {"name": name})
             if done:
