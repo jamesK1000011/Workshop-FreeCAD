@@ -67,6 +67,31 @@ def pick(title, label, items):
     return items[texts.index(text)][1]
 
 
+def approve_in_window(r, again):
+    """A pending answer to the person's own click: Agent Link's Approve
+    dialog in the FreeCAD window (only a press by the person counts), and
+    again() after the press. False when Agent Link cannot show it."""
+    from . import handlers
+
+    show = handlers.APPROVAL_IN_WINDOW
+    try:
+        return bool(show and show(r, again))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def pending_words(r, shown):
+    tool = ((r or {}).get("approve") or {}).get("tool") or "the approval tool"
+    return ("Press Approve in the dialog in the FreeCAD window." if shown else
+            f"This needs your approval: approve it in Claude ({tool}), or turn on Mod/AgentLink WindowApprove for a dialog here.")
+
+
+def _with_agentlink():
+    from . import handlers
+
+    return handlers.PERSON_OK is not None
+
+
 def typed(title, want, why=""):
     """The person's typed confirm, when it is word for word; else None."""
     QtWidgets = _qt()
@@ -176,12 +201,21 @@ class Recover(_Cmd):
             headline, text = never_saved(rec.get("as"))
             say(text, headline)
             return
+        def accept(confirm=None):
+            done = call("app_recover", {"action": "accept", "document": rec["document"], **({"confirm": confirm} if confirm else {})})
+            if done and done.get("pending"):
+                # Agent Link: the approval, never typed words (an agent can type).
+                say(pending_words(done, approve_in_window(done, accept)), "Approve the recovered copy")
+            elif done:
+                say(f"Saved over {done['saved']}." + (f" The old file is kept at {done['previousFile']}." if done.get("previousFile") else ""), "Recovered copy saved")
+
+        if _with_agentlink():
+            accept()
+            return
         want = f"save over {os.path.basename(rec['file'])}"
         t = typed("Use Recovered Copy", want, f"{rec.get('as')} is open beside your file. To make it the file (the old one is kept):")
         if t:
-            done = call("app_recover", {"action": "accept", "document": rec["document"], "confirm": t})
-            if done:
-                say(f"Saved over {done['saved']}." + (f" The old file is kept at {done['previousFile']}." if done.get("previousFile") else ""), "Recovered copy saved")
+            accept(t)
 
 
 def _changes(limit=20):
@@ -283,10 +317,13 @@ class Macros(_Cmd):
             m = call("macro_show", {"name": name})
             if m:
                 show_text(f"{name} · read before approving", m.get("text", ""))
-                # The OK is the press in Agent Link's OK dialog, which this call shows.
+                # The approval is Agent Link's (approve_code, or a press on its
+                # Approve dialog in the window for this click of the person's).
                 r = call("macro_approve", {"name": name})
                 if r and r.get("approved"):
                     say(f"{name} is approved. It runs until its file changes.", "Macro approved")
+                elif r and r.get("pending"):
+                    say(pending_words(r, approve_in_window(r, lambda: say(f"{name} is approved. It runs until its file changes.", "Macro approved"))), "Approve the macro")
         elif what == "run":
             done = call("macro_run", {"name": name})
             if done:

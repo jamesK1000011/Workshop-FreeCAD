@@ -453,9 +453,21 @@ def widget(runner, hosted=False):
                         headline, text = never_saved(rec["as"])
                         self.say(text, headline=headline)
                         return
-                    typed = self.typed("Use Recovered Copy", f"save over {os.path.basename(rec['file'])}")
-                    if typed:
-                        self.do("app_recover", {"action": "accept", "document": rec["document"], "confirm": typed})
+                    from .commands import approve_in_window, pending_words
+                    from . import handlers
+
+                    def again(confirm=None):
+                        ok2, r2 = self.do("app_recover", {"action": "accept", "document": rec["document"], **({"confirm": confirm} if confirm else {})})
+                        if ok2 and r2.get("pending"):
+                            # Agent Link: the approval, never typed words (an agent can type).
+                            self.say(pending_words(r2, approve_in_window(r2, again)), "warning", "Approve the recovered copy")
+
+                    if handlers.PERSON_OK is not None:
+                        again()
+                    else:
+                        typed = self.typed("Use Recovered Copy", f"save over {os.path.basename(rec['file'])}")
+                        if typed:
+                            again(typed)
 
         def rollback(self):
             d = self.pick("pref")
@@ -465,9 +477,11 @@ def widget(runner, hosted=False):
         def approve(self):
             d = self.pick("macro")
             if d:
-                typed = self.typed("Approve Macro", f"approve {d['name']}")
-                if typed:
-                    self.do("macro_approve", {"name": d["name"], "confirm": typed})
+                from .commands import approve_in_window, pending_words
+
+                ok, r = self.do("macro_approve", {"name": d["name"]})
+                if ok and r.get("pending"):
+                    self.say(pending_words(r, approve_in_window(r, self.fill)), "warning", "Approve the macro")
 
         def run(self):
             d = self.pick("macro")

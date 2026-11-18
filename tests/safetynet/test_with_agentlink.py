@@ -158,10 +158,17 @@ class WithAgentLink(unittest.TestCase):
         self.assertIn("lost", rec)
         nd = FreeCAD.getDocument(rec["document"])
         self.assertNotEqual(os.path.abspath(nd.FileName), os.path.abspath(path))
-        self.assertEqual(self.refused("app_recover", {"action": "accept", "document": rec["document"]})["code"], "not_allowed")
-        self.assertIn("close it first", self.refused("app_recover", {"action": "accept", "document": rec["document"], "confirm": "save over recover_me.FCStd"})["message"])
+        # The original is still open: refused before any approval is asked.
+        self.assertIn("close it first", self.refused("app_recover", {"action": "accept", "document": rec["document"]})["message"])
         FreeCAD.closeDocument(name)
-        ok = self.ok("app_recover", {"action": "accept", "document": rec["document"], "confirm": "save over recover_me.FCStd"})
+        # The approval is approve_file (the client's tool permission), never typed words.
+        self.assertTrue(self.ok("app_recover", {"action": "accept", "document": rec["document"], "confirm": "save over recover_me.FCStd"})["pending"])
+        pending = self.ok("app_recover", {"action": "accept", "document": rec["document"]})
+        self.assertTrue(pending["pending"])
+        self.assertEqual(pending["approve"]["tool"], "approve_file")
+        self.assertEqual(pending["approve"]["arguments"]["file"], path)
+        self.assertTrue(self.ok("approve_file", pending["approve"]["arguments"])["approved"])
+        ok = self.ok("app_recover", {"action": "accept", "document": rec["document"]})
         self.assertEqual(ok["saved"], path)
         self.assertTrue(os.path.isfile(ok["previousFile"]))
 

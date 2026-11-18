@@ -4,10 +4,10 @@
 # person approved. The answers are safetynet.handlers'; this layer only
 # names, describes and binds them.
 #
-# The person's calls stay the person's: saving over their file needs their
-# own words in chat (a typed confirm); approving a macro needs their press on
-# Approve in the FreeCAD window (Agent Link's person_ok), which no tool can
-# make (red team, 2026-11-18).
+# The person's calls stay the person's: saving a recovered copy over their
+# file and approving a macro need the person's approval, approve_file or
+# approve_code, which they set in the client's tool permissions (Agent
+# Link's hooks.person_ok; the owner, 18 Nov 2026).
 from agentlink.protocol import Tool
 
 from . import handlers
@@ -32,6 +32,7 @@ def tools(s):
         for n in ("macro_approve", "macro_unapprove", "macro_run", "app_recover"):
             getattr(hooks, "keep_unextended", lambda _n: None)(n)  # no other add-on wraps these
         handlers.PERSON_OK = getattr(hooks, "person_ok", None)
+        handlers.APPROVAL_IN_WINDOW = getattr(hooks, "approval_in_window", None)
     except ImportError:
         pass
     st = {"type": "string"}
@@ -40,12 +41,12 @@ def tools(s):
              obj({"name": st, "from": {"type": ["string", "integer"]}, "to": {"type": ["string", "integer"]}, "params": {"type": "object"}, "overwrite": {"type": "boolean"}}, ["name"]), plain(h["macro_save"])),
         Tool("macro_list", "List the macros in the macro folder of FreeCAD: .FCMacro and .py, as Macro › Macros… lists them. Each one is approved, changed (its code moved since the OK) or not approved. Changes nothing.", obj({}), plain(h["macro_list"])),
         Tool("macro_show", "Show the text of one macro, its named sizes, how many calls it makes, and whether it is approved. Changes nothing.", obj({"name": st}, ["name"]), plain(h["macro_show"])),
-        Tool("macro_approve", "Ask the person for the OK to run a macro. name: the name of the macro. A macro is Python with the full reach of the Mac. Show macro_show to the person first. The tool shows the OK dialog in the FreeCAD window. Only a press on Approve by the person counts. The agent never gives the OK: no tool can press Approve, and a typed confirm is not taken. Answer: pending, with the next step. After the press, macro_list shows the macro approved. The OK holds until its file changes. Headless, the tool refuses.",
+        Tool("macro_approve", "Ask for the person's approval to run a macro. name: the name of the macro. A macro is Python with the full reach of the Mac. Show macro_show to the person first. The tool never approves by itself. The first call answers pending with the approve_code arguments: name, source, version (the sha256) and author. Call approve_code with them. The person sets approve_code in the client's tool permissions. A typed confirm is not taken. After the approval, macro_list shows the macro approved. The approval holds until its file changes. Without Agent Link, the tool refuses.",
              obj({"name": st}, ["name"]), plain(h["macro_approve"])),
         Tool("macro_unapprove", "Take a macro off the approved list.", obj({"name": st}, ["name"]), plain(h["macro_unapprove"])),
         Tool("macro_run", "Run an approved macro as the Macro dialog of FreeCAD runs it. params { CONSTANT: value } changes its named sizes for this run. One checkpoint is made before. A failure part way rolls the whole run back. An unapproved or changed macro is refused.",
              obj({"name": st, "params": {"type": "object"}}, ["name"]), plain(h["macro_run"])),
-        Tool("app_recover", "Get documents back after a crash or a hang. action list: the saved copies of each document (auto-saves, checkpoints, FreeCAD's recovery files). The document with the newest copy comes first. A recovered copy is listed only with changes of its own. action auto { documents [{ name, label, file }], since }: only the documents open at the crash. For each, the newest copy that opens comes back, beside the file, as \"<label> (recovered HH:MM)\". There is one per original, and a recovered copy is never recovered again beside it. A recovered copy that was open comes back only from changes made in it after it opened. One with no such changes (or modified: false) is named in notRecoveredAgain. It is never a copy of a copy. A saved file of the person that was unchanged at the crash is not recovered. That is: file given, and modified false or not said. It opens again from its own file as itself, once, and is named in reopened. It is left alone when it is open already. It comes back from a copy only in two cases. A copy newer than its file holds more, or the file will not open. Temporary recovered copies older than the crash (since), that FreeCAD opened again unchanged, are closed. Copies opened are marked unchanged, so they are not read as changed or recovered again. action accept { document, confirm: \"save over <file name>\" typed by the person }. It saves the recovered copy over their file, and the old one is kept.",
+        Tool("app_recover", "Get documents back after a crash or a hang. action list: the saved copies of each document (auto-saves, checkpoints, FreeCAD's recovery files). The document with the newest copy comes first. A recovered copy is listed only with changes of its own. action auto { documents [{ name, label, file }], since }: only the documents open at the crash. For each, the newest copy that opens comes back, beside the file, as \"<label> (recovered HH:MM)\". There is one per original, and a recovered copy is never recovered again beside it. A recovered copy that was open comes back only from changes made in it after it opened. One with no such changes (or modified: false) is named in notRecoveredAgain. It is never a copy of a copy. A saved file of the person that was unchanged at the crash is not recovered. That is: file given, and modified false or not said. It opens again from its own file as itself, once, and is named in reopened. It is left alone when it is open already. It comes back from a copy only in two cases. A copy newer than its file holds more, or the file will not open. Temporary recovered copies older than the crash (since), that FreeCAD opened again unchanged, are closed. Copies opened are marked unchanged, so they are not read as changed or recovered again. action accept { document }: it saves the recovered copy over their file, and the old one is kept. It needs the person's approval: the first call answers pending with the approve_file arguments. Call approve_file with them, then call again. confirm is only for SafetyNet without Agent Link.",
              obj({"action": {"type": "string", "enum": ["list", "auto", "accept"]}, "documents": {"type": "array", "items": {"type": "object"}}, "since": {"type": "number"}, "document": st, "confirm": st}), plain(h["app_recover"])),
         Tool("pref_history", "List the settings changes that Agent Link made, newest first. Each holds: change number, time, tool, path, name, from, to, and whether a restart is needed. limit: 20 by default. Changes nothing.",
              obj({"limit": {"type": "integer"}}), plain(h["pref_history"])),

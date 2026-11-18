@@ -590,9 +590,12 @@ def newest_first(rows):
     return rows
 
 
-def accept(ref, confirm):
-    """A recovered copy saved over the person's file, with their typed
-    confirm; what was there kept under ~/AgentLink/replaced. The document."""
+def accept(ref, confirm, approve=None):
+    """A recovered copy saved over the person's file; what was there kept
+    under ~/AgentLink/replaced. (document, answer). approve(nd, target):
+    Agent Link's approval (approve_file), None once given, else the pending
+    answer, returned as it is. Without Agent Link (approve None): the
+    person's typed confirm in SafetyNet's own dialog."""
     import FreeCAD
 
     nd = next((d for d in FreeCAD.listDocuments().values() if ref in (d.Name, d.Label)), None)
@@ -606,11 +609,15 @@ def accept(ref, confirm):
     if not target:
         raise Refused("invalid_state", f"{nd.Label} was never saved to a file: doc_save {{ path }} saves it where the person says.")
     want = f"save over {os.path.basename(target)}"
-    if (confirm or "").strip() != want:
+    if approve is None and (confirm or "").strip() != want:
         raise Refused("not_allowed", f"confirm: \"{want}\", word for word, typed by the person — this replaces their file with the recovered copy. Nothing was changed.")
     other = next((d for d in FreeCAD.listDocuments().values() if d is not nd and d.FileName and os.path.abspath(d.FileName) == os.path.abspath(target)), None)
     if other is not None:
         raise Refused("invalid_state", f"{target} is open as {other.Label}: close it first (doc_close — its unsaved changes are the person's call), then accept again.")
+    if approve is not None:
+        pending = approve(nd, target)
+        if pending is not None:
+            return nd, pending
     if os.path.isfile(target):
         backup = path("replaced", f"{stamp()}-{os.path.basename(target)}")
         os.makedirs(os.path.dirname(backup), exist_ok=True)
