@@ -190,8 +190,11 @@ class WithAgentLink(unittest.TestCase):
         text = open(saved["path"]).read()
         self.assertIn("[LENGTH, 20, WALL]", text)
         self.assertEqual(self.refused("macro_run", {"name": "Plate test"})["code"], "not_allowed")
-        self.assertEqual(self.refused("macro_approve", {"name": "Plate test", "confirm": "yes"})["code"], "not_allowed")
-        self.ok("macro_approve", {"name": "Plate test", "confirm": "approve Plate test"})
+        # Headless, the OK is refused: it is a press in the window (red team, 2026-11-18).
+        self.assertEqual(self.refused("macro_approve", {"name": "Plate test"})["code"], "unavailable")
+        from safetynet import macros as _macros
+
+        _macros.approve("Plate test", saved["path"])  # the person's press, stood in
         self.assertEqual([m["state"] for m in self.ok("macro_list")["macros"] if m["name"] == "Plate test"], ["approved"])
         n = len(s.bodies())
         r = self.ok("macro_run", {"name": "Plate test", "params": {"LENGTH": 30}})

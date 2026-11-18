@@ -28,6 +28,25 @@ def write(folder, name, text):
     return p
 
 
+def person(press=True, seen=None):
+    """A stand-in Agent Link whose OK dialog the person presses (press) or
+    leaves (the agent alone): sys.modules entries for mock.patch.dict."""
+    hooks = types.ModuleType("agentlink.hooks")
+
+    def person_ok(kind, name, title, lines, sha=None, on_ok=None):
+        if seen is not None:
+            seen.append({"kind": kind, "name": name, "sha": sha, "lines": lines})
+        if press and on_ok:
+            on_ok()
+        return {"pending": True, "next": "press Approve"}
+
+    hooks.person_ok = person_ok
+    from safetynet import handlers
+
+    handlers.PERSON_OK = person_ok
+    return {}
+
+
 class Home(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -36,6 +55,9 @@ class Home(unittest.TestCase):
         os.makedirs(self.mdir)
         self.env = mock.patch.dict(os.environ, {"AGENTLINK_HOME": self.home})
         self.env.start()
+        from safetynet import handlers
+
+        self.addCleanup(setattr, handlers, "PERSON_OK", None)
 
     def tearDown(self):
         self.env.stop()
@@ -99,10 +121,10 @@ class Run(Home):
     def test_only_once_approved_then_as_freecad_does(self):
         p = write(self.mdir, "Mark.FCMacro", "import FreeCAD\nFreeCAD.ran = __name__\n")
         fc = self.freecad(None)
-        with mock.patch.dict(sys.modules, {"FreeCAD": fc}):
+        with mock.patch.dict(sys.modules, {"FreeCAD": fc, **person()}):
             ok, r = local.run("macro_run", {"name": "Mark"})
             self.assertEqual((ok, r["error"]["code"]), (False, "not_allowed"))
-            ok, r = local.run("macro_approve", {"name": "Mark", "confirm": "approve Mark"})
+            ok, r = local.run("macro_approve", {"name": "Mark"})
             self.assertTrue(ok, r)
             ok, r = local.run("macro_run", {"name": "Mark"})
             self.assertTrue(ok, r)
@@ -115,11 +137,51 @@ class Run(Home):
             ok, r = local.run("macro_run", {"name": "Mark"})
         self.assertEqual((ok, r["error"]["code"]), (False, "not_allowed"))  # changed: approve again
 
-    def test_the_person_approves_never_without_the_typed_words(self):
+    def test_the_person_approves_never_the_agent(self):
+        # Red team, 2026-11-18: the typed words are no OK (an agent types
+        # them); only the press in the window's dialog approves.
         write(self.mdir, "Mark.FCMacro", "x = 1\n")
-        with mock.patch.dict(sys.modules, {"FreeCAD": self.freecad(None)}):
-            ok, r = local.run("macro_approve", {"name": "Mark", "confirm": ""})
+        seen = []
+        with mock.patch.dict(sys.modules, {"FreeCAD": self.freecad(None), **person(press=False, seen=seen)}):
+            ok, r = local.run("macro_approve", {"name": "Mark"})
+            self.assertTrue(ok, r)
+            self.assertTrue(r["pending"])
+            self.assertFalse(r["approved"])
+            ok, r = local.run("macro_run", {"name": "Mark"})
         self.assertEqual((ok, r["error"]["code"]), (False, "not_allowed"))
+        self.assertEqual(seen[0]["kind"], "macro")
+        self.assertEqual(seen[0]["sha"], macros.sha256_file(os.path.join(self.mdir, "Mark.FCMacro")))
+
+    def test_without_the_window_ok_nothing_is_approved(self):
+        write(self.mdir, "Mark.FCMacro", "x = 1\n")
+        from safetynet import handlers
+
+        handlers.PERSON_OK = None  # an older Agent Link: no OK in the window
+        with mock.patch.dict(sys.modules, {"FreeCAD": self.freecad(None)}):
+            ok, r = local.run("macro_approve", {"name": "Mark"})
+        self.assertEqual((ok, r["error"]["code"]), (False, "unavailable"))
+
+    def test_a_file_changed_before_the_press_is_not_approved(self):
+        p = write(self.mdir, "Mark.FCMacro", "x = 1\n")
+        from safetynet import handlers
+
+        calls = []
+        handlers.PERSON_OK = lambda *a, **k: (calls.append((a, k)), {"pending": True})[1]
+        with mock.patch.dict(sys.modules, {"FreeCAD": self.freecad(None)}):
+            local.run("macro_approve", {"name": "Mark"})
+            with open(p, "a") as f:
+                f.write("import os\n")
+            calls[0][0][5]()  # the person presses now: the file is not the one shown
+            ok, r = local.run("macro_run", {"name": "Mark"})
+        self.assertEqual((ok, r["error"]["code"]), (False, "not_allowed"))
+
+    def test_a_label_cannot_add_code_to_a_saved_macro(self):
+        text = macros.macro_text("M", [{"tool": "pd_pad", "args": {}}], {}, ["Makes: Box\nimport os; os.system('x')\r# in Part\u2028y"])
+        import ast
+
+        tree = ast.parse(text)
+        names = [n for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))]
+        self.assertEqual([a.name for n in names for a in n.names], ["agentlink"])
 
     def test_checkpoint_before_with_a_document_open(self):
         class Doc(FakeDoc):
@@ -131,8 +193,8 @@ class Run(Home):
 
         doc = Doc("Part")
         write(self.mdir, "Mark.FCMacro", "x = 1\n")
-        with mock.patch.dict(sys.modules, {"FreeCAD": self.freecad(doc)}):
-            local.run("macro_approve", {"name": "Mark", "confirm": "approve Mark"})
+        with mock.patch.dict(sys.modules, {"FreeCAD": self.freecad(doc), **person()}):
+            local.run("macro_approve", {"name": "Mark"})
             ok, r = local.run("macro_run", {"name": "Mark"})
         self.assertTrue(ok, r)
         self.assertEqual(r["checkpoint"], "cp1")
@@ -142,16 +204,16 @@ class Run(Home):
 
     def test_agent_link_macro_needs_agent_link(self):
         write(self.mdir, "Calls.FCMacro", "import agentlink\nagentlink.run('pd_pad', {})\n")
-        with mock.patch.dict(sys.modules, {"FreeCAD": self.freecad(None)}):
-            local.run("macro_approve", {"name": "Calls", "confirm": "approve Calls"})
+        with mock.patch.dict(sys.modules, {"FreeCAD": self.freecad(None), **person()}):
+            local.run("macro_approve", {"name": "Calls"})
             ok, r = local.run("macro_run", {"name": "Calls"})
         self.assertEqual((ok, r["error"]["code"]), (False, "invalid_state"))
         self.assertIn("Agent Link", r["error"]["message"])
 
     def test_a_failure_says_so(self):
         write(self.mdir, "Bad.FCMacro", "raise RuntimeError('boom')\n")
-        with mock.patch.dict(sys.modules, {"FreeCAD": self.freecad(None)}):
-            local.run("macro_approve", {"name": "Bad", "confirm": "approve Bad"})
+        with mock.patch.dict(sys.modules, {"FreeCAD": self.freecad(None), **person()}):
+            local.run("macro_approve", {"name": "Bad"})
             ok, r = local.run("macro_run", {"name": "Bad"})
         self.assertEqual((ok, r["error"]["code"]), (False, "failed"))
         self.assertIn("boom", r["error"]["message"])

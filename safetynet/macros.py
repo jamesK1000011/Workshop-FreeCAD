@@ -135,6 +135,11 @@ def _ident(k):
     return s if not s[0].isdigit() else "P_" + s
 
 
+def _one_line(text, cap=300):
+    t = "".join(" " if ord(c) < 32 or ord(c) == 0x7f or c in "\x85\u2028\u2029" else c for c in str(text))
+    return t[:cap]
+
+
 def macro_text(name, calls, params, header):
     """A .FCMacro replaying agent calls in order, with the listed sizes as
     named constants at the top: each place a listed value appears in the
@@ -162,7 +167,10 @@ def macro_text(name, calls, params, header):
             return "{" + ", ".join(f"{k!r}: {lit(v)}" for k, v in x.items()) + "}"
         return repr(x)
 
-    lines = ["# -*- coding: utf-8 -*-"] + [f"# {h}" for h in header] + ["", "# Key sizes: change them here."]
+    # A header line holds labels (a document's, a body's) that anyone may
+    # set: a line break in one would end the comment and start code (red
+    # team, 2026-11-18). Each header line is one comment line.
+    lines = ["# -*- coding: utf-8 -*-"] + [f"# {_one_line(h)}" for h in header] + ["", "# Key sizes: change them here."]
     for k, v in consts.items():
         lines.append(f"{k} = {v!r}")
     lines += ["", "import agentlink", ""]
