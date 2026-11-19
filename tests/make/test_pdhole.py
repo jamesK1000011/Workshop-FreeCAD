@@ -212,6 +212,11 @@ try:
     api.hole(D(), Plain(), "clearance", "M3", sketch=Plain())
 except api.Refused as e:
     OUT["plain_sketch"] = str(e)
+# live 105: a sketch named Sketch001 whose label is another word is found by its name
+class D2(D):
+    def getObject(self, n): return "the sketch" if n == "Sketch001" else None
+OUT["by_name"] = api._named(D2(), "Sketch001")
+OUT["by_none"] = api._named(D2(), "Nothing")
 ''')
         self.assertEqual(out["pd"]["route"], "PartDesign Hole")
         self.assertEqual(out["pd"]["features"], ["HoleSketch", "Hole"])
@@ -219,6 +224,8 @@ except api.Refused as e:
         self.assertIn("double-click", out["pd"]["note"])
         self.assertEqual(out["seen"], {"kind": "clearance", "face": "Face6", "at": [1, 2, 3]})
         self.assertIn("PartDesign Body only", out["plain_sketch"])
+        self.assertEqual(out["by_name"], "the sketch")
+        self.assertIsNone(out["by_none"])
 
 
 class Settle(unittest.TestCase):

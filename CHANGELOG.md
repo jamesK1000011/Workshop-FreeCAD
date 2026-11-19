@@ -11,6 +11,7 @@ Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
 
 ## [Unreleased]
 
+- hw_hole finds the body and the sketch by name, then by label (live 105: the hole lesson gave Sketch001, the name, and the tool looked for a label only).
 ### Fixed
 
 - Security (red team 3): `printer_send` start, `printer_pause` and `printer_stop` need the person's approval through Agent Link (`approve_file`, bound to the printer, the file and its SHA-256); a typed confirm is refused with Agent Link and kept only without it. `printer_send` reads the file first and holds printer-changing commands and heat over 300 °C / 120 °C for the same approval; `pauseCommand` only M601, M600, M0, M1 or PAUSE; `slicer_presets` version only `N.N.N`; printer keys move to `~/AgentLink/printers.json` (0600, the old session file moves once); storage from a short list per kind, no redirect to another host, a warning off the LAN; `profiles.*`, `kicadPcb` and `printer_send` file get the hub's read check; printer and file text cleaned of invisible characters and capped; `own_pack` removes its temporary folder. Tests: `tests/make/test_redteam3.py`, `tests/make/test_printer.py`.
