@@ -1,3 +1,8 @@
 # Raster images (screenshots, renders) a person or agent has looked at and
 # found free of personal data. One line each: "<sha256> <path>".
 # Add a line only after looking at the image itself.
+# README screenshots (toolbars, panels, renders), FreeCAD 1.1.3 on a Mac, looked at 19 Nov 2026: no names, paths or personal data.
+ade79c50bcc684e9b8e30376068c4e4134fd6a51f77d7ac2186c9d3ad2ab5ed6 docs/images/toolbar-make.png
+2c4920927c9e6228799b6612c9ede44fee5f9631c4297280b9defe306d23f8e4 docs/images/panel-make-setups.png
+43637714d1e18a860c0bd889fd64780249188e0e2374e855d6944e0ef705d2f8 docs/images/gridfinity-baseplate.png
+a860b75e03ed18f48239aaa83d75f508b9d8f885353fb681adcbc753fd0b67d9 docs/images/drawing-tray.png
