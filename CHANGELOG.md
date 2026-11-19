@@ -11,6 +11,7 @@ Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
 
 ## [Unreleased]
 
+- Hole lesson: FreeCAD 1.1 names the size M4x0.7, and hw_hole with a printer allowance makes a plain hole (no thread type); the size step sets ISOMetricProfile first, then M4x0.7.
 - hw_hole finds the body and the sketch by name, then by label (live 105: the hole lesson gave Sketch001, the name, and the tool looked for a label only).
 ### Fixed
 
