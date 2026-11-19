@@ -147,11 +147,14 @@ class WithAgentLink(unittest.TestCase):
         self.box("U r", [8, 8, 8])
         path = os.path.join(self.dir, "recover_me.FCStd")
         self.ok("doc_save", {"path": path})
+        # Changed after the save: a saved file with no changes since only
+        # opens again from itself (recovery.saved_unchanged).
+        self.box("U r2", [4, 4, 4])
         autosave.now(s)
         name, label = s.doc.Name, s.doc.Label
         listed = self.ok("app_recover")
         self.assertIn(name, [d["document"] for d in listed["documents"]])
-        r = self.ok("app_recover", {"action": "auto", "documents": [{"name": name, "label": label, "file": path}], "since": time.time() + 120})
+        r = self.ok("app_recover", {"action": "auto", "documents": [{"name": name, "label": label, "file": path, "modified": True}], "since": time.time() + 120})
         rec = r["recovered"][0]
         self.assertIn("(recovered", rec["as"])
         self.assertEqual(rec["file"], path)
@@ -197,8 +200,12 @@ class WithAgentLink(unittest.TestCase):
         text = open(saved["path"]).read()
         self.assertIn("[LENGTH, 20, WALL]", text)
         self.assertEqual(self.refused("macro_run", {"name": "Plate test"})["code"], "not_allowed")
-        # Headless, the OK is refused: it is a press in the window (red team, 2026-11-18).
-        self.assertEqual(self.refused("macro_approve", {"name": "Plate test"})["code"], "unavailable")
+        # The OK is approve_code, which the client asks the person for: the
+        # call is pending and approves nothing by itself.
+        p = self.ok("macro_approve", {"name": "Plate test"})
+        self.assertTrue(p.get("pending"), p)
+        self.assertEqual(p["approve"]["tool"], "approve_code")
+        self.assertNotEqual([m["state"] for m in self.ok("macro_list")["macros"] if m["name"] == "Plate test"], ["approved"])
         from safetynet import macros as _macros
 
         _macros.approve("Plate test", saved["path"])  # the person's press, stood in

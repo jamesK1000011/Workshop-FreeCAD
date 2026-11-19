@@ -75,7 +75,13 @@ def _entry(shape, cyl, prefer=None):
 def _table(series=None):
     rows = tt.table(series)
     if not rows and not tt.table():
-        raise ToolError("unavailable", "FreeCAD's thread tables (PartDesign Hole's) cannot be read here: PartDesign is not in this build.")
+        try:
+            import PartDesign  # noqa: F401
+
+            why = "this FreeCAD's PartDesign Hole gives no thread diameter (ThreadDiameter): FreeCAD 1.1 or newer has it."
+        except ImportError:
+            why = "PartDesign is not in this build."
+        raise ToolError("unavailable", f"FreeCAD's thread tables (PartDesign Hole's) cannot be read here: {why}")
     return rows
 
 

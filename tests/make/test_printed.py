@@ -5,7 +5,7 @@
 import shutil
 import unittest
 
-from _fc import AGENT, add_body, caller, server
+from _fc import AGENT, BEFORE_1_1, WHY_1_0, add_body, caller, server
 
 
 @unittest.skipUnless(AGENT, "FreeCAD and Agent Link are not both importable here")
@@ -28,6 +28,7 @@ class Printed(unittest.TestCase):
         self.assertTrue(err)
         self.assertIn("buildDir", e["error"]["message"])
 
+    @unittest.skipIf(BEFORE_1_1, WHY_1_0 + " (its Gmsh mesher makes no volume elements of the beam)")
     def test_2_across_layers(self):
         self.call("fea_setup", {"body": "Beam", "mesh": 2.5, "buildDir": "+z"})
         self.call("fea_hold", {"faces": {"normal": [-1, 0, 0], "x": 0}})

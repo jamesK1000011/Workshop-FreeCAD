@@ -10,10 +10,11 @@ import os
 import tempfile
 import unittest
 
-from _fc import AGENT, caller, server
+from _fc import AGENT, BEFORE_1_1, WHY_1_0, caller, server
 
 
 @unittest.skipUnless(AGENT, "FreeCAD and Agent Link are not both importable here")
+@unittest.skipIf(BEFORE_1_1, WHY_1_0 + " (its PartDesign Hole: \"Linked shape object is empty\")")
 class StemFindings(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

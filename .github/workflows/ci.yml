@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# Workshop for FreeCAD's tests on the newest FreeCAD conda-forge has and the
+# Workshop for FreeCAD's tests on the newest FreeCAD 1.1 conda-forge has (its plain "freecad" is a weekly build) and the
 # newest 1.0: the add-on alone (its API and commands, no agent), then with
 # Agent Link beside it (the tools an agent calls). tests/ holds the add-on's
 # own tests; tests/<part>/ each part's.
@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        series: ['newest', '1.0']
+        series: ['1.1', '1.0']
     name: freecad-${{ matrix.series }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
@@ -52,7 +52,7 @@ jobs:
           environment-name: fc-${{ matrix.series }}
           create-args: >-
             -c conda-forge
-            ${{ matrix.series == 'newest' && 'freecad' || format('freecad={0}', matrix.series) }}
+            freecad=${{ matrix.series }}
             python=3.11
             numpy
             calculix
