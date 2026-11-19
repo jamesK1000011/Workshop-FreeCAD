@@ -20,6 +20,10 @@ docs/hardening/workshop-fasteners-model.json
 docs/hardening/workshop-findings.md
 docs/hardening/workshop-make-model.json
 docs/hardening/workshop-parts-model.json
+docs/images/drawing-tray.png
+docs/images/gridfinity-baseplate.png
+docs/images/panel-make-setups.png
+docs/images/toolbar-make.png
 docs/make.md
 docs/parts.md
 docs/safetynet.md

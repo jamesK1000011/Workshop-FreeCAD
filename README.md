@@ -114,16 +114,23 @@ Before a big change, say "make a checkpoint". To go back, say "restore the check
 
 ## Screenshots
 
-<!-- screenshots: no screenshots are in the repository yet. Take these and add them under docs/images/:
-- Part Design with the Standard Parts dropdown open and a Gridfinity bin made
-- the Make workbench with the Make panel's Setups tab
-- a DFM check result with the problem spots shown
-- a drawing made with Drawing (TechDraw page)
-- a board enclosure round a KiCad board
-- the Tools ▸ SafetyNet menu
--->
+<!-- screenshots: still to take: a DFM check with its problem spots; a board enclosure round a KiCad board; the Tools > SafetyNet menu (on macOS the menu bar is outside the window, so a Qt picture cannot show it) -->
 
-No screenshots yet.
+![The Make workbench toolbar](https://github.com/jamesK1000011/Workshop-FreeCAD/raw/main/docs/images/toolbar-make.png)
+
+*The Make workbench: setups, fits, encased hardware, slice and cut or mill output, the printer, and the Make and Manual panels.*
+
+![The Make panel, Setups tab, with one print setup](https://github.com/jamesK1000011/Workshop-FreeCAD/raw/main/docs/images/panel-make-setups.png)
+
+*The Make panel: each part gets a process (print, cut, mill) and its settings.*
+
+![A Gridfinity baseplate, 3 by 2 pockets with magnet holes](https://github.com/jamesK1000011/Workshop-FreeCAD/raw/main/docs/images/gridfinity-baseplate.png)
+
+*A Gridfinity baseplate with magnet holes, made in one gen_part call.*
+
+![A TechDraw sheet of a tray with dimensions, a hole callout and a title block](https://github.com/jamesK1000011/Workshop-FreeCAD/raw/main/docs/images/drawing-tray.png)
+
+*A dimensioned drawing made by drawing_make: a TechDraw page, with SVG, PDF and DXF files.*
 
 ## Where things are
 

@@ -48,3 +48,9 @@ SPDX-FileCopyrightText = "Workshop for FreeCAD contributors"
 SPDX-License-Identifier = "CC-BY-4.0 AND LGPL-2.1-or-later"
 # The tool descriptions as main held them before the ASD-STE100 rewrite: the
 # data/tools.json texts (CC-BY-4.0) and the Python ones (LGPL-2.1-or-later).
+
+[[annotations]]
+# Screenshots of FreeCAD with this add-on, taken by Agent Link on 19 Nov 2026 and looked at (no personal data).
+path = ["docs/images/*.png"]
+SPDX-FileCopyrightText = "Workshop for FreeCAD contributors"
+SPDX-License-Identifier = "LGPL-2.1-or-later"
