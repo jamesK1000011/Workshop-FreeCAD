@@ -277,6 +277,7 @@ class FormPanel:
                     sb = narrow.grow(QtWidgets.QDoubleSpinBox())
                     sb.setRange(-100000, 100000)
                     sb.setDecimals(3)
+                    sb.setToolTip(f"Type the {'XYZ'[k]} value of the point, in the document's coordinates. Unit: mm.")
                     sb.setValue((at or [0, 0, 0])[k])
                     h.addWidget(sb)
                     boxes.append(sb)
@@ -287,6 +288,8 @@ class FormPanel:
                 sel = selected_labels()
                 w.setText(", ".join(sel) if kind == "bodies" else "; ".join(f"Step {k + 1}: {b}" for k, b in enumerate(sel)) if kind == "steps" else str(default or ""))
                 self.get[key] = w.text
+            if kind != "point":  # the X, Y and Z boxes have their own tips
+                w.setToolTip(narrow.field_tip(label, kind, extra[3] if kind == "num" else ""))
             lay.addRow(label, w)
         self.msg = narrow.label(QtWidgets.QLabel(""))
         lay.addRow(self.msg)

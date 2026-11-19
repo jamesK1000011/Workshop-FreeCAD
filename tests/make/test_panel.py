@@ -406,11 +406,11 @@ class NewSetupPicksThePart(unittest.TestCase):
         self.assertIn("No part in the document", self.out["empty doc"][1])
 
     def test_an_empty_setup_is_said(self):
-        self.assertEqual(self.out["empty answer"][1], "No part in this setup: pick one")
+        self.assertEqual(self.out["empty answer"][1], "No part in this setup: select one")
         row, tip, msg = self.out["empty row"]
         self.assertEqual(row, "—")
-        self.assertEqual(tip, "No part in this setup: pick one")
-        self.assertIn("No part in this setup: pick one", msg)
+        self.assertEqual(tip, "No part in this setup: select one")
+        self.assertIn("No part in this setup: select one", msg)
 
 
 class TaskPanels(unittest.TestCase):

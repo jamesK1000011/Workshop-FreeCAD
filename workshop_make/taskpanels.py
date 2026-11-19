@@ -447,7 +447,7 @@ class FormPanel:
                     sb.setDecimals(3)
                     sb.setPrefix("XYZ"[k] + " ")
                     sb.setSuffix(" mm")
-                    sb.setToolTip(f"{'XYZ'[k]} in the document's coordinates, mm.")
+                    sb.setToolTip(f"Type the {'XYZ'[k]} value of the point, in the document's coordinates. Unit: mm.")
                     sb.setValue((at or [0, 0, 0])[k])
                     h.addWidget(sb)
                     boxes.append(sb)
@@ -464,6 +464,8 @@ class FormPanel:
                 sb.setSuffix(suf)
                 sb.setValue(lo if default == "through" else float(default))
                 through = QtWidgets.QCheckBox("Through all")
+                through.setToolTip("Make the hole go through the full part.")
+                sb.setToolTip(narrow.field_tip(label, "num", suf))
                 through.setChecked(default == "through")
                 sb.setEnabled(default != "through")
                 through.toggled.connect(lambda on, sb=sb: sb.setEnabled(not on))
@@ -475,6 +477,8 @@ class FormPanel:
                 w = narrow.grow(QtWidgets.QLineEdit())
                 w.setText(", ".join(selected_labels()) if kind == "bodies" else str(default or ""))
                 self.get[key] = w.text
+            if kind not in ("point", "depth"):  # their boxes have their own tips
+                w.setToolTip(narrow.field_tip(label, kind, extra[3] if kind == "num" else ""))
             lay.addRow(label, w)
             if key == "body" and self.entry:
                 # What the hole starts on, as picked.
@@ -484,11 +488,12 @@ class FormPanel:
             # The checkbox on a row of its own, the screw's type under it:
             # side by side they ran off the dock (live on the Mac).
             check = QtWidgets.QCheckBox(SCREW_LABEL)
-            check.setToolTip("Fasteners Workbench (Shai Seger) puts the screw in the hole: its length from the plate, matched to the hole.")
+            check.setToolTip("Put a screw from the Fasteners workbench (Shai Seger) in the hole. Its length comes from the plate and matches the hole.")
             kinds = list(SCREW_TYPES)
             combo = narrow.combo(QtWidgets.QComboBox())
             combo.addItems([t for _v, t in kinds])
             combo.setCurrentIndex(0)
+            combo.setToolTip("Select the type of screw.")
             combo.setEnabled(False)
             check.toggled.connect(lambda on, combo=combo: combo.setEnabled(on))
             lay.addRow(check)
