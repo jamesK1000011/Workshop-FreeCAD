@@ -118,12 +118,31 @@ def _last(s):
     return r if r is not None else getattr(s, "_agentlink_fea", None)
 
 
+def _this_solve(fea, out):
+    """The kept run is the solve that answered out: the same object, or (a
+    data tool's answer is a new dict made from it) the same body and peaks."""
+    r = fea.get("result")
+    if r is out:
+        return True
+    if not isinstance(r, dict):
+        return False
+    return (fea.get("body") == out.get("body") and r.get("vonMisesMax") == out.get("vonMisesMax")
+            and r.get("displacementMax") == out.get("displacementMax"))
+
+
 @_agent
 def solve_after(a, out, s):
     fea = _last(s)
-    if not isinstance(out, dict) or not fea or fea.get("result") is not out:
+    if not isinstance(out, dict) or not fea or not _this_solve(fea, out):
         return None
-    st = fea.get("study") or {}
+    st = dict(fea.get("study") or {})
+    # The study as fea_setup left it (its extension writes buildDir and the
+    # print there), where the kept run holds an older copy.
+    kept = store.read(s.doc, KEY, None) or {}
+    if kept.get("body") in (None, st.get("body")):
+        for k in ("buildDir", "print"):
+            if st.get(k) is None and kept.get(k) is not None:
+                st[k] = kept[k]
     field = fea.get("field") or {}
     bd = st.get("buildDir")
     y = (out.get("material") or {}).get("yield")
