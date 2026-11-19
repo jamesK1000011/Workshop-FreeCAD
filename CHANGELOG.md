@@ -19,6 +19,7 @@ Drawings and patent figures are in TechDraw. KiCad boards and library packs are 
 One small Make workbench has setups, fits, encased hardware, slicing, cut and mill output, and printers.
 Workshop works alone. With Agent Link for FreeCAD installed, an agent uses its tools too.
 
+- Cut Export nests with FreeCAD's BIM Nest only when the FreeCAD window is up. Headless, the parts go in rows and the answer says why (BIM Nest stopped headless FreeCAD 1.1.3 in CI; it works with the window).
 - Release (V1): version 1.0.0 in package.xml and in each package. `LICENSES/LGPL-2.1-or-later.txt` for REUSE.
 - Panel polish (V1): each control of the Make, Documents, Parts, Electronics and SafetyNet panels and task panels has a tooltip in STE (form fields say the label, what to do and the unit; 38 tooltips new or rewritten). Tooltips say "select", not "pick". Documents: Drop Step is now Remove Step. A new test (tests/test_panel_polish.py) finds a control with no tooltip and a fixed colour in panel code.
 - Hole lesson: FreeCAD 1.1 names the size M4x0.7, and hw_hole with a printer allowance makes a plain hole (no thread type); the size step sets ISOMetricProfile first, then M4x0.7.
