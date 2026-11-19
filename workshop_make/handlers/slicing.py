@@ -6,11 +6,13 @@
 
 import json
 import os
+import re
 
+from workshop.guard import clean_obj, read_ok
 from workshop_make import records as store
 from workshop_make.materials import DENSITY  # Make's filament table
 
-from .. import orcalib, printability
+from .. import gcodecheck, orcalib, printability
 from ._lent import Refusal
 from .embed import pauses_for
 from ..api import slice_verdict
@@ -18,6 +20,12 @@ from ..api import slice_verdict
 # Lent by the family layer when Agent Link binds these handlers (lend()); alone
 # a refusal is this add-on's own and Agent Link's helpers are absent.
 ToolError = Refusal
+# Agent Link's read check (paths.in_file), lent the same way; alone, the
+# fallback in workshop/guard.py (red team 3, R3-10).
+IN_FILE = None
+# slicer_presets fetch: an OrcaSlicer release only, such as 2.3.1 (R3-7).
+# fullmatch: "$" alone takes a new line at the end.
+VERSION = re.compile(r"^\d+\.\d+\.\d+$")
 
 
 class _Orca:
@@ -40,6 +48,10 @@ def slice_with(s, a):
     name = (a.get("slicer") or "prusaslicer").lower()
     if name not in slicers.NAMES:
         raise ToolError("invalid_input", f"slicer: one of {', '.join(slicers.NAMES)}.")
+    try:
+        cmd = gcodecheck.pause_command(a.get("pauseCommand"), slicers.PAUSE[name])
+    except gcodecheck.PauseError as e:
+        raise ToolError("invalid_input", str(e))
     setup = store.setup_of(s.doc, o.Label, "print")
     if not setup:
         raise ToolError("invalid_state", f"{o.Label} is in no print setup: setup add {{ type: \"print\", bodies: [\"{o.Label}\"] }} once the person says it is printed.")
@@ -58,6 +70,9 @@ def slice_with(s, a):
     for k, v in profiles.items():
         if k not in ("machine", "process", "filament", "config"):
             raise ToolError("invalid_input", f"profiles.{k}: machine, process, filament (JSON, OrcaSlicer and Bambu Studio) or config (an .ini, PrusaSlicer).")
+        if v:
+            v = read_ok(s, "slice_with", os.path.expanduser(v), f"profiles.{k}", IN_FILE, ToolError)
+            profiles = {**profiles, k: v}
         if v and not os.path.isfile(v):
             raise ToolError("not_found", f"profiles.{k}: {v} is not a file.")
     settings = {k: v for k, v in setup.items() if k not in ("id", "name", "type", "bodies")}
@@ -97,7 +112,6 @@ def slice_with(s, a):
     read = slicers.read_gcode(gcode)
     # Pauses are a body's own heights: with several on a plate (and moved by orient), none written.
     want = pauses_for(s, o, setup) if len(stls) == 1 and not a.get("orient") else []
-    cmd = a.get("pauseCommand") or slicers.PAUSE[name]
     done = slicers.insert_pauses(gcode, want, cmd) if want else []
     out = {
         "body": o.Label, "slicer": name, "exe": os.path.basename(exe), "profiles": f"the person's presets: {preset_note}" if preset_note else used, "gcode": gcode, "bytes": os.path.getsize(gcode),
@@ -213,7 +227,10 @@ def slicer_presets(s, a):
             vendors = a.get("vendors") or ([a["vendor"]] if a.get("vendor") else None)
             if not vendors:
                 raise ToolError("invalid_input", "vendors: the preset folders to fetch, e.g. [\"BBL\"] (Bambu Lab), [\"Prusa\"], [\"Creality\"].")
-            return {**SP.fetch_orca(vendors, a.get("version")), "next": "slicer_presets list { slicer: orcaslicer, kind, query } now shows them."}
+            version = a.get("version")
+            if version is not None and not (isinstance(version, str) and VERSION.fullmatch(version)):
+                raise ToolError("invalid_input", "version: an OrcaSlicer release, three numbers such as 2.3.1. Left out, the version on this computer.")
+            return {**SP.fetch_orca(vendors, version), "next": "slicer_presets list { slicer: orcaslicer, kind, query } now shows them."}
         if action == "use":
             o = s.body(a.get("body"))
             sets = store.setups(s.doc)
@@ -310,7 +327,9 @@ def slice_read(s, a):
         raise ToolError("invalid_input", f"{os.path.basename(p)} could not be read as a slicer project: {e}")
     if sliced:
         out["slicedNow"] = sliced
-    return out
+    # The project's names and settings are the file's text: cleaned before
+    # the agent reads them (R3-11).
+    return clean_obj(out)
 
 
 def slice_open(s, a):

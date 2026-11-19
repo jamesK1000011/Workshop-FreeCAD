@@ -1,19 +1,35 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# Printers on the network: kept by name (the key or password in a file
-# beside the session's, never given back), their state, a G-code file sent
-# to one, and a job paused or stopped. Starting, pausing and stopping a
-# print are the person's to decide: each needs a confirm string that says
-# so, word for word.
+# Printers on the network: kept by name (the key or password in
+# ~/AgentLink/printers.json, never given back), their state, a G-code file
+# sent to one, and a job paused or stopped. Starting, pausing and stopping a
+# print are the person's to decide (red team 3, R3-1). With Agent Link, each
+# needs the person's approval through the client (approve_file, Agent
+# Link's hooks.person_ok), bound to the printer, the file and its SHA-256;
+# a typed confirm is refused, as an agent can type it. Without Agent Link
+# (no agent), the person's typed confirm. printer_send reads the file first:
+# commands that change the printer, and heat over the caps, need the same
+# approval (R3-4).
 
+import hashlib
 import os
 
+from workshop.guard import read_ok
 
+from .. import gcodecheck as G
 from .. import printers as P
 from ._lent import Refusal
 
 # Lent by the family layer when Agent Link binds these handlers (lend()); alone
 # a refusal is this add-on's own and Agent Link's helpers are absent.
 ToolError = Refusal
+# Agent Link's approval (hooks.person_ok) and its read check (paths.in_file),
+# lent the same way. HUB: True when Agent Link binds these handlers.
+PERSON_OK = None
+IN_FILE = None
+HUB = False
+# The approval's kind: one of Agent Link's approve_file kinds
+# (approvals.FILE_KINDS), so the client asks with approve_file.
+KIND = "dialog"
 
 
 def _err(e):
@@ -31,10 +47,43 @@ def get(s, name):
     return name, ps[name]
 
 
-def need(s, a, word, name):
+def _ask(kind, name, title, lines, sha, shown):
+    import inspect
+
+    ask = PERSON_OK
+    try:
+        takes = "shown" in inspect.signature(ask).parameters
+    except (TypeError, ValueError):
+        takes = False
+    return ask(kind, name, title, lines, sha, None, shown=shown) if takes else ask(kind, name, title, lines, sha, None)
+
+
+def person_ok(a, word, name, p, title, lines, file=None, sha=None):
+    """None once the person approved this action, else the pending answer.
+    With Agent Link: its approval (approve_file), for this printer, this
+    action and this file's sha256; a typed confirm is refused. Without it:
+    the typed confirm "<word> <name>"."""
+    if HUB:
+        if a.get("confirm") not in (None, ""):
+            raise ToolError("invalid_input", f"confirm: not taken with Agent Link. An agent can type it. The person approves {word} through the client: call again without confirm; the answer is pending with the approve_file arguments.")
+        if PERSON_OK is None:
+            raise ToolError("unavailable", "This Agent Link has no approval (person_ok). Update Agent Link, then ask again. Nothing was sent to the printer.")
+        # The approval names the printer (name, address), the action and the
+        # file's sha256: another printer, address or file needs a new one.
+        fp = "sha256:" + hashlib.sha256(f"{word}\0{name}\0{p.get('url')}\0{sha or ''}".encode("utf-8")).hexdigest()
+        shown = {"document": f"printer {name} ({p.get('kind')}, {p.get('url')})", "button": word}
+        if file:
+            shown["file"] = f"{os.path.basename(file)}, {sha}"
+        got = _ask(KIND, f"printer {word} {name}", title, lines, fp, shown)
+        if got.get("ok"):
+            return None
+        return {"pending": True, "printer": name, "action": word, **({"sha256": sha} if sha else {}),
+                **({"approve": got["approve"]} if got.get("approve") else {}), "next": got.get("next"),
+                "note": "Nothing was sent to the printer. After the person approves, call this tool again with the same arguments."}
     want = f"{word} {name}"
     if (a.get("confirm") or "").strip() != want:
-        raise ToolError("invalid_input", f"confirm: \"{want}\", word for word — ask the person first; it is their call, not yours.")
+        raise ToolError("invalid_input", f"confirm: \"{want}\", word for word. Ask the person first; it is their call, not yours.")
+    return None
 
 
 def printer_add(s, a):
@@ -60,8 +109,16 @@ def printer_add(s, a):
     replaced = name in ps
     ps[name] = p
     P.save(s.out_dir, ps)
-    out = {"added": P.public(name, p), "replaced": replaced, "kept": os.path.basename(P.path(s.out_dir))}
-    if a.get("check", True):
+    out = {"added": P.public(name, p), "replaced": replaced, "kept": P.shown_path()}
+    local = P.is_local(url)
+    warn = []
+    if not local:
+        warn.append(f"{url} is not on this network (not a private address or a .local name). Keep printers on the LAN.")
+    if url.startswith("http://") and (p.get("key") or p.get("password")):
+        warn.append("Plain http sends the key in clear text on the network.")
+    if warn:
+        out["warning"] = " ".join(warn)
+    if a.get("check", local):
         try:
             st = P.status(p)
             out["reached"] = True
@@ -94,36 +151,60 @@ def printer_send(s, a):
     name, p = get(s, a.get("printer"))
     f = a.get("file")
     if not f:
-        raise ToolError("invalid_input", "file: the G-code to send — slice or slice_with writes it.")
-    path = f if os.path.isabs(f) else os.path.join(s.out_dir, f)
+        raise ToolError("invalid_input", "file: the G-code to send. slice or slice_with writes it.")
+    path = os.path.expanduser(f)
+    path = path if os.path.isabs(path) else os.path.join(s.out_dir, path)
+    path = read_ok(s, "printer_send", path, "file", IN_FILE, ToolError)
     if not os.path.isfile(path):
-        raise ToolError("not_found", f"{path}: no such file — slice it first.")
+        raise ToolError("not_found", f"{f}: no such file. Slice it first.")
     if not path.lower().endswith(P.GCODE):
         raise ToolError("invalid_input", f"file: G-code only ({', '.join(P.GCODE)}).")
+    try:
+        storage = P.storage_of(p["kind"], a.get("storage"))
+    except P.PrinterError as e:
+        raise _err(e)
+    sha, issues = G.scan(path)
     start = bool(a.get("start"))
+    if start or issues:
+        word = "start" if start else "send"
+        lines = [f"Printer: {name} ({p['kind']}, {p['url']})", f"File: {path}", f"sha256: {sha[7:23]}…",
+                 "The printer heats and moves when the print starts." if start else "The file is uploaded, not started."]
+        if issues:
+            lines.append(f"The file has {len(issues)} command(s) to look at:")
+            lines += [f"line {x['line']}: {x['why']}" for x in issues]
+        title = f"{'Start a print of' if start else 'Send'} {os.path.basename(path)} on {name}" + (" (it has commands to look at)" if issues else "")
+        waits = person_ok(a, word, name, p, title, lines, path, sha)
+        if waits is not None:
+            if issues:
+                waits["issues"] = issues
+            return waits
     if start:
-        need(s, a, "start", name)
         try:
             st = P.status(p)
         except P.PrinterError as e:
             raise _err(e)
         busy = str(st.get("state") or "").lower()
         if any(w in busy for w in ("printing", "paused", "busy")):
-            raise ToolError("invalid_state", f"{name} is {busy}: it has a job — wait, or printer_stop it first (the person's call).")
+            raise ToolError("invalid_state", f"{name} is {busy}: it has a job. Wait, or printer_stop it first (the person's call).")
     try:
-        r = P.send(p, path, start, a.get("storage"))
+        r = P.send(p, path, start, storage)
     except P.PrinterError as e:
         raise _err(e)
-    r.update({"printer": name, "bytes": os.path.getsize(path)})
+    r.update({"printer": name, "bytes": os.path.getsize(path), "sha256": sha})
+    if issues:
+        r["issues"] = issues
     if not start:
-        r["note"] = "Uploaded, not started: starting the print is the person's call — printer_send again with start: true and their confirm, or start it on the printer."
+        r["note"] = "Uploaded, not started. Starting the print is the person's call: printer_send again with start: true (the person approves it), or start it on the printer."
     return r
 
 
 def control(action):
     def run(s, a):
         name, p = get(s, a.get("printer"))
-        need(s, a, action, name)
+        title = f"{action.capitalize()} the print on {name}" + (" (the job cannot be resumed)" if action == "stop" else "")
+        waits = person_ok(a, action, name, p, title, [f"Printer: {name} ({p['kind']}, {p['url']})", title])
+        if waits is not None:
+            return waits
         try:
             return {"printer": name, **P.control(p, action)}
         except P.PrinterError as e:

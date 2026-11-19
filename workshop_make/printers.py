@@ -2,11 +2,14 @@
 # Printers on the network, by their own published HTTP APIs: OctoPrint
 # (REST API, X-Api-Key), Moonraker (Klipper's API server) and PrusaLink
 # (its v1 API, an API key or HTTP digest). What is known of each printer is
-# kept in a JSON file beside the session's files, readable by its owner
-# only; keys and passwords are never given back. Python's standard library
+# kept in ~/AgentLink/printers.json (or $AGENTLINK_HOME), readable by its
+# owner only, never in the session's folder that people share (red team 3,
+# R3-8); keys and passwords are never given back. A redirect to another
+# host is refused, so the key never goes there (R3-9). Python's standard library
 # only. Bambu Lab printers are not here: they take jobs over their own LAN
 # mode protocol or from Bambu Studio.
 
+import ipaddress
 import json
 import os
 import stat
@@ -15,12 +18,17 @@ import urllib.parse
 import urllib.request
 import uuid
 
-FILE = ".agentlink-printers.json"
+from workshop.guard import clean_text
+
+FILE = "printers.json"
+OLD_FILE = ".agentlink-printers.json"  # in the session's folder, before 19 Nov 2026
 KINDS = ("octoprint", "moonraker", "prusalink")
 ALIASES = {"klipper": "moonraker", "mainsail": "moonraker", "fluidd": "moonraker", "prusa": "prusalink"}
 BAMBU = ("bambu", "bambulab", "bambu-lab", "bambu lab")
 GCODE = (".gcode", ".gco", ".g", ".bgcode")
 SECRET = ("key", "password")
+# Where a file may go on each kind of printer (R3-9): the first is the default.
+STORAGE = {"octoprint": ("local", "sdcard"), "moonraker": ("gcodes",), "prusalink": ("usb", "local")}
 
 
 class PrinterError(Exception):
@@ -34,24 +42,60 @@ class PrinterError(Exception):
 
 # ---- the config file ----------------------------------------------------------------------
 
-def path(out_dir):
-    return os.path.join(out_dir, FILE)
+def home():
+    return os.environ.get("AGENTLINK_HOME") or os.path.expanduser("~/AgentLink")
 
 
-def load(out_dir):
-    p = path(out_dir)
+def path(out_dir=None):
+    """The printers file: ~/AgentLink/printers.json. out_dir is not used
+    (the file was there before 19 Nov 2026; load() moves it once)."""
+    return os.path.join(home(), FILE)
+
+
+def shown_path(p=None):
+    """The file as a person reads it: ~/… under the home folder."""
+    p = p or path()
+    h = os.path.expanduser("~")
+    return "~" + p[len(h):] if h and h != "/" and p.startswith(h.rstrip("/") + "/") else p
+
+
+def _read(p):
     if not os.path.isfile(p):
         return {}
     with open(p, encoding="utf-8") as f:
         try:
-            return json.load(f).get("printers", {})
-        except ValueError:
+            got = json.load(f).get("printers", {})
+        except (ValueError, AttributeError):
             return {}
+    return got if isinstance(got, dict) else {}
+
+
+def _migrate(out_dir):
+    """An old printers file in the session's folder, moved once into the
+    new file (the new file's entries win) and removed."""
+    if not out_dir:
+        return
+    old = os.path.join(out_dir, OLD_FILE)
+    if not os.path.isfile(old) or os.path.realpath(old) == os.path.realpath(path()):
+        return
+    got = _read(old)
+    now = _read(path())
+    save(out_dir, {**got, **now})
+    try:
+        os.remove(old)
+    except OSError:
+        pass
+
+
+def load(out_dir=None):
+    _migrate(out_dir)
+    return _read(path())
 
 
 def save(out_dir, printers):
-    os.makedirs(out_dir, exist_ok=True)
-    p = path(out_dir)
+    d = home()
+    os.makedirs(d, mode=0o700, exist_ok=True)
+    p = path()
     fd = os.open(p, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, stat.S_IRUSR | stat.S_IWUSR)
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump({"printers": printers}, f, indent=1)
@@ -88,14 +132,51 @@ def normal_url(url):
     return u
 
 
+def is_local(url):
+    """True when the printer's host is on this network: a private, link-local
+    or loopback address, a .local, .lan or .home.arpa name, or a name with no
+    dot (the LAN's own names)."""
+    host = (urllib.parse.urlparse(url).hostname or "").lower().rstrip(".")
+    try:
+        ip = ipaddress.ip_address(host)
+        return ip.is_private or ip.is_link_local or ip.is_loopback
+    except ValueError:
+        return "." not in host or host.endswith((".local", ".lan", ".home.arpa"))
+
+
+def storage_of(kind, storage):
+    """The storage on the printer: from STORAGE[kind] only (R3-9)."""
+    ok = STORAGE[kind]
+    if storage in (None, ""):
+        return ok[0]
+    if storage not in ok:
+        raise PrinterError("invalid_input", f"storage: for {kind}, one of {', '.join(ok)}.")
+    return storage
+
+
 # ---- HTTP ---------------------------------------------------------------------------------
+
+class _SameHost(urllib.request.HTTPRedirectHandler):
+    """Follows a redirect only on the printer's own host: the key is never
+    sent to another host (R3-9)."""
+
+    def __init__(self, base):
+        super().__init__()
+        self.host = (urllib.parse.urlparse(base).hostname or "").lower()
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        to = (urllib.parse.urlparse(urllib.parse.urljoin(req.full_url, newurl)).hostname or "").lower()
+        if to != self.host:
+            raise PrinterError("failed", f"The printer sent a redirect to another host ({to or 'unknown'}). It was not followed, and the key was not sent there.")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
 
 class Client:
     def __init__(self, p, timeout=10):
         self.p = p
         self.base = p["url"]
         self.timeout = timeout
-        handlers = []
+        handlers = [_SameHost(self.base)]
         if p.get("password"):
             mgr = urllib.request.HTTPPasswordMgrWithDefaultRealm()
             mgr.add_password(None, self.base, p.get("user") or "maker", p["password"])
@@ -116,7 +197,7 @@ class Client:
                 text = r.read()
                 status = r.status
         except urllib.error.HTTPError as e:
-            detail = e.read()[:200].decode("utf-8", "replace").strip()
+            detail = clean_text(e.read()[:200].decode("utf-8", "replace"), 200)
             if e.code in (401, 403):
                 raise PrinterError("failed", f"{self.base} refused the key or password ({e.code}): printer_add the printer again with the right one.")
             raise PrinterError("failed", f"{method} {route}: the printer said {e.code} {e.reason}{(' — ' + detail) if detail else ''}.")
@@ -130,7 +211,7 @@ class Client:
         try:
             return json.loads(text)
         except ValueError:
-            return {"text": text[:200].decode("utf-8", "replace")}
+            return {"text": clean_text(text[:200].decode("utf-8", "replace"), 200)}
 
 
 def _multipart(fields, file_field, filename, data):
@@ -151,6 +232,17 @@ def _t(v):
 # ---- per kind -----------------------------------------------------------------------------
 
 def status(p):
+    """The printer's state, its text cleaned for the agent (R3-11)."""
+    st = _status(p)
+    for k in ("state",):
+        st[k] = clean_text(st.get(k), 60)
+    job = st.get("job") or {}
+    if job.get("file") is not None:
+        job["file"] = clean_text(job["file"], 120)
+    return st
+
+
+def _status(p):
     c = Client(p)
     k = p["kind"]
     if k == "octoprint":
@@ -193,6 +285,7 @@ def status(p):
 
 
 def send(p, file_path, start=False, storage=None):
+    storage = storage_of(p["kind"], storage)
     c = Client(p, timeout=120)
     name = os.path.basename(file_path)
     with open(file_path, "rb") as f:
@@ -201,19 +294,19 @@ def send(p, file_path, start=False, storage=None):
     if k == "octoprint":
         fields = {"select": "true" if start else "false", "print": "true" if start else "false"}
         body, ctype = _multipart(fields, "file", name, data)
-        r = c.request("POST", "/api/files/" + (storage or "local"), body, {"Content-Type": ctype})
-        return {"uploaded": name, "where": (r.get("files") or {}).get("local", {}).get("path") or name, "started": bool(start and r.get("done", True))}
+        r = c.request("POST", "/api/files/" + storage, body, {"Content-Type": ctype})
+        return {"uploaded": name, "where": clean_text((r.get("files") or {}).get(storage, {}).get("path") or name, 200), "started": bool(start and r.get("done", True))}
     if k == "moonraker":
-        fields = {"root": storage or "gcodes"}
+        fields = {"root": storage}
         if start:
             fields["print"] = "true"
         body, ctype = _multipart(fields, "file", name, data)
         r = c.request("POST", "/server/files/upload", body, {"Content-Type": ctype})
-        return {"uploaded": name, "where": (r.get("item") or {}).get("path") or name, "started": bool(r.get("print_started", start))}
-    route = f"/api/v1/files/{storage or 'usb'}/{urllib.parse.quote(name)}"
+        return {"uploaded": name, "where": clean_text((r.get("item") or {}).get("path") or name, 200), "started": bool(r.get("print_started", start))}
+    route = f"/api/v1/files/{storage}/{urllib.parse.quote(name, safe='')}"
     headers = {"Content-Type": "text/x.gcode", "Overwrite": "?1", "Print-After-Upload": "?1" if start else "?0"}
     c.request("PUT", route, data, headers, raw=True)
-    return {"uploaded": name, "where": f"{storage or 'usb'}/{name}", "started": bool(start)}
+    return {"uploaded": name, "where": f"{storage}/{name}", "started": bool(start)}
 
 
 def control(p, action):
