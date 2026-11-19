@@ -8,6 +8,7 @@
 # declarations against Fasteners' own workbench and commands.
 import ast
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -112,7 +113,9 @@ class Detect(unittest.TestCase):
         before = set(sys.modules)
         info = self.detect.find()
         self.assertEqual(info["path"], os.path.join(mod, "fasteners"))
-        self.assertEqual(info["version"], "0.6.00")
+        # The reference clone's own version (upstream moves: 0.6.00, then 0.6.01).
+        want = re.search(r"<version>\s*([^<\s]+)\s*</version>", open(os.path.join(SRC, "package.xml"), encoding="utf-8").read()).group(1)
+        self.assertEqual(info["version"], want)
         self.assertTrue(info["packageXml"])
         self.assertFalse({"FastenerBase", "ScrewMaker", "FreeCAD"} & (set(sys.modules) - before), "detection imported something")
 
