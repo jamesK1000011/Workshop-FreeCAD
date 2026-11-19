@@ -3,18 +3,39 @@
 
 > Not affiliated with or endorsed by the FreeCAD project or the FreeCAD project association (FPA); FreeCAD is the FPA's trademark. Get FreeCAD itself from [freecad.org](https://freecad.org).
 
-One FreeCAD add-on for making things. Each feature sits in the FreeCAD
-workbench it belongs to, beside the FreeCAD tool it builds on. Only what
-FreeCAD has no place for gets a workbench of its own, the small **Make**
-workbench. Everything works with no other add-on installed. When
-[Agent Link for FreeCAD](https://github.com/jamesK1000011/AgentLink-FreeCAD) is
-installed, the same functions are also tools an AI agent can call.
+- [What it is](#what-it-is)
+- [What you need](#what-you-need)
+- [Install](#install)
+- [First steps](#first-steps)
+- [Screenshots](#screenshots)
+- [Where things are](#where-things-are)
+- [What an agent can do with it](#what-an-agent-can-do-with-it)
+- [Troubleshooting](#troubleshooting)
+- [Uninstall](#uninstall), [Privacy](#privacy)
+- [Licence](#licence), [Credits](#credits)
+
+## What it is
+
+Workshop is one FreeCAD add-on for making things. It adds:
+
+- **Standard parts**: Gridfinity bins and baseplates, project boxes, board boxes.
+- **Make**: how each part is made (printed, laser-cut or milled), fits, holes for hardware, printability checks (DFM, design for manufacturing), slicing and printers.
+- **Electronics**: a KiCad board read into FreeCAD, and an enclosure made round it.
+- **Documents**: drawings in one click, assembly manuals, library packs.
+- **SafetyNet**: checkpoints, recovered copies after a crash, settings history, and macros that run only after your approval.
+
+Each feature sits in the FreeCAD workbench it belongs to, beside the FreeCAD tool it builds on.
+Only what FreeCAD has no place for gets a workbench of its own, the small **Make** workbench.
+Everything works with no other add-on installed.
+When [Agent Link for FreeCAD](https://github.com/jamesK1000011/AgentLink-FreeCAD) is installed, the same functions are also tools an AI agent can call, in the background.
+Checks such as the DFM check, the part review and the strength of a frame tell you if a part is feasible. They are never a sign-off.
 
 It brings together what used to be five add-ons: Workshop Parts, Make,
 Electronics and Documents, and SafetyNet. Each part's own notes (its Python
 API, data files and agent tools) are in [docs/](https://github.com/jamesK1000011/Workshop-FreeCAD/tree/main/docs/): [Parts](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/parts.md),
 [Make](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/make.md), [Electronics](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/electronics.md),
 [Documents](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/documents.md), [SafetyNet](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/safetynet.md).
+How it plugs into Agent Link, with a diagram: [docs/workflow/](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/workflow/README.md).
 How it plugs into Agent Link, with a diagram: [docs/workflow/](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/workflow/README.md).
 
 **With Fasteners Workbench.** If you also have
@@ -28,7 +49,76 @@ Workshop's own typical figures. Agents get its fasteners as tools too (the
 and copies none of it. Without Fasteners none of this shows. Notes:
 [docs/fasteners.md](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/fasteners.md).
 
-<!-- screenshot: Part Design with the Standard Parts dropdown open and a Gridfinity bin made -->
+## What you need
+
+- FreeCAD 1.0 or newer (1.1 recommended).
+- Optional: [Agent Link for FreeCAD](https://github.com/jamesK1000011/AgentLink-FreeCAD) and an MCP client (for example Claude Desktop), so that an agent can use Workshop.
+- Optional: a slicer (OrcaSlicer, Bambu Studio or PrusaSlicer) for slicing, KiCad files for boards, and [Fasteners Workbench](https://github.com/shaise/FreeCAD_FastenersWB) for screws.
+
+## Install
+
+Use one way, not two. If you had the separate add-ons or SafetyNet
+installed, remove them first: two copies would show every command twice.
+
+### With Agent Link's Claude Desktop extension (easiest)
+
+1. Install [Agent Link for FreeCAD](https://github.com/jamesK1000011/AgentLink-FreeCAD#install) with its Claude Desktop extension.
+2. Start a new chat.
+
+The extension installs Workshop as `Mod/Workshop`. It sets aside the older separate folders
+(`WorkshopParts`, `WorkshopMake`, `WorkshopElectronics`, `WorkshopDocuments`, `SafetyNet`) for you.
+
+### Addon Manager
+
+1. In FreeCAD, open **Edit ▸ Preferences ▸ Addon Manager**.
+2. Under **Custom repositories**, add `https://github.com/jamesK1000011/Workshop-FreeCAD` (branch `main`).
+3. Open **Tools ▸ Addon manager**. Find **Workshop**. Click **Install**.
+4. Restart FreeCAD.
+
+### By hand
+
+1. Download a release from [Releases](https://github.com/jamesK1000011/Workshop-FreeCAD/releases)
+   (or the current [main as a zip](https://github.com/jamesK1000011/Workshop-FreeCAD/archive/refs/heads/main.zip)).
+2. Unzip it into FreeCAD's `Mod` folder. To find the folder, type `FreeCAD.getUserAppDataDir()` in FreeCAD's Python console.
+3. Rename the folder to `Workshop`.
+4. Restart FreeCAD.
+
+A `git clone` into `Mod/Workshop` works too.
+
+## First steps
+
+**With an agent** (Agent Link installed). Start a new chat and try these prompts:
+
+1. "Make a Gridfinity bin, 2 by 3 units and 6 units high."
+
+   The agent makes the bin as a new body. You see it in the FreeCAD window.
+
+2. "I will print it in PETG on a 0.4 mm nozzle. Is it printable?"
+
+   The agent records how the part is made and runs the DFM check.
+   It tells you what passes and where a problem is, for example a thin wall or an overhang.
+
+3. "Make a drawing of it as a PDF."
+
+   The agent makes a dimensioned TechDraw page and writes its SVG, PDF and DXF files.
+
+Before a big change, say "make a checkpoint". To go back, say "restore the checkpoint".
+
+**Without an agent.** Open the **Standard Parts** dropdown in Part Design, or pick the **Make** workbench.
+[Where things are](#where-things-are) lists each feature.
+
+## Screenshots
+
+<!-- screenshots: no screenshots are in the repository yet. Take these and add them under docs/images/:
+- Part Design with the Standard Parts dropdown open and a Gridfinity bin made
+- the Make workbench with the Make panel's Setups tab
+- a DFM check result with the problem spots shown
+- a drawing made with Drawing (TechDraw page)
+- a board enclosure round a KiCad board
+- the Tools ▸ SafetyNet menu
+-->
+
+No screenshots yet.
 
 ## Where things are
 
@@ -45,52 +135,6 @@ and copies none of it. Without Fasteners none of this shows. Notes:
 | Checkpoint, restore, recovered copies, settings history and rollback, macros, clean up copies | **Tools ▸ SafetyNet** in every workbench; Recovered Copies also in the File menu |
 | Matching screw in a hole (with Fasteners Workbench installed) | Hole for hardware's panel: **Add the matching screw (Fasteners)** |
 | Setups, fit sizes and printer calibration, encased hardware and pauses, slicing, cut and mill export, printers; the Make panel (Setups, Materials, Fits, Review) and the Manual panel | The **Make** workbench |
-
-## Install
-
-You need FreeCAD 1.0 or newer.
-
-- **Addon Manager:** add `https://github.com/jamesK1000011/Workshop-FreeCAD`
-  (branch `main`) under **Edit ▸ Preferences ▸ Addon Manager ▸ Custom
-  repositories**, then install **Workshop**.
-- **Agent Link:** the Agent Link extension for Claude Desktop installs it as
-  `Mod/Workshop`. It sets aside the older separate folders (`WorkshopParts`,
-  `WorkshopMake`, `WorkshopElectronics`, `WorkshopDocuments`, `SafetyNet`)
-  for you.
-- **By hand:** download a release from
-  [Releases](https://github.com/jamesK1000011/Workshop-FreeCAD/releases)
-  (or the current
-  [main as a zip](https://github.com/jamesK1000011/Workshop-FreeCAD/archive/refs/heads/main.zip)),
-  unzip it into FreeCAD's `Mod` folder and rename the folder to `Workshop`.
-  A `git clone` into `Mod/Workshop` works too.
-
-Use one way, not two. If you had the separate add-ons or SafetyNet
-installed, remove them first: two copies would show every command twice.
-
-<!-- screenshot: the Make workbench with the Make panel's Setups tab -->
-<!-- screenshot: Tools ▸ SafetyNet menu -->
-
-## Uninstall
-
-- **Addon Manager**: Tools ▸ Addon manager ▸ Workshop ▸ Uninstall, then
-  restart FreeCAD.
-- **Installed by Agent Link or by hand**: delete `Workshop` from FreeCAD's
-  `Mod` folder and restart FreeCAD.
-- **Your files** are yours to keep or delete. What the add-on writes goes
-  beside the open document, or to `~/Workshop` when the document hasn't been
-  saved. SafetyNet's checkpoints, copies and logs are under `~/AgentLink`.
-  Its one setting group is `Mod/SafetyNet` in FreeCAD's parameters.
-
-## Privacy
-
-There's no telemetry, and nothing is sent anywhere on its own. The one
-network use is the printer connection: when you ask it to, it talks to
-printers on your own network (OctoPrint, Moonraker, PrusaLink) at the
-addresses you give it. Their keys and passwords are kept in a file only your
-user can read, and are never shown back. Library packs are scrubbed of
-personal details before they're written. A macro runs only after you've
-approved it yourself. With Agent Link, what the agent reads goes to the AI
-provider your MCP client uses, under that provider's terms.
 
 ## What an agent can do with it
 
@@ -161,6 +205,57 @@ separate add-ons):
 | `fastener_list` | fasteners (with Fasteners Workbench installed) | The Fasteners parts in the document and their bill of materials. |
 | `fastener_print` | fasteners (with Fasteners Workbench installed) | Read or set the 3D-print thread settings of Fasteners Workbench. |
 <!-- tools:end -->
+
+## Troubleshooting
+
+**Every command shows twice.**
+The old separate add-ons (or SafetyNet) are still installed beside Workshop.
+Remove them from FreeCAD's `Mod` folder and restart FreeCAD.
+
+**FreeCAD crashed or hung.**
+Use **Tools ▸ SafetyNet ▸ Recovered Copies** (also in the File menu). With an agent, it uses `app_recover`.
+A recovered copy saved over your file asks for your approval (`approve_file`).
+
+**A macro does not run.**
+A macro runs only after you approve it (`macro_approve`, then `approve_code` in your client).
+
+**Slicing does not work.**
+`slice` and `slice_with` need a slicer on this computer (OrcaSlicer, Bambu Studio or PrusaSlicer).
+Install one, then ask again.
+
+**A printer does not answer.**
+The printer connection uses only the addresses you give it, on your own network. Check the address with `printer_status`.
+A print start, pause or stop asks for your approval (`approve_file`).
+
+**The agent does not have the Workshop tools.**
+- Most clients read the tool list when a chat starts. After an install or an update, **start a new chat**.
+- In Agent Link, `session_state` shows an add-on that did not load under `leftOut`, with the error.
+  Update it (`agentlink_update` with the Claude extension, or the Addon Manager), then restart FreeCAD.
+
+**The window or FreeCAD is stuck.**
+See the troubleshooting of [Agent Link for FreeCAD](https://github.com/jamesK1000011/AgentLink-FreeCAD#troubleshooting) (`job_status`, `dialog_answer`, `app_force_restart`).
+
+## Uninstall
+
+- **Addon Manager**: Tools ▸ Addon manager ▸ Workshop ▸ Uninstall, then
+  restart FreeCAD.
+- **Installed by Agent Link or by hand**: delete `Workshop` from FreeCAD's
+  `Mod` folder and restart FreeCAD.
+- **Your files** are yours to keep or delete. What the add-on writes goes
+  beside the open document, or to `~/Workshop` when the document hasn't been
+  saved. SafetyNet's checkpoints, copies and logs are under `~/AgentLink`.
+  Its one setting group is `Mod/SafetyNet` in FreeCAD's parameters.
+
+## Privacy
+
+There's no telemetry, and nothing is sent anywhere on its own. The one
+network use is the printer connection: when you ask it to, it talks to
+printers on your own network (OctoPrint, Moonraker, PrusaLink) at the
+addresses you give it. Their keys and passwords are kept in a file only your
+user can read, and are never shown back. Library packs are scrubbed of
+personal details before they're written. A macro runs only after you've
+approved it yourself. With Agent Link, what the agent reads goes to the AI
+provider your MCP client uses, under that provider's terms.
 
 ## For developers
 
