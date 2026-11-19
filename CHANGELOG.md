@@ -11,6 +11,7 @@ Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
 
 ## [Unreleased]
 
+- Panel polish (V1): each control of the Make, Documents, Parts, Electronics and SafetyNet panels and task panels has a tooltip in STE (form fields say the label, what to do and the unit; 38 tooltips new or rewritten). Tooltips say "select", not "pick". Documents: Drop Step is now Remove Step. A new test (tests/test_panel_polish.py) finds a control with no tooltip and a fixed colour in panel code.
 - Hole lesson: FreeCAD 1.1 names the size M4x0.7, and hw_hole with a printer allowance makes a plain hole (no thread type); the size step sets ISOMetricProfile first, then M4x0.7.
 - hw_hole finds the body and the sketch by name, then by label (live 105: the hole lesson gave Sketch001, the name, and the tool looked for a label only).
 ### Fixed

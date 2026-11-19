@@ -106,7 +106,7 @@ def setup_rows(out, names):
 
 
 EMPTY_SETUPS = "No setups yet: Make ▸ New Setup…"
-NO_PART = "No part in this setup: pick one"
+NO_PART = "No part in this setup: select one"
 
 
 def _in_body(o):
@@ -330,7 +330,7 @@ def review_lines(out, body):
     return head, role, rows, results.figures_line(out.get("figures") or {})
 
 
-EMPTY_REVIEW = "No review yet: pick a part, then press Review."
+EMPTY_REVIEW = "No review yet: select a part, then press Review."
 
 
 # ---- a selection the panel made is not left behind ----
@@ -517,9 +517,9 @@ class SetupsTab(Tab):
         row = self.pick_row = QtWidgets.QHBoxLayout()
         self.kind = _combo()
         self.kind.addItems([store.TYPES[k]["label"] for k in store.TYPES])
-        self.kind.setToolTip("How the part is made.")
+        self.kind.setToolTip("Select how the part is made.")
         self.body = _combo()
-        self.body.setToolTip("The part.")
+        self.body.setToolTip("Select the part.")
         # Only a part the person chose here counts as a pick: the list's
         # first entry is no choice (New would put an arbitrary part in).
         self.chosen = ""
@@ -531,9 +531,9 @@ class SetupsTab(Tab):
         row.addWidget(self.body, 1)
         self.lay.addLayout(row)
         row = self.key_row = QtWidgets.QHBoxLayout()
-        for b in (self.button("New", "A new setup of this kind with the part in it.", self.new),
-                  self.button("Add to Setup", "Put the part in the setup picked above.", self.add),
-                  self.button("Remove", "Remove the setup picked above (its parts then have no process).", self.remove)):
+        for b in (self.button("New", "Make a new setup of this kind with the part in it.", self.new),
+                  self.button("Add to Setup", "Put the part in the setup that is selected above.", self.add),
+                  self.button("Remove", "Remove the setup that is selected above. Its parts then have no process.", self.remove)):
             row.addWidget(b)
         self.lay.addLayout(row)
 
@@ -607,23 +607,24 @@ class MaterialsTab(Tab):
         row = QtWidgets.QHBoxLayout()
         self.find = QtWidgets.QLineEdit()
         self.find.setPlaceholderText("Find a material (PLA, PETG, steel …)")
+        self.find.setToolTip("Type a material name, then press Enter or Find.")
         self.find.returnPressed.connect(self.search)
         row.addWidget(self.find, 1)
-        row.addWidget(self.button("Find", "Make's filaments and shop materials.", self.search))
+        row.addWidget(self.button("Find", "Find the material in the filaments and shop materials of Make.", self.search))
         self.lay.addLayout(row)
         self.hits = self.tree(["Material", "Kind", "g/cm³", "E, MPa", "Yield, MPa"], stretch=(0,))
         self.lay.addWidget(self.hits, 1)
         row = QtWidgets.QHBoxLayout()
         row.addStretch(1)
-        row.addWidget(self.button("Give to Part", "The filament picked below, for the part picked above (FreeCAD's material set to match).", self.give))
-        row.addWidget(self.button("Forget", "The part picked above goes back to no material (PLA assumed, and said).", self.forget))
+        row.addWidget(self.button("Give to Part", "Give the selected material (below) to the selected part (above). FreeCAD's material changes to match.", self.give))
+        row.addWidget(self.button("Forget", "Remove the material from the selected part (above). Make then uses PLA and tells you.", self.forget))
         self.lay.addLayout(row)
         # FreeCAD's own library: browsed and edited in its Material editor,
         # given to a part with its own Material command.
         row = QtWidgets.QHBoxLayout()
         row.addStretch(1)
-        row.addWidget(self.button("Library…", "FreeCAD's material library, in its Material editor.", self.library))
-        row.addWidget(self.button("FreeCAD Material…", "Give the part picked above a material from FreeCAD's library (FreeCAD's Material command).", self.set_freecad))
+        row.addWidget(self.button("Library…", "Open the material library of FreeCAD in its Material editor.", self.library))
+        row.addWidget(self.button("FreeCAD Material…", "Give the selected part (above) a material from the library of FreeCAD (FreeCAD's Material command).", self.set_freecad))
         self.lay.addLayout(row)
 
     def fill(self):
@@ -691,13 +692,13 @@ class FitsTab(Tab):
         self.of = _combo()
         self.of.addItems(["Hole", "Shaft"])
         self.body = _combo()
-        self.nominal.setToolTip("The bought part's size, or the mating part's.")
-        self.body.setToolTip("The part, so its print setup's calibration is used (else the document's).")
+        self.nominal.setToolTip("Type the size of the bought part or of the mating part. Unit: mm.")
+        self.body.setToolTip("Select the part. Make uses the calibration of its print setup, else of the document.")
         form.addRow("Bought part size", self.nominal)
         form.addRow("Modelling a", self.of)
         form.addRow("In part", self.body)
         self.lay.addLayout(form)
-        self.lay.addWidget(self.button("Size It", "The size to model at, each fit.", self.size))
+        self.lay.addWidget(self.button("Size It", "Calculate the size to model for each fit.", self.size))
         self.table = self.tree(["Fit", "Model at"], stretch=(0,))
         self.lay.addWidget(self.table, 1)
         # The printer's calibration as a form (label above its box when
@@ -706,17 +707,18 @@ class FitsTab(Tab):
         _narrow_form(cal)
         self.cal_hole = QtWidgets.QDoubleSpinBox()
         self.cal_shaft = QtWidgets.QDoubleSpinBox()
-        for sb, tip in ((self.cal_hole, "How much smaller a printed hole comes out, diametral mm."), (self.cal_shaft, "How much bigger a printed peg comes out, diametral mm.")):
+        self.cal_hole.setToolTip("Type how much smaller a printed hole is than the model, on the diameter. Unit: mm.")
+        self.cal_shaft.setToolTip("Type how much bigger a printed peg is than the model, on the diameter. Unit: mm.")
+        for sb in (self.cal_hole, self.cal_shaft):
             sb.setRange(-1, 1)
             sb.setDecimals(2)
             sb.setSingleStep(0.05)
             sb.setSuffix(" mm")
-            sb.setToolTip(tip)
         self.cal_hole.setValue(0.2)
         cal.addRow("Printer: holes small by", self.cal_hole)
         cal.addRow("Pegs big by", self.cal_shaft)
         self.lay.addLayout(cal)
-        self.lay.addWidget(self.button("Keep", "Every hole and fit sized from now on takes it.", self.calibrate))
+        self.lay.addWidget(self.button("Keep", "Keep this calibration. Each hole and fit that you size from now on uses it.", self.calibrate))
 
     def fill(self):
         # The document's parts, the first picked: a blank first item read as
@@ -752,7 +754,7 @@ class ReviewTab(Tab):
         row = QtWidgets.QHBoxLayout()
         self.body = _combo()
         row.addWidget(self.body, 1)
-        row.addWidget(self.button("Review", "One verdict on the part: soundness, printability or its process's checks, wall and mass.", self.review))
+        row.addWidget(self.button("Review", "Get one verdict on the part: soundness, printability or the checks of its process, wall and mass.", self.review))
         self.lay.addLayout(row)
         self.verdict = QtWidgets.QLabel("")
         self.verdict.setWordWrap(True)

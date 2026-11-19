@@ -85,7 +85,7 @@ class Rows:
         h = Q.QHBoxLayout()
         b_add, b_rm = Q.QPushButton(add), Q.QPushButton("Remove")
         b_add.setToolTip("Add a row.")
-        b_rm.setToolTip("Remove the row picked, else the last.")
+        b_rm.setToolTip("Remove the selected row. With no row selected, remove the last row.")
         _connect(b_add, "clicked", lambda *_: self.add())
         _connect(b_rm, "clicked", lambda *_: self.remove())
         h.addStretch(1)

@@ -61,6 +61,8 @@ class ImportBoardPanel:
         self.path = narrow.grow(Q.QLineEdit())
         self.path.setText(path)
         self.browse = Q.QPushButton("Browse…")
+        self.path.setToolTip("Type the path of the board file, or click Browse.")
+        self.browse.setToolTip("Select the board file.")
         h.addWidget(self.path)
         h.addWidget(self.browse)
         lay.addRow("Board file", row)

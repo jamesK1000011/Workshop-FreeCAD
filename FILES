@@ -147,6 +147,7 @@ tests/test_lessons.py
 tests/test_loads.py
 tests/test_matname.py
 tests/test_narrow.py
+tests/test_panel_polish.py
 tests/test_placement.py
 tests/test_release.py
 tests/test_shared.py

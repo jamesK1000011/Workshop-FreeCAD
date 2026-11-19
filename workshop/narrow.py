@@ -74,3 +74,24 @@ def form(lay):
     except Exception:  # noqa: BLE001
         pass
     return lay
+
+
+def field_tip(label, kind, suffix=""):
+    """A form field's tooltip in STE: its label, what to do and, for a
+    number, the unit (the suffix without its space). The label leads, so
+    the sentence holds for any label ("Enters at", "What it is")."""
+    name = str(label or "").strip().rstrip(":").strip() or "Value"
+    if kind in ("choice", "body", "setup"):
+        tip = f"{name}: select an item in the list."
+    elif kind == "bodies":
+        tip = f"{name}: type the names, separated by commas. At the start, the selected objects are in the field."
+    elif kind == "steps":
+        tip = f"{name}: type the steps, separated by semicolons."
+    elif kind == "num":
+        tip = f"{name}: type a number."
+    else:
+        tip = f"{name}: type the text."
+    unit = str(suffix or "").strip()
+    if kind == "num" and unit:
+        tip += f" Unit: {unit}."
+    return tip
