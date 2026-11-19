@@ -107,6 +107,15 @@ class Share(unittest.TestCase):
         r = self.server.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": name, "arguments": args or {}}})["result"]
         return r.get("isError", False), json.loads(r["content"][0]["text"])
 
+    def setUp(self):
+        # With ScanRuler-FreeCAD installed (the bake-off) its library_pack
+        # service makes the pack, in its own layout and with its own checks
+        # (fam_share.py): ScanRuler's tests cover that. These are Documents' own.
+        from agentlink import hooks
+
+        if hooks.service("library_pack") is not None:
+            self.skipTest("ScanRuler-FreeCAD's library_pack service makes the pack here")
+
     def test_pack(self):
         err, p = self.call("library_pack", {"license": "CC-BY-4.0", "author": "jk", "name": "Magnet bin", "credits": [{"title": "Gridfinity", "author": "Zack Freedman", "license": "MIT"}]})
         self.assertFalse(err, p)

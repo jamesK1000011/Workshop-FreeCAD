@@ -81,7 +81,12 @@ class MillTools(unittest.TestCase):
         self.assertLess(x["step"]["volumeDiff"], 1)
         with open(x["setupSheet"]["path"]) as f:
             text = f.read()
-        self.assertIn("## Findings", text)
+        # Make's own sheet (markdown), or FreeCAD CAM's Sanity report with
+        # Make's section added (HTML), where CAM can make one here.
+        if x["setupSheet"]["path"].endswith(".html"):
+            self.assertIn("Workshop Make: mill check", text)
+        else:
+            self.assertIn("## Findings", text)
         self.assertIn("+z, -y", text)
 
 

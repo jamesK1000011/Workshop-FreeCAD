@@ -111,7 +111,12 @@ class Thread(unittest.TestCase):
         self.assertFalse(err, r)
         self.assertEqual(r["kind"], "hole")
         self.assertAlmostEqual(r["diameter"], 5.0, places=3)
-        self.assertEqual(r["best"]["size"], "M6")
+        # M6's tap drill. Where another size of this table has the same
+        # drill and its own pitch, the answer asks for the pitch instead.
+        if r.get("needs") == "pitch":
+            self.assertIn("M6", [x["size"] for x in r["nearest"]], r)
+        else:
+            self.assertEqual(r["best"]["size"], "M6", r)
         err, r = self.call("thread_identify", {"body": "Rod", "faces": {"near": [5, 0, 15]}})
         self.assertEqual(r["kind"], "shaft")
         self.assertEqual(r["needs"], "pitch")

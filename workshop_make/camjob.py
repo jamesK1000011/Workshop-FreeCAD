@@ -231,6 +231,8 @@ def extras(report_html, check, material, step):
     does not carry."""
     rows = [f"<p>Mill check verdict: <b>{html.escape(str(check.get('verdict')))}</b>"
             + (f"; least wall read {html.escape(str(check['leastWall']))} mm" if check.get("leastWall") is not None else "") + ".</p>"]
+    if check.get("directions"):
+        rows.append(f"<p>Tool directions: {html.escape(', '.join(str(d) for d in check['directions']))}.</p>")
     f = check.get("findings") or []
     rows.append("<ul>" + ("".join(_li(f"{x.get('severity')}: {x.get('rule')}: {x.get('says')}") for x in f) if f else _li("No findings.")) + "</ul>")
     if material and material.lower() not in report_html.lower():
