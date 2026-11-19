@@ -18,6 +18,15 @@ import Part
 from workshop_make import records as store
 
 from .. import bimnest
+
+
+def _window_up():
+    try:
+        import FreeCAD
+
+        return bool(FreeCAD.GuiUp)
+    except Exception:  # noqa: BLE001
+        return False
 from .. import sheetfile as sf
 
 
@@ -401,6 +410,10 @@ def cut_export(s, a):
         layout = "rows: give sheet [w, h], or set the cut setup's sheet, for BIM Nest to nest in"
     elif any(p[3] is None for p in parts):
         layout = "rows: a profile could not be made a face for BIM Nest"
+    elif not _window_up():
+        # BIM Nest stopped headless FreeCAD 1.1.3 (Linux CI, exit 139, in
+        # cut_export); with the window it works (live, Mac, 19 Nov 2026).
+        layout = "rows: BIM Nest runs with the FreeCAD window only"
     else:
         moves, why = bimnest.nest([p[3] for p in parts], sw, sh, gap)
         if moves is None:

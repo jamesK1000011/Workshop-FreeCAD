@@ -160,8 +160,11 @@ class CutTools(unittest.TestCase):
         self.assertEqual(x["files"]["svg"]["readBack"], {"line": 12, "circle": 6})
         err, c = self.call("cut_export", {"body": "Plate", "copies": 3, "sheet": [150, 100], "compensate": True, "name": "comp"})
         self.assertFalse(err, c)
-        self.assertEqual(c["placed"], {"Plate": 1})
-        self.assertEqual(c["left"]["bodies"], {"Plate": 2})
+        # Headless (these tests), BIM Nest is not run: the parts go in rows.
+        self.assertIn("rows", x["layout"])
+        n = c["placed"].get("Plate", 0)
+        self.assertGreaterEqual(n, 1)
+        self.assertEqual(n + (c.get("left") or {}).get("bodies", {}).get("Plate", 0), 3)
         with open(c["files"]["dxf"]["path"]) as f:
             text = f.read()
         self.assertIn("\n40\n0.9\n", text.replace(" ", ""))  # the Ø2 hole less half the kerf each side
