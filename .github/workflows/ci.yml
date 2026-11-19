@@ -85,7 +85,14 @@ jobs:
           code=0
           export PYTHONPATH="$GITHUB_WORKSPACE/agentlink-addon:$GITHUB_WORKSPACE" AGENTLINK_DIR="$GITHUB_WORKSPACE/agentlink-addon" AGENTLINK_SRC="$GITHUB_WORKSPACE/agentlink-addon"
           python -X faulthandler -m unittest discover -s tests -v > "$RUNNER_TEMP/with.log" 2>&1 || code=$?
-          for d in parts make electronics documents safetynet fasteners; do AGENTLINK_HOME="$(mktemp -d)" python -X faulthandler -m unittest discover -s tests/$d -v >> "$RUNNER_TEMP/with.log" 2>&1 || code=$?; done
+          # Each part's log on its own: a crash (FreeCAD's own signal handler
+          # leaves no Python stack) shows the last test it ran.
+          for d in parts make electronics documents safetynet fasteners; do
+            c=0
+            AGENTLINK_HOME="$(mktemp -d)" python -X faulthandler -m unittest discover -s tests/$d -v > "$RUNNER_TEMP/with-$d.log" 2>&1 || c=$?
+            cat "$RUNNER_TEMP/with-$d.log" >> "$RUNNER_TEMP/with.log"
+            if [ "$c" -ne 0 ]; then code=$c; echo "---- tests/$d: exit code $c, its last lines:"; tail -n 30 "$RUNNER_TEMP/with-$d.log"; fi
+          done
           grep -E "^(Ran|OK|FAILED)" "$RUNNER_TEMP/with.log"
           grep -E -A40 "^(FAIL|ERROR):|Fatal Python error" "$RUNNER_TEMP/with.log" | head -n 300
           echo "exit code: $code"
