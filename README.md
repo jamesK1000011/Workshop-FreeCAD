@@ -28,6 +28,8 @@ Each feature sits in the FreeCAD workbench it belongs to, beside the FreeCAD too
 Only what FreeCAD has no place for gets a workbench of its own, the small **Make** workbench.
 Everything works with no other add-on installed.
 When [Agent Link for FreeCAD](https://github.com/jamesK1000011/AgentLink-FreeCAD) is installed, the same functions are also tools an AI agent can call, in the background.
+Agent Link is the hub: the add-on that connects an AI agent (Claude, for example) to FreeCAD through MCP, the Model Context Protocol.
+Workshop does not need it.
 Checks such as the DFM check, the part review and the strength of a frame tell you if a part is feasible. They are never a sign-off.
 
 It brings together what used to be five add-ons: Workshop Parts, Make,
@@ -35,7 +37,6 @@ Electronics and Documents, and SafetyNet. Each part's own notes (its Python
 API, data files and agent tools) are in [docs/](https://github.com/jamesK1000011/Workshop-FreeCAD/tree/main/docs/): [Parts](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/parts.md),
 [Make](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/make.md), [Electronics](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/electronics.md),
 [Documents](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/documents.md), [SafetyNet](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/safetynet.md).
-How it plugs into Agent Link, with a diagram: [docs/workflow/](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/workflow/README.md).
 How it plugs into Agent Link, with a diagram: [docs/workflow/](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/workflow/README.md).
 
 **With Fasteners Workbench.** If you also have
@@ -74,6 +75,10 @@ The extension installs Workshop as `Mod/Workshop`. It sets aside the older separ
 2. Under **Custom repositories**, add `https://github.com/jamesK1000011/Workshop-FreeCAD` (branch `main`).
 3. Open **Tools ▸ Addon manager**. Find **Workshop**. Click **Install**.
 4. Restart FreeCAD.
+
+The Addon Manager puts it in the `Mod` folder as `Workshop-FreeCAD`.
+For an agent, also install Agent Link and connect your agent
+([Agent Link: Install](https://github.com/jamesK1000011/AgentLink-FreeCAD#install)).
 
 ### By hand
 
@@ -239,8 +244,8 @@ See the troubleshooting of [Agent Link for FreeCAD](https://github.com/jamesK100
 
 - **Addon Manager**: Tools ▸ Addon manager ▸ Workshop ▸ Uninstall, then
   restart FreeCAD.
-- **Installed by Agent Link or by hand**: delete `Workshop` from FreeCAD's
-  `Mod` folder and restart FreeCAD.
+- **Installed by Agent Link or by hand**: delete `Workshop` (or
+  `Workshop-FreeCAD`) from FreeCAD's `Mod` folder and restart FreeCAD.
 - **Your files** are yours to keep or delete. What the add-on writes goes
   beside the open document, or to `~/Workshop` when the document hasn't been
   saved. SafetyNet's checkpoints, copies and logs are under `~/AgentLink`.
