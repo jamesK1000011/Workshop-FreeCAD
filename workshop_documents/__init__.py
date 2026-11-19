@@ -9,4 +9,4 @@ figures and library packs of your parts.
 Plain values in millimetres; a request it cannot carry out is refused
 (its refusal.Refused) with what to do instead."""
 
-VERSION = "0.4.0"
+VERSION = "1.0.0"

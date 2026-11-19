@@ -10,4 +10,4 @@ Without Fasteners this package is dormant: no tools, no tool group, no
 menu items, no guide, no errors — one debug line in FreeCAD's log.
 workshop_fasteners.api is the Python way in."""
 
-VERSION = "0.4.0"
+VERSION = "1.0.0"
