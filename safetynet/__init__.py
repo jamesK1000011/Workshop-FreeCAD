@@ -11,7 +11,7 @@ Everything is kept under ~/AgentLink (or $AGENTLINK_HOME), the same files
 and formats Agent Link kept before SafetyNet was split out of it.
 """
 
-VERSION = "0.4.0"
+VERSION = "1.0.0"
 
 # Set by families._register(), which only Agent Link ever imports:
 # True when Agent Link hosts SafetyNet's Session panel (and runs its calls).

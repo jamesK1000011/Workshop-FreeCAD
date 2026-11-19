@@ -9,4 +9,4 @@ board as a FreeCAD solid with its tall parts, PCB order packages.
 Plain values in millimetres; a request it cannot carry out is refused
 (its refusal.Refused) with what to do instead."""
 
-VERSION = "0.4.0"
+VERSION = "1.0.0"
