@@ -207,7 +207,7 @@
   },
   {
    "id": "size",
-   "say": "Set **Size** to **M4**. Turn off **Threaded**. Set the hole cut **Type** to **Countersink**. Set **Depth** to **Through all**. Push **OK**.",
+   "say": "Set **Size** to **M4x0.7**. Turn off **Threaded**. Set the hole cut **Type** to **Countersink**. Set **Depth** to **Through all**. Push **OK**.",
    "why": "A countersink lets the flat screw head sit level with the face.",
    "targets": [
     {
@@ -228,7 +228,7 @@
       "exists": {
        "type": "PartDesign::Hole",
        "where": {
-        "ThreadSize": "M4",
+        "ThreadSize": "M4x0.7",
         "HoleCutType": "Countersink",
         "DepthType": "ThroughAll",
         "Diameter": {
@@ -257,7 +257,16 @@
      "args": {
       "feature": "$drill",
       "set": {
-       "ThreadSize": "M4",
+       "ThreadType": "ISOMetricProfile"
+      }
+     }
+    },
+    {
+     "tool": "feature_edit",
+     "args": {
+      "feature": "$drill",
+      "set": {
+       "ThreadSize": "M4x0.7",
        "Threaded": false,
        "HoleCutType": "Countersink",
        "DepthType": "ThroughAll"
@@ -283,7 +292,7 @@
       "exists": {
        "type": "PartDesign::Hole",
        "where": {
-        "ThreadSize": "M4",
+        "ThreadSize": "M4x0.7",
         "HoleCutType": "Countersink"
        }
       }
