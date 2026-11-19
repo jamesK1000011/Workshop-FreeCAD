@@ -15,6 +15,7 @@ Electronics and Documents, and SafetyNet. Each part's own notes (its Python
 API, data files and agent tools) are in [docs/](https://github.com/jamesK1000011/Workshop-FreeCAD/tree/main/docs/): [Parts](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/parts.md),
 [Make](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/make.md), [Electronics](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/electronics.md),
 [Documents](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/documents.md), [SafetyNet](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/safetynet.md).
+How it plugs into Agent Link, with a diagram: [docs/workflow/](https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/docs/workflow/README.md).
 
 **With Fasteners Workbench.** If you also have
 [Fasteners Workbench](https://github.com/shaise/FreeCAD_FastenersWB) (Shai
