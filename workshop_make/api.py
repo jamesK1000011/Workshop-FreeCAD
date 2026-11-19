@@ -105,6 +105,16 @@ def _through(shape, at, d, frame=None):
         return None
 
 
+def _named(doc, name):
+    """An object by its name or its label (live 105: a lesson bound the
+    sketch by its name, Sketch001, and the label was not that)."""
+    o = doc.getObject(name) if hasattr(doc, "getObject") else None
+    if o is None:
+        got = doc.getObjectsByLabel(name)
+        o = got[0] if got else None
+    return o
+
+
 def hole(doc, body, kind, size="M3", at=None, direction="-z", depth="through", fit="normal", face=None, sketch=None):
     """A hole for hardware: clearance, counterbore, countersink, nut_trap,
     insert or magnet, with the printer's allowance added.
@@ -116,14 +126,14 @@ def hole(doc, body, kind, size="M3", at=None, direction="-z", depth="through", f
     magnet pockets. face: the entry face ("Face6") when the person picked
     one; sketch: a sketch whose circles are the holes. In a plain Part solid
     (no Body) the hole is cut as a shape, and the answer says so."""
-    o = doc.getObjectsByLabel(body)[0] if isinstance(body, str) and doc.getObjectsByLabel(body) else body
+    o = _named(doc, body) if isinstance(body, str) else body
     if o is None or isinstance(o, str):
         raise Refused(f"body: no body called {body}.", "not_found")
     if kind not in fits.KINDS:
         raise Refused(f"kind: one of {', '.join(fits.KINDS)}.")
     sk = None
     if sketch:
-        sk = doc.getObjectsByLabel(sketch)[0] if isinstance(sketch, str) and doc.getObjectsByLabel(sketch) else (sketch if not isinstance(sketch, str) else None)
+        sk = _named(doc, sketch) if isinstance(sketch, str) else sketch
         if sk is None:
             raise Refused(f"sketch: no sketch called {sketch}.", "not_found")
     if sk is None and not (isinstance(at, (list, tuple)) and len(at) == 3):
