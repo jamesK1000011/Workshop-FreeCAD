@@ -169,6 +169,11 @@ is generated from the tool definitions (`workshop_make/data/tools.json`) by
 Make also adds `buildDir` and `printed` to Agent Link's own `fea_setup` and
 `fea_solve`, so a strength study knows the print's layers, walls and infill.
 It never starts a print on its own: **Send to Printer** only uploads.
+With Agent Link, starting, pausing and stopping a print need your approval
+through the client (`approve_file`), bound to the printer, the file and its
+SHA-256. A typed confirm is refused then. Before an upload, the file is
+read: printer-changing commands and heat over 300 °C (nozzle) or 120 °C
+(bed) also need your approval.
 
 ## Alone or with Agent Link
 
@@ -218,8 +223,9 @@ folder and restart FreeCAD. What it wrote beside your documents, or in
 
 Workshop Make has no telemetry. It sends nothing anywhere on its own. The one exception is the printer connection: when you ask, it talks to
 printers on your own network (OctoPrint, Moonraker, PrusaLink) at the
-addresses you give; their keys and passwords are kept in a file only your
-user can read and are never shown back. With Agent Link, what the agent
+addresses you give; their keys and passwords are kept in
+`~/AgentLink/printers.json`, a file only your user can read, and are never
+shown back. A redirect to another host is not followed. With Agent Link, what the agent
 reads goes to the AI provider your MCP client uses, under that provider's
 terms.
 

@@ -20,6 +20,7 @@ import tempfile
 import FreeCAD
 import Part
 
+from workshop.guard import read_ok
 from workshop_electronics.refusal import Refused
 from workshop_electronics import geo
 from workshop_electronics import records as store
@@ -30,6 +31,9 @@ from . import kicad, pcb
 
 
 V = FreeCAD.Vector
+# Agent Link's read check (paths.in_file), lent by the family layer; alone,
+# the fallback in workshop/guard.py (red team 3, R3-10).
+IN_FILE = None
 
 
 def calibration(doc):
@@ -260,6 +264,8 @@ def pcb_order_package(s, a):
         warnings.append("Assembly needs both a BOM and a placement (CPL) file; one is here.")
     drc, drc_out = None, None
     pcb_file = a.get("kicadPcb") or ((boards(s).get(ref) or {}).get("path") if ref else None)
+    if a.get("kicadPcb"):
+        pcb_file = read_ok(s, "pcb_order_package", os.path.expanduser(pcb_file), "kicadPcb", IN_FILE, lambda c, m: Refused(m, c))
     cli = shutil.which("kicad-cli")
     if pcb_file and cli and os.path.isfile(pcb_file):
         rep = os.path.join(tempfile.mkdtemp(), "drc.json")

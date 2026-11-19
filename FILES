@@ -112,6 +112,7 @@ tests/make/test_presets_list.py
 tests/make/test_printed.py
 tests/make/test_printer.py
 tests/make/test_printmass.py
+tests/make/test_redteam3.py
 tests/make/test_report_line.py
 tests/make/test_services.py
 tests/make/test_slice.py
@@ -154,6 +155,7 @@ tests/test_tools_menu.py
 tools/gen_readme_tools.py
 workshop/__init__.py
 workshop/agentlink_families.py
+workshop/guard.py
 workshop/layout.py
 workshop/lessons/hole-for-hardware.lesson.json
 workshop/matname.py
@@ -279,6 +281,7 @@ workshop_make/families.py
 workshop_make/fcmaterials.py
 workshop_make/fits.py
 workshop_make/frame.py
+workshop_make/gcodecheck.py
 workshop_make/geo.py
 workshop_make/guides/cut.md
 workshop_make/guides/embed.md

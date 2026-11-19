@@ -68,6 +68,12 @@ def SELECTS_FOR(name, args, body, doc):
 
 
 def tools(session):
+    try:
+        from agentlink import paths
+
+        handlers.IN_FILE = getattr(paths, "in_file", None)  # kicadPcb checked as the hub checks a read
+    except ImportError:
+        pass
     made = tooldefs.build(DATA, GROUP, handlers.bound(session), "Electronics")
     for t in made:
         # The board houses offered are the data file's (the person's own added).

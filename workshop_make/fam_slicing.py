@@ -27,6 +27,12 @@ SELECTS = {"slice_with": "body"}
 INFO = "Slicing with PrusaSlicer, OrcaSlicer or Bambu Studio, profiles by path, the encased parts' pauses written in."
 
 handlers.lend(H, ToolError=ToolError)
+try:
+    from agentlink import paths
+
+    handlers.lend(H, IN_FILE=getattr(paths, "in_file", None))  # profiles.* checked as the hub checks a read
+except ImportError:
+    pass
 
 
 def tools(session):

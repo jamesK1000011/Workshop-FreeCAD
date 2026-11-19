@@ -98,38 +98,39 @@ def own_pack(s, a):
     import Mesh  # noqa: F401
     import MeshPart
 
-    tmp = tempfile.mkdtemp()
-    entries, parts, unsound = [], [], []
-    settings, notes = {}, []
-    for o in objs:
-        fn = re.sub(r"[^A-Za-z0-9._-]+", "_", o.Label).strip("_") or "part"
-        if not geo.soundness(o.Shape)["ok"]:
-            unsound.append(o.Label)
-        files = []
-        if "step" in formats:
-            p = os.path.join(tmp, fn + ".step")
-            o.Shape.exportStep(p)
-            with open(p, encoding="utf-8", errors="replace") as f:
-                text = packing.clean_step(f.read(), fn + ".step", author if lic != "CC0-1.0" else "")
-            entries.append((f"{slug}/{fn}.step", text.encode("utf-8")))
-            files.append(fn + ".step")
-        if "stl" in formats:
-            p = os.path.join(tmp, fn + ".stl")
-            MeshPart.meshFromShape(Shape=o.Shape, LinearDeflection=float(a.get("tolerance", 0.01)), AngularDeflection=0.0873, Relative=False).write(p)
-            with open(p, "rb") as f:
-                entries.append((f"{slug}/{fn}.stl", packing.clean_stl(f.read(), fn)))
-            files.append(fn + ".stl")
-        b = o.Shape.BoundBox
-        m = mats.get(o.Label)
-        parts.append({"files": files, "size": [round(b.XLength, 1), round(b.YLength, 1), round(b.ZLength, 1)], "volume": o.Shape.Volume, "material": m.upper() if m else None, "mass": round(o.Shape.Volume * DENSITY[m] / 1000, 1) if m in DENSITY else None})
-        setup = store.setup_of(s.doc, o.Label, "print")
-        if setup:
-            for k, label in SETTING_WORDS.items():
-                if k in setup:
-                    settings[label] = setup[k]
-        enc = (s.meta.get(o.Label) or {}).get("encased")
-        if enc:
-            notes.append(f"{o.Label}: pause at {enc['top']} mm to drop in {enc['count']} {enc['what']}, or press them in after.")
+    # The exports are read into the pack and the folder removed (red team 3, R3-13).
+    with tempfile.TemporaryDirectory() as tmp:
+        entries, parts, unsound = [], [], []
+        settings, notes = {}, []
+        for o in objs:
+            fn = re.sub(r"[^A-Za-z0-9._-]+", "_", o.Label).strip("_") or "part"
+            if not geo.soundness(o.Shape)["ok"]:
+                unsound.append(o.Label)
+            files = []
+            if "step" in formats:
+                p = os.path.join(tmp, fn + ".step")
+                o.Shape.exportStep(p)
+                with open(p, encoding="utf-8", errors="replace") as f:
+                    text = packing.clean_step(f.read(), fn + ".step", author if lic != "CC0-1.0" else "")
+                entries.append((f"{slug}/{fn}.step", text.encode("utf-8")))
+                files.append(fn + ".step")
+            if "stl" in formats:
+                p = os.path.join(tmp, fn + ".stl")
+                MeshPart.meshFromShape(Shape=o.Shape, LinearDeflection=float(a.get("tolerance", 0.01)), AngularDeflection=0.0873, Relative=False).write(p)
+                with open(p, "rb") as f:
+                    entries.append((f"{slug}/{fn}.stl", packing.clean_stl(f.read(), fn)))
+                files.append(fn + ".stl")
+            b = o.Shape.BoundBox
+            m = mats.get(o.Label)
+            parts.append({"files": files, "size": [round(b.XLength, 1), round(b.YLength, 1), round(b.ZLength, 1)], "volume": o.Shape.Volume, "material": m.upper() if m else None, "mass": round(o.Shape.Volume * DENSITY[m] / 1000, 1) if m in DENSITY else None})
+            setup = store.setup_of(s.doc, o.Label, "print")
+            if setup:
+                for k, label in SETTING_WORDS.items():
+                    if k in setup:
+                        settings[label] = setup[k]
+            enc = (s.meta.get(o.Label) or {}).get("encased")
+            if enc:
+                notes.append(f"{o.Label}: pause at {enc['top']} mm to drop in {enc['count']} {enc['what']}, or press them in after.")
     text = packing.readme(title, a.get("description"), author, lic, parts, settings, credits, notes)
     entries.append((f"{slug}/README.md", text.encode("utf-8")))
     entries.append((f"{slug}/LICENSE", packing.license_text(lic, author, title).encode("utf-8")))

@@ -7,7 +7,7 @@
 
 ## Traps
 - A slicer not on this computer is refused, naming those present. AGENTLINK_ORCASLICER and AGENTLINK_BAMBUSTUDIO set their paths.
-- Bambu printers pause on `M400 U1`; Klipper on `PAUSE` (give it as `pauseCommand`).
+- Bambu printers pause on `M400 U1`; Klipper on `PAUSE` (give it as `pauseCommand`). pauseCommand takes only M601, M600, M0, M1 or PAUSE, one command, no new lines.
 - OrcaSlicer and Bambu Studio are not run by this add-on's tests: check the first G-code they give.
 - A part whose material is no printing filament (a metal, a wood) is refused by `slice`, naming the call that fixes it: `material_set { bodies: ["Bracket"], id: "petg" }` records a filament for the body (ask the person which first). To try a filament without recording it, `slice { body: "Bracket", material: "petg" }` (or `slice_with { ..., material }`) slices in it this time only; the body's material stays as it was. A filament profile or the setup's presets win over `material`.
 

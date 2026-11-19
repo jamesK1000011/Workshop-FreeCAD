@@ -13,7 +13,7 @@ from workshop_make import geo
 from workshop_make import materials as fil
 from workshop_make import records as store
 
-from .. import api, fcmaterials, orcalib, printability, printmass
+from .. import api, fcmaterials, gcodecheck, orcalib, printability, printmass
 from ._lent import Refusal
 
 # Lent by the family layer when Agent Link binds these handlers (lend()); alone
@@ -275,6 +275,10 @@ def slice_material(a):
 def slice(s, a):
     o = s.body(a.get("body"))
     given = slice_material(a)
+    try:
+        cmd = gcodecheck.pause_command(a.get("pauseCommand"), "M601")
+    except gcodecheck.PauseError as e:
+        raise ToolError("invalid_input", str(e))
     setup = store.setup_of(s.doc, o.Label, "print")
     if not setup:
         raise ToolError("invalid_state", f"{o.Label} is in no print setup: slicing prints it — setup add {{ type: \"print\", bodies: [\"{o.Label}\"] }} once the person says it is printed.")
@@ -322,7 +326,7 @@ def slice(s, a):
     mags = encased(s, o.Label)
     pauses = []
     if mags:
-        pauses = slicer.insert_pauses(gcode, [{"z": e["pauseAt"], "note": f"Insert {e['what']}"} for e in mags], a.get("pauseCommand", "M601"))
+        pauses = slicer.insert_pauses(gcode, [{"z": e["pauseAt"], "note": f"Insert {e['what']}"} for e in mags], cmd)
     return {
         "body": o.Label,
         "slicer": os.path.basename(exe),
