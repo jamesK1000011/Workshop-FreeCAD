@@ -2,7 +2,7 @@
 # Thread sizes (anywhere) and the thread tools (on a real FreeCAD).
 import unittest
 
-from _fc import AGENT, add_body, caller, server
+from _fc import AGENT, BEFORE_1_1, WHY_1_0, add_body, caller, server
 
 import _threadtable
 from workshop_make import threads as tt
@@ -70,6 +70,7 @@ class Table(unittest.TestCase):
 
 
 @unittest.skipUnless(AGENT, "FreeCAD and Agent Link are not both importable here")
+@unittest.skipIf(BEFORE_1_1, WHY_1_0 + " (its PartDesign Hole has no ThreadDiameter: no thread table to read)")
 class Thread(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

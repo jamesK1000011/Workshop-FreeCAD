@@ -24,6 +24,21 @@ except ImportError:
     AGENT = False
 
 
+def _before_1_1():
+    if not HAVE:
+        return False
+    try:
+        return tuple(int(x) for x in FreeCAD.Version()[:2]) < (1, 1)
+    except (TypeError, ValueError):
+        return False
+
+
+# Workshop V1 is written against FreeCAD 1.1: where 1.0 does a thing
+# differently (or not at all), a test of 1.1's way is skipped there.
+BEFORE_1_1 = _before_1_1()
+WHY_1_0 = "FreeCAD 1.0 does this differently; Workshop V1 is written against FreeCAD 1.1"
+
+
 def server():
     from agentlink.tools import Session, build_server
 
