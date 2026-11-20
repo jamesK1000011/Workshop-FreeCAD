@@ -61,6 +61,7 @@ scripts/ste_originals.json
 tests/_narrowqt.py
 tests/documents/_stubs.py
 tests/documents/test_api.py
+tests/documents/test_bicycle_drawing.py
 tests/documents/test_drawing.py
 tests/documents/test_drawing_callout_views.py
 tests/documents/test_drawing_export_scene.py
@@ -98,6 +99,7 @@ tests/make/_fc.py
 tests/make/_stubs.py
 tests/make/_threadtable.py
 tests/make/test_api.py
+tests/make/test_bicycle_findings.py
 tests/make/test_bimnest.py
 tests/make/test_camjob.py
 tests/make/test_checkgeometry.py
@@ -165,6 +167,7 @@ tests/test_tools_menu.py
 tools/gen_readme_tools.py
 workshop/__init__.py
 workshop/agentlink_families.py
+workshop/finder.py
 workshop/guard.py
 workshop/layout.py
 workshop/lessons/hole-for-hardware.lesson.json
@@ -258,6 +261,7 @@ workshop_make/bimnest.py
 workshop_make/camjob.py
 workshop_make/ccx.py
 workshop_make/commands.py
+workshop_make/cutmachines.py
 workshop_make/data/bearings.json
 workshop_make/data/bearings.schema.json
 workshop_make/data/cut-machines.json

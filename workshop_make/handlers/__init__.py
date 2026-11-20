@@ -25,7 +25,11 @@ def all_handlers():
 
 def bound(ctx, handlers=None):
     """{tool_name: fn(args)} for one context: handlers (default all) with
-    ctx given."""
+    ctx given. ctx's body() also finds a hidden body by its Label or Name
+    (workshop.finder: found live, a hidden PartDesign Body was not found)."""
+    from workshop import finder
+
+    ctx = finder.looked(ctx)
     return {k: functools.partial(fn, ctx) for k, fn in (all_handlers() if handlers is None else handlers).items()}
 
 
@@ -47,5 +51,10 @@ def review(session, body):
     from .. import runner
     from . import make
 
-    ctx = session if session is not None and hasattr(session, "body") else runner.session_for(getattr(session, "doc", None) or runner._active_doc())
+    from workshop import finder
+
+    if session is not None and hasattr(session, "body"):
+        ctx = finder.looked(session)  # the host's: hidden bodies found too
+    else:
+        ctx = runner.session_for(getattr(session, "doc", None) or runner._active_doc())
     return runner.answer(lambda a: make.part_review(ctx, a), {"body": body})[1]

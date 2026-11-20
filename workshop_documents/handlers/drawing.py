@@ -25,6 +25,8 @@ from workshop_documents import geo
 from workshop_documents import iso286
 from workshop_documents import sheets
 from workshop_documents import records as store
+from workshop import finder as _finder
+from workshop_documents import td_wait as _td_wait
 from workshop_documents.td_wait import PageExport as _PageExport
 from workshop_documents.td_wait import turns_now as _turns_now
 from workshop_documents.td_wait import turns_since as _turns_since
@@ -45,26 +47,51 @@ def _ms(t0):
     return int(round((time.perf_counter() - t0) * 1000))
 
 
-def _settle(vs, draw=True):
+def _settle(vs, draw=True, limits=None, on_ready=None):
     """Every view's lines worked out before anything is placed on them or
     the page exported: {"seconds", "notReady"} as td_wait.views_ready (a
     stand-in that answers None: all ready at once). draw: False asks only
     whether they are ready and leaves out the turns of the event loop that
     draw the window's scene (td_wait.views_ready): for a second look
     before dimensions go on, and before an export that readies its scene
-    itself."""
+    itself. limits: each view's own time limit (td_wait.view_limit);
+    on_ready(v): called once for each view when it is ready, during the
+    wait (after it, for a wait that cannot call it)."""
+    vs = list(vs)
+    kw = {}
+    if not draw:
+        kw["draw"] = False
+    if limits is not None:
+        kw["limits"] = list(limits)
+    if on_ready is not None:
+        kw["on_ready"] = on_ready
+    told = set()
+
+    def once(v):
+        if id(v) not in told:
+            told.add(id(v))
+            on_ready(v)
+
+    if on_ready is not None:
+        kw["on_ready"] = once
     try:
-        if draw:
-            got = _wait_views(list(vs))
-        else:
+        while True:
             try:
-                got = _wait_views(list(vs), draw=False)
-            except TypeError:  # a wait that knows no draw (a stand-in)
-                got = _wait_views(list(vs))
+                got = _wait_views(vs, **kw)
+                break
+            except TypeError:  # a wait that knows fewer words (a stand-in)
+                if not kw:
+                    raise
+                kw.pop(next(k for k in ("on_ready", "limits", "draw") if k in kw))
     except Exception as e:  # noqa: BLE001
         return {"seconds": 0.0, "notReady": [{"view": "?", "why": f"the wait failed: {type(e).__name__}: {e}"}]}
     if not isinstance(got, dict):
-        return {"seconds": float(got or 0.0), "notReady": []}
+        got = {"seconds": float(got or 0.0), "notReady": []}
+    if on_ready is not None:
+        late = {x.get("view") for x in got.get("notReady") or []}
+        for v in vs:
+            if getattr(v, "Label", getattr(v, "Name", "?")) not in late:
+                once(v)
     return got
 
 
@@ -243,10 +270,15 @@ def _write(s, base, sheet, kinds, folder=None):
 
 
 def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn=None, section=None, fields=None, scales=None, boxes=None, projection="first", table=None,
-                   extents=None):
+                   extents=None, coarse=False, limit=None):
     """The drawing: a TechDraw page on TechDraw's own template, its title
     block filled, the views, section and dimensions TechDraw's own, all
-    editable in TechDraw. (page, what was made) or (None, why not)."""
+    editable in TechDraw. (page, what was made) or (None, why not).
+    coarse: TechDraw's faster polygon lines for the views (CoarseView).
+    limit: how long each view may take to be drawn, seconds (30 when not
+    given). The overall dimensions go on each view as soon as it is drawn;
+    those of a view not drawn within its limit are kept in out["_late"]
+    for the export to place when the view is drawn by then (place_late)."""
     try:
         page = doc.addObject("TechDraw::DrawPage", "Page")
         page.Label = label
@@ -282,13 +314,18 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
             v = doc.addObject("TechDraw::DrawViewPart", "View")
             page.addView(v)
             v.Label = view.capitalize()
-            v.Source = objs
+            v.Source = [_finder.real(o) for o in objs]
             v.Direction = V(*z)
             v.XDirection = V(*xd)
             v.ScaleType = "Custom"
             v.Scale = (scales or {}).get(view, scale)
             v.X = x
             v.Y = H - y
+            if coarse:
+                try:
+                    v.CoarseView = True
+                except Exception:  # noqa: BLE001 — a TechDraw without it: exact lines
+                    pass
             made.append((view, v))
         doc.recompute()
         sec_note = {}
@@ -302,7 +339,7 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
                 sv = doc.addObject("TechDraw::DrawViewSection", "Section")
                 page.addView(sv)
                 sv.BaseView = base
-                sv.Source = objs
+                sv.Source = [_finder.real(o) for o in objs]
                 sv.ScaleType = "Custom"
                 sv.Scale = scale
                 sv.SectionNormal = V(*z)
@@ -319,40 +356,32 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
             except Exception as e:
                 sec_note = {"sectionNote": f"the section view could not go on the page here ({e}); the files have it"}
         # Every view's lines worked out (TechDraw's own thread) before a
-        # dimension goes on them, however long it takes, and said so: the
-        # wait once sat in a try that could skip it unnoticed.
-        ready = _settle([v for _, v in made])
-        extent_done, extent_missed = [], []
+        # dimension goes on them, each view within its own limit, and said
+        # so: the wait once sat in a try that could skip it unnoticed. The
+        # overall sizes go on each view as soon as it is drawn, while the
+        # others are still waited for.
+        # The overall sizes as TechDraw's own distance dimensions between
+        # the two extreme vertices of the view's drawn geometry along the
+        # axis, measured by TechDraw and checked against the part's size;
+        # each outside its view: 10 mm under it or right of it (7 more for
+        # a second on that side), its text off the lines. (makeExtentDim
+        # with no edges read 0 on 1.1.3.)
+        todo = []
         if dims and boxes:
-            # The overall sizes as TechDraw's own distance dimensions between
-            # the two extreme vertices of the view's drawn geometry along
-            # the axis, measured by TechDraw and checked against the part's
-            # size; each outside its view: 10 mm under it or right of it
-            # (7 more for a second on that side), its text off the lines.
-            # (makeExtentDim with no edges read 0 on 1.1.3.)
             by = dict(made)
             for view, axis, pa, pb, off, mm in sheets.extent_dims(boxes, views.AXES, extents or {"x": 0, "y": 0, "z": 0}):
-                v = by.get(view)
-                if v is None:
-                    continue
-                horizontal = abs(pa[1] - pb[1]) < 1e-9
-                bx = boxes[view]
-                got = _extent_dim(doc, page, v, horizontal, mm)
-                if got.get("dimension") is None:
-                    extent_missed.append({"view": view, "type": "DistanceX" if horizontal else "DistanceY", "value": round(mm, 4), "why": got["why"]})
-                    continue
-                dim = got.pop("dim")
-                try:
-                    # X, Y: the text's place from the view's centre, on the page, y up.
-                    if horizontal:
-                        dim.X, dim.Y = 0.0, -((bx[3] - bx[1]) / 2 + off + 1.0)
-                    else:
-                        dim.X, dim.Y = (bx[2] - bx[0]) / 2 + off + 1.0, 0.0
-                except Exception:  # noqa: BLE001
-                    pass
-                dimmed += 1
-                extent_done.append({"view": view, "axis": axis, **got})
+                if by.get(view) is not None:
+                    todo.append({"view": view, "v": by[view], "axis": axis, "horizontal": abs(pa[1] - pb[1]) < 1e-9, "off": off, "mm": mm, "box": boxes[view]})
+        ext = {"done": [], "missed": [], "todo": todo, "doc": doc, "page": page}
+        lim = [float(limit or 30.0)] * len(made)
+        ready = _settle([v for _, v in made], limits=lim, on_ready=(lambda v: place_extents(ext, v)) if todo else None)
+        for t in ext["todo"]:
+            ext["missed"].append({"view": t["view"], "type": "DistanceX" if t["horizontal"] else "DistanceY", "value": round(t["mm"], 4),
+                                  "why": "the view was not drawn within its time limit: placed when it is drawn before the export (page.lateExtents), else left off"})
+        if ext["done"]:
             doc.recompute()
+        dimmed = len(ext["done"])
+        extent_done, extent_missed = ext["done"], ext["missed"]
         table_note = {}
         if table:
             # The holes no view sees end on, in a table on the page where
@@ -367,7 +396,10 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
             except Exception as e:  # noqa: BLE001
                 table_note = {"holeTableNote": f"the hole table could not go on the page here ({e}); the files have it"}
         out = {"views": len(made), "viewsReadyIn": ready["seconds"], **({"viewsNotReady": ready["notReady"]} if ready["notReady"] else {}),
+               "viewLimit": lim[0] if lim else float(limit or 30.0), **({"coarse": True} if coarse else {}),
                "extentDimensions": dimmed, "template": os.path.basename(path) if path else None, **sec_note, **table_note}
+        if ext["todo"]:
+            out["_late"] = ext
         if extent_done:
             out["extents"] = extent_done
         if extent_missed:
@@ -397,6 +429,93 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
         return None, f"the TechDraw page could not be made here ({e}); the files stand on their own"
 
 
+def place_extents(ext, v):
+    """The overall dimensions waiting for view v (ext["todo"]), placed on
+    it now that it is drawn: each moved to ext["done"], or to
+    ext["missed"] with why. Never raises (it runs inside the wait)."""
+    doc, page = ext["doc"], ext["page"]
+    for t in [t for t in ext["todo"] if t["v"] is v]:
+        ext["todo"].remove(t)
+        try:
+            got = _extent_dim(doc, page, v, t["horizontal"], t["mm"])
+        except Exception as e:  # noqa: BLE001
+            got = {"why": f"TechDraw refused it: {type(e).__name__}: {e}"}
+        if got.get("dimension") is None:
+            ext["missed"].append({"view": t["view"], "type": "DistanceX" if t["horizontal"] else "DistanceY", "value": round(t["mm"], 4), "why": got["why"]})
+            continue
+        dim = got.pop("dim")
+        bx, off = t["box"], t["off"]
+        try:
+            # X, Y: the text's place from the view's centre, on the page, y up.
+            if t["horizontal"]:
+                dim.X, dim.Y = 0.0, -((bx[3] - bx[1]) / 2 + off + 1.0)
+            else:
+                dim.X, dim.Y = (bx[2] - bx[0]) / 2 + off + 1.0, 0.0
+        except Exception:  # noqa: BLE001
+            pass
+        ext["done"].append({"view": t["view"], "axis": t["axis"], **got})
+
+
+def place_late(made):
+    """Before the page is exported, once its views are drawn: the overall
+    dimensions of views that were drawn after their limit (made["_late"]),
+    placed now. made's extents, extentDimensions and notOnPage say so, and
+    lateExtents lists the views. Nothing when there are none."""
+    ext = made.pop("_late", None) if isinstance(made, dict) else None
+    if not ext:
+        return []
+    late_views = []
+    for t in list(ext["todo"]):
+        v = t["v"]
+        if any(x["v"] is v for x in ext["todo"]) and not _td_wait.view_busy(v):
+            n = len(ext["done"])
+            place_extents(ext, v)
+            if len(ext["done"]) > n and t["view"] not in late_views:
+                late_views.append(t["view"])
+    if not late_views:
+        return []
+    try:
+        ext["doc"].recompute()
+    except Exception:  # noqa: BLE001
+        pass
+    made["notOnPage"] = [m for m in made.get("notOnPage", []) if not ("time limit" in m.get("why", "") and m.get("view") in late_views)]
+    made["notOnPage"] += [m for m in ext["missed"] if m.get("view") in late_views and "time limit" not in m.get("why", "") and m not in made["notOnPage"]]
+    if not made["notOnPage"]:
+        made.pop("notOnPage")
+    made["extents"] = list(ext["done"])
+    made["extentDimensions"] = len(ext["done"])
+    made["lateExtents"] = late_views
+    return late_views
+
+
+COARSE_EDGES = 3000  # over this many edges, and no hole callouts: coarse lines by default
+
+
+def coarse_choice(said, edges, holes):
+    """(coarse, why): TechDraw's coarse (polygon) lines for the views, or
+    its exact ones. said: the person's coarse true/false, which wins.
+    Left out: coarse for over COARSE_EDGES edges, when no hole callout is
+    asked (a callout lands on an exact circle of the view)."""
+    if said is not None:
+        return bool(said), "asked"
+    if holes:
+        return False, "hole callouts need exact circles"
+    if edges > COARSE_EDGES:
+        return True, f"{edges} edges, over {COARSE_EDGES}: a large assembly"
+    return False, f"{edges} edges"
+
+
+def fill_later(sheet, later, shapes, hidden=False):
+    """The lines of the views laid out by their box only (later: [(where
+    in sheet.lines, view, box, centre, scale)]), worked out now and put
+    where they would have been, on the box the layout used."""
+    for at, v, box, centre, sv in sorted(later, key=lambda x: -x[0]):
+        d = views.project(shapes, v, hidden=hidden)
+        tmp = sheets.Sheet(sheet.w, sheet.h)
+        tmp.place(d["lines"], box, centre, sv)
+        sheet.lines[at:at] = tmp.lines
+
+
 def _settle_timeout(made):
     """How long a page's export may wait, afterwards, for the dimensions
     TechDraw recomputes once more (td_wait.PageExport): four times what
@@ -415,7 +534,7 @@ def _worth_saying(settled):
     return isinstance(settled, dict) and any(settled.get(k) for k in ("late", "left", "unwatched"))
 
 
-def _export_page(page, out_dir, base, kinds=("dxf", "pdf", "svg"), report=None):
+def _export_page(page, out_dir, base, kinds=("dxf", "pdf", "svg"), report=None, limit=None, before=None):
     """The page's own exports, as TechDraw's File ▸ Export does them: DXF
     always (TechDraw.writeDXFPage), PDF and SVG with the GUI up
     (TechDrawGui). ({kind: path}, {kind: why not}). Only once every view's
@@ -429,7 +548,11 @@ def _export_page(page, out_dir, base, kinds=("dxf", "pdf", "svg"), report=None):
     page_scene_ready), svg (TechDraw's export; twice when it had to be
     made again), check (the SVG read back for the views' lines and the
     template), pdf (TechDraw's export, which ends by redrawing every view
-    of the page: what the wait after the export is for)."""
+    of the page: what the wait after the export is for). limit: each
+    view's time limit for the wait, seconds (30 when not given). before():
+    run once the views are drawn and before anything is written (the
+    overall dimensions of views drawn late go on then: place_late); its
+    time is ms.late."""
     paths, why = {}, {}
     report = {} if report is None else report
     ms = report["ms"] = {}
@@ -437,7 +560,7 @@ def _export_page(page, out_dir, base, kinds=("dxf", "pdf", "svg"), report=None):
     t0 = time.perf_counter()
     # Asked only: with a window the scene is readied just below, and
     # without one nothing draws it.
-    ready = _settle(pv, draw=False)
+    ready = _settle(pv, draw=False, limits=[float(limit)] * len(pv) if limit else None)
     ms["wait"] = _ms(t0)
     report["viewsReadyIn"] = ready["seconds"]
     if ready["notReady"]:
@@ -448,6 +571,10 @@ def _export_page(page, out_dir, base, kinds=("dxf", "pdf", "svg"), report=None):
         for k in kinds:
             why[k] = f"TechDraw had not drawn every view yet ({names}); not exported from the page"
         return paths, why
+    if before is not None:
+        t0 = time.perf_counter()
+        before()
+        ms["late"] = _ms(t0)
     p = os.path.join(out_dir, f"{base}.dxf")
     if "dxf" in kinds:
         t0 = time.perf_counter()
@@ -1408,7 +1535,7 @@ def _view(doc, page, source, view, scale, x, y, label, line_art=False):
     v = doc.addObject("TechDraw::DrawViewPart", "View")
     page.addView(v)
     v.Label = label
-    v.Source = source
+    v.Source = [_finder.real(o) for o in source]
     v.Direction = V(*z)
     v.XDirection = V(*xd)
     v.ScaleType = "Custom"
@@ -1774,14 +1901,36 @@ def drawing_make(s, a):
         raise ToolError("invalid_input", "section: a straight view (front, top, right …), not iso.")
     sec_label = str(a.get("sectionLabel") or "A")[:2].upper()
     drawn = {}
+    coarse_in = a.get("coarse")
+    if coarse_in is not None and not isinstance(coarse_in, bool):
+        raise ToolError("invalid_input", "coarse: true or false. Left out, coarse lines for a large assembly only.")
+    t_part = time.perf_counter()
+    edges = views.edge_count(shapes)
+    coarse, coarse_from = coarse_choice(coarse_in, edges, bool(a.get("holes")))
+    split = {"bodies": _ms(started), "views": {}}
+    # The views' lines by Workshop's own hidden-line removal are needed for
+    # the files TechDraw does not write, and for hole callouts (the circles
+    # drawn). With a TechDraw page and no callouts the layout needs only
+    # each view's box: that comes from the tessellation, and the lines
+    # are worked out after the export, only for a file the page did not
+    # write. Found live (the bicycle): 249 s of 291 s were this
+    # projection, done for files TechDraw then wrote itself.
+    lazy = bool(a.get("page", True)) and not a.get("holes")
+    boxes_only = views.extents(shapes, [v for v in want if v != sec_view]) if lazy else {}
     for v in want:
+        t_v = time.perf_counter()
         if v == sec_view:
             try:
                 drawn[v] = views.section(shapes, v, float(a.get("sectionAt", 0)), hidden=bool(a.get("hidden")))
             except ValueError as e:
                 raise ToolError("invalid_input", f"sectionAt: {e} — a smaller offset from the middle.")
+        elif lazy:
+            drawn[v] = {"lines": None, "box": boxes_only[v], "circles": []}
         else:
             drawn[v] = views.project(shapes, v, hidden=bool(a.get("hidden")))
+        split["views"][v] = _ms(t_v)
+    if lazy:
+        split["extents"] = _ms(t_part) - sum(split["views"].values())
     sizes = {v: (d["box"][2] - d["box"][0], d["box"][3] - d["box"][1]) for v, d in drawn.items()}
     sc = a.get("scale")
     if sc is not None and (not isinstance(sc, (int, float)) or sc <= 0):
@@ -1807,15 +1956,19 @@ def drawing_make(s, a):
         bb.add(sh.BoundBox)
     extent = {"x": bb.XLength, "y": bb.YLength, "z": bb.ZLength}
     dims = []
+    later = []  # [(where in sheet.lines, view, box, centre, scale)]: lines worked out after the export
     for v in want:
         d = drawn[v]
         cx, cy = L["centres"][v]
         sv = scales[v]
         lines = d["lines"]
-        if v == sec_view:
-            # The cut faces hatched 2.5 mm apart on the paper.
-            lines = lines + [("thin", [p, q]) for p, q in views.hatch(d["cut"], 2.5 / sv)]
-        sheet.place(lines, d["box"], (cx, cy), sv)
+        if lines is None:
+            later.append((len(sheet.lines), v, d["box"], (cx, cy), sv))
+        else:
+            if v == sec_view:
+                # The cut faces hatched 2.5 mm apart on the paper.
+                lines = lines + [("thin", [p, q]) for p, q in views.hatch(d["cut"], 2.5 / sv)]
+            sheet.place(lines, d["box"], (cx, cy), sv)
         h = sizes[v][1] * sv
         name_v = f"SECTION {sec_label}-{sec_label}" if v == sec_view else v.upper()
         if v == "iso" and sv != scale:
@@ -2004,11 +2157,14 @@ def drawing_make(s, a):
     folder, base = out_place(s.out_dir, a.get("file"), name)
     page, made = (None, "not asked for")
     sheet_ms, page_ms = _ms(started), None
+    split["rest"] = max(0, sheet_ms - split["bodies"] - sum(split["views"].values()) - split.get("extents", 0))
+    limit = _td_wait.view_limit(edges, coarse)
     if a.get("page", True):
         t_page = time.perf_counter()
         page, made = _techdraw_page(s.doc, objs, [(v, L["centres"][v]) for v in want], scale, paper, f"{name} drawing", a.get("dimensions", True), specs, drawn,
                                      {**section_out, "origin": sec_origin} if section_out else None, tb, scales,
-                                     {v: L["boxes"][v] for v in want if v in views.AXES}, projection, hole_table or None, extent)
+                                     {v: L["boxes"][v] for v in want if v in views.AXES}, projection, hole_table or None, extent,
+                                     coarse=coarse, limit=limit)
         page_ms = _ms(t_page)
     # The files are the page's own exports where TechDraw can write them;
     # Workshop's sheet writer (the same views by Open CASCADE's hidden-line
@@ -2017,8 +2173,9 @@ def drawing_make(s, a):
     exported, px = {}, None
     if page is not None:
         with _PageExport(page, timeout=_settle_timeout(made)) as px:
-            paths, why = _export_page(page, folder, base, report=exported)
+            paths, why = _export_page(page, folder, base, report=exported, limit=limit, before=lambda: place_late(made))
         if isinstance(made, dict):
+            made.pop("_late", None)
             # What the export left marked as changed and was taken off
             # again, and how long that waited (td_wait.PageExport).
             made["settled"] = px.settled
@@ -2029,8 +2186,15 @@ def drawing_make(s, a):
                     made[k if k != "viewsNotReady" else "exportViewsNotReady"] = exported[k]
         frm = {k: "TechDraw page" for k in paths}
         frm.update({k: f"Workshop's sheet writer: {w}" for k, w in why.items()})
+    if isinstance(made, dict):
+        made.pop("_late", None)
     rest = [k for k in ("svg", "pdf", "dxf") if k not in paths]
+    lines_ms = None
     if rest:
+        if later:
+            t_l = time.perf_counter()
+            fill_later(sheet, later, shapes, bool(a.get("hidden")))
+            lines_ms = _ms(t_l)
         paths.update(_write(s, base, sheet, rest, folder))
         for k in rest:
             frm.setdefault(k, "Workshop's sheet writer: no TechDraw page")
@@ -2060,6 +2224,12 @@ def drawing_make(s, a):
     # Where the call's time went (found live, run 3: 4.6 and 5.7 s a
     # drawing with 2 to 2.6 s no field accounted for).
     out["timing"] = _timing(started, turns_mark, sheet_ms, page_ms, exported, px.settled if px is not None else None)
+    out["timing"]["sheetSplit"] = split
+    if lines_ms is not None:
+        out["timing"]["sheetLines"] = lines_ms
+    out["lines"] = {"coarse": coarse, "from": coarse_from, "edges": edges, "viewLimit": limit,
+                    "sheetLines": ("worked out for the files TechDraw did not write" if lines_ms is not None else "not needed: TechDraw wrote every file") if later
+                    else "worked out with the views"}
     if a.get("dimensions", True):
         out["note"] = ("The drawing is the TechDraw page (edit it in TechDraw: its views, section, dimensions and title block are TechDraw's own; "
                        "page.dimensions, and any it could not place under page.notOnPage). The files are the page's exports where TechDraw can write them "

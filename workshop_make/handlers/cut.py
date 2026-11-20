@@ -31,21 +31,21 @@ from .. import sheetfile as sf
 
 
 V = FreeCAD.Vector
-# The machines' kerfs and the materials are data (data/cut-machines.json,
-# data/shop-materials.json); the person's own win.
-from workshop_make import datafiles as _data
 from ._lent import Refusal
 
 # Lent by the family layer when Agent Link binds these handlers (lend()); alone
 # a refusal is this add-on's own and Agent Link's helpers are absent.
 ToolError = Refusal
 
-_D = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
-_SHOP = _data.load(_D, "shop-materials", package="workshop_make")["entries"]
-KERF = {k: v["kerf"] for k, v in _data.load(_D, "cut-machines", package="workshop_make")["entries"].items()}
+# The machines' kerfs and the materials are data (data/cut-machines.json,
+# data/shop-materials.json); the person's own win. One list for setup and
+# these tools (cutmachines.py): a machine's other names (fiber laser, CO2
+# laser) are made into its key in one place.
+from workshop_make import cutmachines as _cm
+
+KERF = {k: v["kerf"] for k, v in _cm.machines().items()}
 MACHINES = tuple(KERF)
-METALS = tuple(k for k, v in _SHOP.items() if v["cut"] and v["metal"])
-OTHERS = tuple(k for k, v in _SHOP.items() if v["cut"] and not v["metal"])
+METALS, OTHERS = _cm.cut_materials()
 MAX_EDGES = 160
 
 
@@ -258,18 +258,22 @@ def cut_setup(s, o):
 
 
 def machine_of(s, setup, a, assumed):
-    m = (a.get("machine") or setup.get("machine") or "").lower()
-    if not m:
+    said = a.get("machine") or setup.get("machine") or ""
+    if not said:
         m = "laser"
         assumed["machine"] = "laser (the setup does not say)"
-    if m not in MACHINES:
-        raise ToolError("invalid_input", f"machine: one of {', '.join(MACHINES)}.")
-    mat = (a.get("material") or setup.get("material") or "").lower()
-    if not mat:
+    else:
+        m = _cm.machine(said)
+        if m is None:
+            raise ToolError("invalid_input", _cm.machine_refusal(said))
+    said = a.get("material") or setup.get("material") or ""
+    if not said:
         mat = "plywood" if m == "router" else "steel"
         assumed["material"] = f"{mat} (not said)"
-    if mat not in METALS + OTHERS:
-        raise ToolError("invalid_input", f"material: one of {', '.join(METALS + OTHERS)}.")
+    else:
+        mat = _cm.material(said)
+        if mat is None:
+            raise ToolError("invalid_input", _cm.material_refusal(said))
     if setup.get("kerf") is not None:
         kerf = float(setup["kerf"])
     else:
@@ -365,7 +369,7 @@ def cut_export(s, a):
     copies = a.get("copies", 1)
     setups = {o.Label: cut_setup(s, o) for o in objs}
     first = setups[objs[0].Label]
-    kerf = float(first.get("kerf") if first.get("kerf") is not None else KERF.get((first.get("machine") or "laser").lower(), 0.2))
+    kerf = float(first.get("kerf") if first.get("kerf") is not None else KERF.get(_cm.machine(first.get("machine") or "laser") or "laser", 0.2))
     comp = bool(a.get("compensate", False))
     gap = float(a.get("gap", max(3.0, 2 * kerf)))
     sheet = a.get("sheet") or first.get("sheet")  # the cut setup's sheet when none is given

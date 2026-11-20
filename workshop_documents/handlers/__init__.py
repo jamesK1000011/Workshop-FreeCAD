@@ -25,7 +25,11 @@ def all_handlers():
 
 def bound(ctx, handlers=None):
     """{tool_name: fn(args)} for one context: handlers (default all) with
-    ctx given."""
+    ctx given. ctx's body() also finds a hidden body by its Label or Name
+    (workshop.finder: found live, a hidden PartDesign Body was not found)."""
+    from workshop import finder
+
+    ctx = finder.looked(ctx)
     return {k: functools.partial(fn, ctx) for k, fn in (all_handlers() if handlers is None else handlers).items()}
 
 
