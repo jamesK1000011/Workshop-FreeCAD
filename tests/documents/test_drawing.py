@@ -60,7 +60,7 @@ class Drawing(unittest.TestCase):
         self.assertIn(d["scale"], ("1:1", "1:2"))
         # Where the time went: always the sheet and the total; the page's parts when a page was made.
         self.assertGreaterEqual(d["timing"]["total"], d["timing"]["sheet"])
-        self.assertEqual(set(d["timing"]) - {"page", "export", "settle"}, {"sheet", "turns", "turnMs", "total"})
+        self.assertEqual(set(d["timing"]) - {"page", "export", "settle", "sheetSplit", "sheetLines"}, {"sheet", "turns", "turnMs", "total"})
         # The page in the document, when TechDraw could make it here.
         if d["techdrawPage"]:
             self.assertTrue(any(o.TypeId == "TechDraw::DrawPage" for o in self.session.doc.Objects))
