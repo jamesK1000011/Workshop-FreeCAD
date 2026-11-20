@@ -123,11 +123,76 @@ def _polys(comp, kind, out, deflection, circles=None):
             out.append((kind, [(p.x, p.y) for p in pts]))
 
 
-def project(shapes, view, hidden=False, deflection=0.02):
+def _diagonal(shapes):
+    try:
+        bb = shapes[0].BoundBox
+        for sh in shapes[1:]:
+            bb.add(sh.BoundBox)
+        return float(bb.DiagonalLength)
+    except Exception:  # noqa: BLE001
+        return 0.0
+
+
+def deflection_for(shapes, least=0.02, share=1e-4):
+    """How far a drawn polyline may stray from its curve, mm: 0.02 mm, or
+    a ten-thousandth of the shapes' diagonal when that is more. Found live
+    (the bicycle, 1.7 m): at 0.02 mm every curve of a large assembly was
+    cut into many thousands of points, which is far finer than the paper
+    shows at the scale such a part is drawn."""
+    return max(least, share * _diagonal(shapes))
+
+
+def edge_count(shapes):
+    """The edges of the shapes together: how much a view has to work out."""
+    n = 0
+    for sh in shapes:
+        try:
+            n += len(sh.Edges)
+        except Exception:  # noqa: BLE001
+            pass
+    return n
+
+
+def extents(shapes, names, tol=None):
+    """{view: box (xmin, ymin, xmax, ymax)} of the shapes in each view,
+    from their tessellation (and their vertices), without hidden-line
+    removal: what the layout needs, in a small part of the time. Within
+    tol (a two-thousandth of the diagonal when not given) of the box that
+    project gives. The corners of the shapes' boxes when there is no
+    tessellation."""
+    tol = tol or max(0.05, _diagonal(shapes) / 2000.0)
+    pts = []
+    for sh in shapes:
+        got = []
+        try:
+            got = list(sh.tessellate(tol)[0])
+        except Exception:  # noqa: BLE001
+            got = []
+        try:
+            got += [x.Point for x in sh.Vertexes]
+        except Exception:  # noqa: BLE001
+            pass
+        if not got:
+            b = sh.BoundBox
+            got = [V(x, y, z) for x in (b.XMin, b.XMax) for y in (b.YMin, b.YMax) for z in (b.ZMin, b.ZMax)]
+        pts += got
+    out = {}
+    for name in names:
+        _, X, Y = frame(name)
+        xs = [p.dot(X) for p in pts]
+        ys = [p.dot(Y) for p in pts]
+        out[name] = (min(xs), min(ys), max(xs), max(ys))
+    return out
+
+
+def project(shapes, view, hidden=False, deflection=None):
     """The view of shapes, each hiding the others: {lines: [(kind, [(x, y)
     …])], box: (xmin, ymin, xmax, ymax), circles: [(cx, cy, r)] the round
     edges drawn visible (whole or arcs)}. Kinds: visible, hidden (when
-    asked), thin (the seams where faces meet smoothly)."""
+    asked), thin (the seams where faces meet smoothly). deflection: left
+    out, deflection_for(shapes)."""
+    if deflection is None:
+        deflection = deflection_for(shapes)
     Z, X, _ = frame(view)
     algo = Part.HLRBRep.Algo()
     for sh in shapes:
@@ -205,12 +270,14 @@ def visible_point(shape, others, view, tries=8):
 
 # ---- a full section --------------------------------------------------------------------
 
-def section(shapes, view, at=0.0, hidden=False, deflection=0.02):
+def section(shapes, view, at=0.0, hidden=False, deflection=None):
     """The view as a full section: the parts cut by a plane square to the
     view, through their middle moved `at` mm towards the viewer, and the
     material between the plane and the viewer taken away. As project, plus
     cut: the cut faces as closed 2D polygons (to hatch), and plane: the
     plane's depth along the view's Z."""
+    if deflection is None:
+        deflection = deflection_for(shapes)
     Z, X, Y = frame(view)
     bb = shapes[0].BoundBox
     for sh in shapes[1:]:

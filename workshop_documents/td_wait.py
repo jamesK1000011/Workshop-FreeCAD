@@ -115,7 +115,23 @@ def _turn(pump):
     return _counted(pump)
 
 
-def views_ready(views_, timeout=30.0, pump=None, sleep=0.02, draw=True):
+def view_limit(edges, coarse=False):
+    """How long one view may take to be drawn, seconds: 30 s, and more for
+    a view of many edges (TechDraw's hidden-line removal grows with them),
+    240 s at most; a coarse view (TechDraw's faster polygon lines) 120 s at
+    most. Found live (the bicycle, FreeCAD 1.1.3): the front view had no
+    edges after the 30 s that every view had, so its overall dimensions
+    were not placed."""
+    try:
+        n = max(0, int(edges))
+    except (TypeError, ValueError):
+        n = 0
+    if coarse:
+        return round(min(120.0, 30.0 + 0.005 * n), 1)
+    return round(min(240.0, 30.0 + 0.015 * n), 1)
+
+
+def views_ready(views_, timeout=30.0, pump=None, sleep=0.02, draw=True, limits=None, on_ready=None):
     """Waits until every view's lines are worked out: a view with a change
     not yet recomputed is recomputed once (never one that is ready: that
     starts its lines afresh), and the event loop is run until none is
@@ -125,27 +141,47 @@ def views_ready(views_, timeout=30.0, pump=None, sleep=0.02, draw=True):
     scene (a dimension is placed on a view's geometry, not on its picture)
     or readies the scene itself straight after (the export does:
     drawing.page_scene_ready). {"seconds": waited, "notReady": [{"view",
-    "why"}]} (notReady empty when all are ready)."""
+    "why", "limit"?}]} (notReady empty when all are ready).
+
+    limits: each view's own time limit, seconds (a list beside views_;
+    view_limit gives one), in place of timeout for all: the wait goes on
+    while a view not ready is within its own limit. on_ready(v): called
+    once for each view as soon as it is ready, while the others are still
+    waited for (a view's dimensions go on it then, not after the last
+    view)."""
     pump = pump or _pump
     views_ = list(views_)
+    lim = list(limits) if limits is not None else []
+    lim = [float(lim[i]) if i < len(lim) and lim[i] is not None else float(timeout) for i in range(len(views_))]
     t0 = time.time()
     redone = set()
+    told = set()
+
+    def tell(v):
+        if on_ready is not None and id(v) not in told:
+            told.add(id(v))
+            on_ready(v)
+
     while True:
-        busy = [(v, view_busy(v)) for v in views_]
-        busy = [(v, why) for v, why in busy if why]
+        states = [(i, v, view_busy(v)) for i, v in enumerate(views_)]
+        for _i, v, why in states:
+            if not why:
+                tell(v)
+        busy = [(i, v, why) for i, v, why in states if why]
         if not busy:
             break
-        if all(why == "touched" and id(v) in redone for v, why in busy):
+        if all(why == "touched" and id(v) in redone for _i, v, why in busy):
             # Recomputed once and still changed: it will not settle.
             break
-        for v, why in busy:
+        for _i, v, why in busy:
             if why == "touched" and id(v) not in redone:
                 redone.add(id(v))
                 try:
                     v.recompute()
                 except Exception:  # noqa: BLE001
                     pass
-        if time.time() - t0 >= timeout:
+        took = time.time() - t0
+        if all(took >= lim[i] for i, _v, _w in busy):
             break
         if not _turn(pump):
             # No event loop to run: nothing more will arrive.
@@ -154,8 +190,14 @@ def views_ready(views_, timeout=30.0, pump=None, sleep=0.02, draw=True):
     for _ in range(3 if draw else 0):
         if not _turn(pump):
             break
-    left = [{"view": getattr(v, "Label", getattr(v, "Name", "?")), "why": view_busy(v)} for v in views_]
-    return {"seconds": round(time.time() - t0, 2), "notReady": [x for x in left if x["why"]]}
+    left = []
+    for i, v in enumerate(views_):
+        why = view_busy(v)
+        if why:
+            left.append({"view": getattr(v, "Label", getattr(v, "Name", "?")), "why": why, **({"limit": lim[i]} if limits is not None else {})})
+        else:
+            tell(v)
+    return {"seconds": round(time.time() - t0, 2), "notReady": left}
 
 
 def wait_views(views_, timeout=30.0):

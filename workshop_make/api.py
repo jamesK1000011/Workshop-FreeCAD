@@ -256,6 +256,21 @@ def _settings(kind, given):
         raise Refused(f"settings.printer: one of {', '.join(printability.PRINTERS)}.")
     if out.get("up", "+z") != "+z":
         raise Refused("settings.up: +z only in this build — turn the part to stand it another way.")
+    if kind == "cut":
+        # The same lists cut_check reads (cutmachines.py): a value kept
+        # here is one cut_check takes. A common name is kept as the key.
+        from . import cutmachines
+
+        if out.get("machine") is not None:
+            m = cutmachines.machine(out["machine"])
+            if m is None:
+                raise Refused("settings." + cutmachines.machine_refusal(out["machine"]))
+            out["machine"] = m
+        if out.get("material") is not None:
+            m = cutmachines.material(out["material"])
+            if m is None:
+                raise Refused("settings." + cutmachines.material_refusal(out["material"]))
+            out["material"] = m
     return out
 
 

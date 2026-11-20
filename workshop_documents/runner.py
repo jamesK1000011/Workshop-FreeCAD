@@ -93,6 +93,13 @@ class Session:
             for o in getattr(self.doc, "Objects", None) or []:
                 if _solid(o) and (o.Label == ref or o.Name == ref or o.Label.lower() == str(ref).lower()):
                     return o
+        if ref is not None:
+            # A hidden body by its Label or Name too (workshop.finder).
+            from workshop import finder
+
+            got = finder.find(self.doc, ref)
+            if got is not None:
+                return got
         bs = self.bodies()
         if not bs:
             raise _refusal()("not_found", "No body in the document: make one first.")
