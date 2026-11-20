@@ -1010,6 +1010,17 @@ def _page_dim(doc, page, by_view, view_frames, drawn, sp, at=None, H=None):
                     turns.append(abs(e.LastParameter - e.FirstParameter))
                 except Exception:
                     continue
+            elif cu is not None and type(cu).__name__ not in ("Line", "LineSegment"):
+                # A hole's rim on a round face (a pin through a forked round
+                # post): a B-spline drawn on the hole's circle.
+                try:
+                    f = views.fit_circle([(p.x, p.y) for p in e.discretize(Number=48)])
+                except Exception:  # noqa: BLE001
+                    f = None
+                if f is not None:
+                    circles.append(f[:3])
+                    idx.append(i)
+                    turns.append(f[3])
         if sp["type"] == "Diameter":
             # A diameter is called out on a circle that goes all the way
             # round, never on an arc of that radius (the "4× ⌀6" leader
