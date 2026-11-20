@@ -378,7 +378,7 @@ def widget(runner, hosted=False):
                 top.setFirstColumnSpanned(True)
                 top.setExpanded(bool(rows))
 
-            ok, rec = self.read("app_recover", {"action": "list"})
+            ok, rec = self.read("app_recover", {"action": "list", "limit": 0})
             self.recovered(recovered_groups(rec.get("documents") if ok else [], _open_names()))
             ok, ph = self.read("pref_history", {"limit": 10})
             section("Settings Changes", [(when(c.get("time", "")), change_text(c), {"to": c.get("change")})
