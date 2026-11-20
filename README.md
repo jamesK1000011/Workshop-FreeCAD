@@ -177,7 +177,7 @@ separate add-ons):
 | `mass_target` | mass | Read how far a body is from a target. |
 | `mass_ballast` | mass | Lay out closed, upright, round ballast pockets inside a body. |
 | `slicer_presets` | slice | Read and use the slicer presets of the person, as data. |
-| `slice_with` | slice | Slice a body in a print setup with a named slicer, by its command line. |
+| `slice_with` | slice | Slice a body or a mesh in a print setup with a named slicer, by its command line. |
 | `slice_read` | slice | Read back an OrcaSlicer or Bambu Studio project. |
 | `slice_open` | slice | Open a project in the slicer's own window, for the person. |
 | `printer_add` | printer | Keep a printer on the network by name. |

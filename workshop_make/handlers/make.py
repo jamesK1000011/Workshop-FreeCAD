@@ -89,6 +89,14 @@ def refused(fn):
     return run
 
 
+def _part(s, ref):
+    """A body, or a mesh by its name (slice_with prints a mesh as it is),
+    for a setup's bodies."""
+    from .slicing import plate_item
+
+    return plate_item(s, ref)
+
+
 @refused
 def setup(s, a):
     act = a.get("action", "list")
@@ -101,15 +109,15 @@ def setup(s, a):
     if act == "add":
         if a.get("type") not in store.TYPES:
             raise ToolError("invalid_input", f"type: one of {', '.join(store.TYPES)}.")
-        bodies = [s.body(b).Label for b in (a.get("bodies") or [])]
+        bodies = [_part(s, b).Label for b in (a.get("bodies") or [])]
         st = api.setup_add(s.doc, a.get("type"), bodies, a.get("settings") or {}, a.get("name"))
         return {"added": st, "setups": len(store.setups(s.doc))}
     if act == "remove":
         return {"removed": api.setup_remove(s.doc, a.get("id"))}
     if act == "set":
         st = api.setup_set(s.doc, a.get("id"),
-                           bodies=[s.body(b).Label for b in a["bodies"]] if "bodies" in a else None,
-                           add=[s.body(b).Label for b in a.get("add") or []], remove=a.get("remove") or [],
+                           bodies=[_part(s, b).Label for b in a["bodies"]] if "bodies" in a else None,
+                           add=[_part(s, b).Label for b in a.get("add") or []], remove=a.get("remove") or [],
                            settings=a.get("settings"), name=a.get("name"))
         return {"setup": st}
     api.setup_find(s.doc, a.get("id")) if a.get("id") else None
@@ -166,7 +174,8 @@ def part_review(s, a):
             ws.append({"body": o.Label, "rule": x.get("rule", "thin-wall"), "at": x.get("at"), "reason": x.get("reason", "waived")})
         store.write(s.doc, "waivers", ws)
     rules, _ = api.rules_of(s.doc, o.Label)
-    dfm = printability.check(shape, rules, [x for x in store.waivers(s.doc) if x.get("body") == o.Label])
+    fshape, frame, pl = api.print_frame(o)
+    dfm = printability.check(fshape, rules, [x for x in store.waivers(s.doc) if x.get("body") == o.Label], carried=api.carried_tops(s.doc, o, pl, fshape))
     checks["dfm_check"] = "ran" if printed or not setup else "skipped: not printed"
     into = findings if printed else informed
     if printed or not setup:
@@ -239,6 +248,10 @@ def part_review(s, a):
         "checks": checks,
         "spec": spec,
     }
+    if printed or not setup:
+        out["frame"] = frame  # the frame the printability check read the part in
+        if dfm.get("carried"):
+            out["carried"] = dfm["carried"]
     if informed:
         out["ifPrinted"] = informed[:5]
     if unjudged:

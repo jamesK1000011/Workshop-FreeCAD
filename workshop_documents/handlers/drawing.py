@@ -1585,21 +1585,24 @@ def hole_circle(circles, points, radius, rtol=0.02, thread=False):
     return None
 
 
-def callout_leader(at, r, outline, k, left=None, slope=45):
+def callout_leader(at, r, outline, k, left=None, slope=45, down=False):
     """A hole callout's leader from the circle (centre at, radius r on the
     paper) out past the view's outline, the k-th in that view turned a
-    little more: (tip, elbow, tail end, text anchor). Up and to the left
-    or right, whichever side of the view the hole is nearer (or as left
-    says), at slope degrees over the horizontal (45 unless asked)."""
+    little more: (tip, elbow, tail end, text anchor). Up (or down, when
+    down) and to the left or right, whichever side of the view the hole is
+    nearer (or as left says), at slope degrees over the horizontal (45
+    unless asked)."""
     if left is None:
         left = at[0] <= (outline[0] + outline[2]) / 2
     ang = math.radians(180 - slope if left else slope)
-    tip = (at[0] + r * math.cos(ang), at[1] - r * math.sin(ang))
-    # Out at the slope until clear of the view's outline above it: 6 mm over
-    # its top, each further callout of the view 6 mm higher.
-    rise = max(6.0, tip[1] - outline[1] + 6.0 + 6.0 * k)
+    up = -1.0 if down else 1.0
+    tip = (at[0] + r * math.cos(ang), at[1] - up * r * math.sin(ang))
+    # Out at the slope until clear of the view's outline above (below) it:
+    # 6 mm past its edge, each further callout of the view 6 mm further.
+    edge = (outline[3] - tip[1]) if down else (tip[1] - outline[1])
+    rise = max(6.0, edge + 6.0 + 6.0 * k)
     run_ = rise / math.tan(math.radians(slope))
-    elbow = (tip[0] + (-run_ if left else run_), tip[1] - rise)
+    elbow = (tip[0] + (-run_ if left else run_), tip[1] - up * rise)
     tail = (elbow[0] + (-12 if left else 12), elbow[1])
     return tip, elbow, tail, ("end" if left else "start")
 
@@ -1629,6 +1632,31 @@ def _seg_in_box(a, b, box):
     return False
 
 
+def _seg_box(a, b, box):
+    """Whether segment ab passes through the inside of box (x0, y0, x1, y1):
+    the segment clipped to the box (Liang-Barsky) is longer than a point."""
+    x0, y0, x1, y1 = box
+    t0, t1 = 0.0, 1.0
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    for p, q in ((-dx, a[0] - x0), (dx, x1 - a[0]), (-dy, a[1] - y0), (dy, y1 - a[1])):
+        if abs(p) < 1e-12:
+            if q <= 0:
+                return False
+            continue
+        r = q / p
+        if p < 0:
+            t0 = max(t0, r)
+        else:
+            t1 = min(t1, r)
+        if t0 >= t1:
+            return False
+    return (t1 - t0) * math.hypot(dx, dy) > 1e-6
+
+
+def _same_box(b, o):
+    return len(b) == len(o) and all(abs(x - y) < 1e-9 for x, y in zip(b, o))
+
+
 def _pad(box, m):
     return (box[0] - m, box[1] - m, box[2] + m, box[3] + m)
 
@@ -1640,24 +1668,29 @@ def page_text_box(centre, text, size=PAGE_FONT):
     return (centre[0] - w / 2, centre[1] - h / 2, centre[0] + w / 2, centre[1] + h / 2)
 
 
-def place_callout(pa, r, outline, k, label, busy, placed, size=3.0, tries=12):
+def place_callout(pa, r, outline, k, label, busy, placed, size=3.0, tries=12, area=None, block=None):
     """A hole callout clear of what is on the sheet and of every callout
     placed before it: its text (as the sheet draws it and as the TechDraw
     page does, larger, with a margin) off the views, the texts and every
     earlier callout's text, and its leaders (the sheet's tip, elbow, tail;
     the page's straight line from the hole to its text) crossing no earlier
     leader nor running through an earlier text. Each try goes 6 mm further
-    up, on the hole's own side first, then the other, its leader at 45°,
-    then 30° and 60° (a leader parallel to an earlier one can pass under
-    that one's text only at another slope). The first clear
-    place, else the one with fewest clashes.
+    up, then as far down, on the hole's own side first, then the other,
+    its leader at 45°, then 30° and 60° (a leader parallel to an earlier
+    one can pass under that one's text only at another slope): the text
+    stays near the view that holds the hole. No leader may cross another
+    view or a text on the sheet (busy, but the hole's own view, outline):
+    such a crossing counts double. area: the drawing area (x0, y0, x1, y1)
+    the text must stay in; block: the title block it must stay off. The
+    first clear place, else the one with fewest clashes.
     placed: earlier callouts as returned here (their "boxes" and "segs");
     returns {tip, elbow, tail, anchor, text, textAt, boxes, segs, clashes}."""
     best = None
     near_left = pa[0] <= (outline[0] + outline[2]) / 2
+    others = [o for o in busy if not _same_box(o, outline)]
     for extra in range(tries):
-        for left, slope in ((sd, sl) for sd in (near_left, not near_left) for sl in (45, 30, 60)):
-            tip, elbow, tail, anchor = callout_leader(pa, r, outline, k + extra, left, slope)
+        for down, left, slope in ((dn, sd, sl) for dn in (False, True) for sd in (near_left, not near_left) for sl in (45, 30, 60)):
+            tip, elbow, tail, anchor = callout_leader(pa, r, outline, k + extra, left, slope, down)
             t = (tail[0] + (1 if anchor == "start" else -1), tail[1] - 1, size, label, anchor)
             tb = sheets.text_box(t)
             at = ((tb[0] + tb[2]) / 2, (tb[1] + tb[3]) / 2)
@@ -1667,6 +1700,12 @@ def place_callout(pa, r, outline, k, label, busy, placed, size=3.0, tries=12):
             corner = (pb[2], pb[3]) if anchor == "end" else (pb[0], pb[3])
             segs = [(tip, elbow), (elbow, tail), (pa, corner)]
             clashes = sum(1 for b in boxes for o in busy if _boxes_hit(b, o))
+            # A leader across another view (the screenshot pass's iso view) or a text.
+            clashes += 2 * sum(1 for s1 in segs for o in others if _seg_box(s1[0], s1[1], o))
+            if area is not None and any(b[0] < area[0] or b[1] < area[1] or b[2] > area[2] or b[3] > area[3] for b in boxes):
+                clashes += 3  # off the drawing area
+            if block is not None:
+                clashes += 3 * sum(1 for b in boxes if _boxes_hit(b, block))
             for q in placed:
                 clashes += sum(1 for b in boxes for o in q["boxes"] if _boxes_hit(b, o))
                 clashes += sum(1 for s1 in segs for s2 in q["segs"] if _segs_cross(s1[0], s1[1], s2[0], s2[1]))
@@ -1912,7 +1951,7 @@ def drawing_make(s, a):
             # and of every callout before it (text boxes tested against each
             # other at the page's font, leaders never crossing).
                 busy = list(L["boxes"].values()) + [sheets.text_box(t) for t in sheet.texts]
-                co = place_callout(pa, dia / 2 * sv, L["boxes"][hv], k, label, busy, callouts)
+                co = place_callout(pa, dia / 2 * sv, L["boxes"][hv], k, label, busy, callouts, area=L.get("area"), block=L.get("block"))
                 callouts.append(co)
                 tip, elbow, tail, t = co["tip"], co["elbow"], co["tail"], co["text"]
                 sheet.line([tip, elbow, tail], "dim")

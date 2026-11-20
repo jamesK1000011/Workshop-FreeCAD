@@ -243,6 +243,8 @@ def hw_embed(s, a):
         "at": [x, y, z0], "turn": turn, "fit": fit, "floor": round(z0 - bed, 3), "top": round(top_rel, 3),
         "pauseZ": round(top_rel, 3), "layer": layer, "roof": roof, "note": note,
         "centre": [x, y, round((z0 + z1) / 2, 4)],
+        # The body's placement as embedded: dfm_check reads the pocket in the body's own frame.
+        "frame": [round(o.Placement.Base.x, 6), round(o.Placement.Base.y, 6), round(o.Placement.Base.z, 6), *(round(v, 9) for v in o.Placement.Rotation.Q)],
     }
     o.Shape = cut
     s.doc.recompute()

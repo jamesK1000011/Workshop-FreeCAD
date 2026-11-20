@@ -430,10 +430,89 @@ def frame_verdict(members):
     return "solved"
 
 
+# The frame dfm_check reads a part in: the body's own, +z of the body up (a
+# print setup's "up" is +z only). A body an assembly turned (its Placement)
+# is read as it is modelled, not in its assembled pose (desk-lamp test
+# drive, finding 7).
+FRAME_OWN = "the body's own frame: +z of the body up, as modelled"
+FRAME_MOVED = "the body's own frame: +z of the body up, as modelled (its Placement in the document, such as an assembly's pose, is left out)"
+
+
+def print_frame(body_obj):
+    """(shape, frame words, placement): the body's shape in its own frame,
+    the words that say so, and the placement taken out (None when there
+    was none to take out)."""
+    shape = body_obj.Shape
+    pl = getattr(body_obj, "Placement", None)
+    try:
+        moved = pl is not None and not pl.isIdentity()
+    except Exception:  # noqa: BLE001 — a stand-in without isIdentity: as it is
+        moved = False
+    if not moved:
+        return shape, FRAME_OWN, None
+    local = shape.copy()
+    local.Placement = pl.inverse().multiply(shape.Placement)
+    return local, FRAME_MOVED, pl
+
+
+def _rec_frame(rec, placement):
+    """The placement a record's coordinates are in: the body's when it was
+    embedded (the record's frame), else the body's now."""
+    f = rec.get("frame")
+    if isinstance(f, list) and len(f) == 7:
+        import FreeCAD
+
+        return FreeCAD.Placement(FreeCAD.Vector(*f[:3]), FreeCAD.Rotation(*f[3:]))
+    return placement
+
+
+def carried_tops(doc, body_obj, placement, shape):
+    """The tops of the pockets hw_embed made in the body, in the frame of
+    shape (print_frame's): [{ id, what, at [x, y, z], reach, area }]. After
+    the pause the part in the pocket carries the layers that close over
+    it, so a flat ceiling there is no bridge. A record whose pocket is
+    filled (an undo) is left out."""
+    import math
+
+    try:
+        import FreeCAD
+    except ImportError:
+        return []
+    out = []
+    for r in (records.read(doc, "embeds", {}) or {}).get(body_obj.Label, []) or []:
+        try:
+            x, y, z0 = (float(v) for v in r["at"])
+            top = z0 + float(r["top"]) - float(r["floor"])
+            sizes = [float(v) for v in r["pocket"]]
+            kind = r.get("shape")
+            frm = _rec_frame(r, placement)
+            inv = frm.inverse() if frm is not None else None
+
+            def here(v):
+                v = FreeCAD.Vector(*v)
+                return inv.multVec(v) if inv is not None else v
+
+            c = r.get("centre")
+            if c and shape.isInside(here(c), 1e-6, True):
+                continue  # filled again: no pocket there now
+            p = here((x, y, top))
+            if kind == "cyl":
+                reach, area = sizes[0] / 2, math.pi * (sizes[0] / 2) ** 2
+            elif kind == "hex":
+                reach, area = sizes[0] / math.sqrt(3), math.sqrt(3) / 2 * sizes[0] ** 2
+            else:
+                reach, area = math.hypot(sizes[0], sizes[1]) / 2, sizes[0] * sizes[1]
+        except (KeyError, TypeError, ValueError, IndexError):
+            continue
+        out.append({"id": r.get("id", "E?"), "what": r.get("what", "the part"), "at": [p.x, p.y, p.z], "reach": reach + 0.05, "area": area})
+    return out
+
+
 def dfm(doc, body_obj, waive=None, last=None):
     """The printability check of a body as it stands on the bed, its
-    print setup's rules. waive: {id, reason} of a finding of `last` (the
-    previous check's findings) to keep as waived."""
+    print setup's rules, in the body's own frame (print_frame). waive:
+    {id, reason} of a finding of `last` (the previous check's findings) to
+    keep as waived."""
     from . import printability
 
     waivers = records.waivers(doc)
@@ -444,8 +523,10 @@ def dfm(doc, body_obj, waive=None, last=None):
         waivers.append({"body": body_obj.Label, "rule": f["rule"], "at": f["at"], "reason": waive.get("reason") or "waived"})
         records.write(doc, "waivers", waivers)
     rules, setup = rules_of(doc, body_obj.Label)
-    out = printability.check(body_obj.Shape, rules, [x for x in waivers if x.get("body") == body_obj.Label])
+    shape, frame, pl = print_frame(body_obj)
+    out = printability.check(shape, rules, [x for x in waivers if x.get("body") == body_obj.Label], carried=carried_tops(doc, body_obj, pl, shape))
     out["body"] = body_obj.Label
+    out["frame"] = frame
     out["verdict"] = dfm_verdict(out.get("findings"))
     if setup:
         out["setup"] = f"{setup['name']} ({setup['id']})"

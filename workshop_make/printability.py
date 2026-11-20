@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# Is a part printable by FDM, as it stands on the bed (+z up): thin walls
+# Is a part printable by FDM, as it stands on the bed (+z up; api.print_frame
+# gives the body's own frame): thin walls
 # against the nozzle, overhangs past the angle, flat ceilings (bridges),
 # upright holes too small to come out open, too little on the bed, a part
 # too tall for its base, and the printer's build volume. Each finding has an
@@ -102,9 +103,24 @@ def wall(shape):
     return geo.least_wall(shape)
 
 
-def check(shape, rules, waived=(), min_area=1.0):
-    """The findings, worst first, and the wall read: { findings, wall, rules }."""
+def carried_by(region, carried, dz=0.1):
+    """The pocket top (api.carried_tops) a flat ceiling region closes over,
+    or None: the region at the pocket's top, inside its reach, and no larger
+    than it. The part in that pocket carries the ceiling after the pause."""
+    rx, ry, rz = region["at"]
+    for c in carried or ():
+        cx, cy, cz = c["at"]
+        if abs(rz - cz) <= dz and math.hypot(rx - cx, ry - cy) <= c["reach"] and region["area"] <= c["area"] * 1.1 + 1.0:
+            return c
+    return None
+
+
+def check(shape, rules, waived=(), min_area=1.0, carried=()):
+    """The findings, worst first, and the wall read: { findings, wall, rules }.
+    carried: the pocket tops of encased parts (api.carried_tops). A ceiling
+    over one is no finding; it comes back under "carried" as a note."""
     findings = []
+    notes = []
     bb = shape.BoundBox
     z0 = bb.ZMin
 
@@ -140,6 +156,11 @@ def check(shape, rules, waived=(), min_area=1.0):
 
     for r in _regions(shape, ceiling):
         if r["area"] >= min_area and r["span"] > rules["maxBridge"]:
+            by = carried_by(r, carried)
+            if by is not None:
+                notes.append({"rule": "bridge", "value": round(r["span"], 2), "at": [round(x, 2) for x in r["at"]], "areaMm2": round(r["area"], 1), "by": by["id"],
+                              "says": f"carried by {by['id']} after the pause: {by['what']} is in the pocket when the layers close over it, so this ceiling is no bridge"})
+                continue
             add("bridge", "warning", r["span"], rules["maxBridge"], "mm", r["at"], f"a flat ceiling about {r['span']:.1f} mm across, {r['area']:.0f} mm²: past the {rules['maxBridge']:.0f} mm bridge limit — support it, add a rib, or arch it", r["area"])
 
     # Upright holes too small to print open: a cylinder about +z, the
@@ -188,7 +209,10 @@ def check(shape, rules, waived=(), min_area=1.0):
             f["waived"] = w_.get("reason", "waived")
     for f in findings:
         f.pop("points", None)
-    return {"findings": findings, "wall": {"least": w.get("least"), "at": w.get("at"), "read": w.get("read"), **({"by": w["by"]} if w.get("by") else {})}, "rules": {k: v for k, v in rules.items() if k != "volume"}}
+    out = {"findings": findings, "wall": {"least": w.get("least"), "at": w.get("at"), "read": w.get("read"), **({"by": w["by"]} if w.get("by") else {})}, "rules": {k: v for k, v in rules.items() if k != "volume"}}
+    if notes:
+        out["carried"] = notes
+    return out
 
 
 def _waived_by(f, waived, near=1.5):
