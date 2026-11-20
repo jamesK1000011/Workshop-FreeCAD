@@ -51,25 +51,74 @@ def point(p, view):
     return (p.dot(X), p.dot(Y))
 
 
+def fit_circle(pts, tol=0.01, share=0.003):
+    """The circle through 2D points, when they lie on one: (cx, cy, r,
+    turn), turn the angle the points cover (radians), else None. Within tol
+    mm or share of the radius, whichever is more. A hole that enters a round
+    face (a pin through a forked round post) meets it in a 3D curve, not a
+    circle; seen along the hole's axis that curve lies on the circle of the
+    hole, but HLR gives it as a B-spline. Plain Python (Kasa's least squares)."""
+    pts = [(float(x), float(y)) for x, y in pts]
+    n = len(pts)
+    if n < 5:
+        return None
+    mx, my = sum(p[0] for p in pts) / n, sum(p[1] for p in pts) / n
+    q = [(x - mx, y - my) for x, y in pts]
+    suu = sum(u * u for u, _ in q)
+    svv = sum(v * v for _, v in q)
+    suv = sum(u * v for u, v in q)
+    suuu = sum(u ** 3 for u, _ in q)
+    svvv = sum(v ** 3 for _, v in q)
+    suvv = sum(u * v * v for u, v in q)
+    svuu = sum(v * u * u for u, v in q)
+    det = suu * svv - suv * suv
+    if abs(det) < 1e-12:
+        return None
+    bu, bv = 0.5 * (suuu + suvv), 0.5 * (svvv + svuu)
+    uc, vc = (bu * svv - bv * suv) / det, (bv * suu - bu * suv) / det
+    r = math.sqrt(uc * uc + vc * vc + (suu + svv) / n)
+    if r < 0.05:
+        return None
+    cx, cy = uc + mx, vc + my
+    if max(abs(math.hypot(x - cx, y - cy) - r) for x, y in pts) > max(tol, share * r):
+        return None
+    ang = sorted(math.atan2(y - cy, x - cx) for x, y in pts)
+    gaps = [b - a for a, b in zip(ang, ang[1:])] + [ang[0] + 2 * math.pi - ang[-1]]
+    turn = 2 * math.pi - max(gaps)
+    # A nearly straight run fits a huge circle: a curve must turn.
+    if turn < 0.3:
+        return None
+    if max(gaps) < 0.35:  # the points go all the way round
+        turn = 2 * math.pi
+    return cx, cy, r, turn
+
+
 def _polys(comp, kind, out, deflection, circles=None):
     if comp is None or comp.isNull():
         return
     for e in comp.Edges:
+        try:
+            pts = e.discretize(Deflection=deflection)
+        except Exception:  # a degenerate edge HLR left: nothing to draw
+            pts = []
         if circles is not None:
             # A round edge drawn (a hole seen end on, or an arc of one):
             # its centre and radius in the view, for callouts to land on.
             try:
                 cu = e.Curve
+                c = None
                 if type(cu).__name__ == "Circle" or isinstance(cu, Part.Circle):
                     c = (round(cu.Center.x, 4), round(cu.Center.y, 4), round(cu.Radius, 4))
-                    if c not in circles:
-                        circles.append(c)
+                elif type(cu).__name__ not in ("Line", "LineSegment") and len(pts) >= 5:
+                    # Drawn round but not a circle in the model (a hole's
+                    # rim on a round face): the circle its points lie on.
+                    f = fit_circle([(p.x, p.y) for p in e.discretize(Number=max(24, len(pts)))])
+                    if f is not None:
+                        c = (round(f[0], 4), round(f[1], 4), round(f[2], 4))
+                if c is not None and c not in circles:
+                    circles.append(c)
             except Exception:  # noqa: BLE001
                 pass
-        try:
-            pts = e.discretize(Deflection=deflection)
-        except Exception:  # a degenerate edge HLR left: nothing to draw
-            continue
         if len(pts) >= 2:
             out.append((kind, [(p.x, p.y) for p in pts]))
 

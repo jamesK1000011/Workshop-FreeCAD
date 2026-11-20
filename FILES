@@ -64,6 +64,7 @@ tests/documents/test_api.py
 tests/documents/test_drawing.py
 tests/documents/test_drawing_callout_views.py
 tests/documents/test_drawing_export_scene.py
+tests/documents/test_drawing_forked_hole.py
 tests/documents/test_drawing_page.py
 tests/documents/test_drawing_page_dims.py
 tests/documents/test_drawing_sheet_fit.py
