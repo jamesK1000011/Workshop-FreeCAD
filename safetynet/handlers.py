@@ -47,12 +47,39 @@ def history_restore(s, a):
 # ---- recovery -----------------------------------------------------------------------------
 
 
+LIST_LIMIT = 10
+
+
+def listed(rows, a):
+    """app_recover list's answer from listing()'s rows (newest first):
+    those whose name or label holds document (any case), at most limit of
+    them (10; 0 gives all), with the total and how many matched."""
+    limit = a.get("limit", LIST_LIMIT)
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit < 0:
+        raise bad("limit: how many documents to list, newest first (10 by default; 0 lists all).")
+    want = a.get("document")
+    if want is not None and (not isinstance(want, str) or not want.strip()):
+        raise bad("document: part of a document's name or label, to list only those.")
+    total = len(rows)
+    if want:
+        w = want.strip().lower()
+        rows = [r for r in rows if w in str(r.get("document", "")).lower() or w in str(r.get("label", "")).lower()]
+    shown = rows if limit == 0 else rows[:limit]
+    out = {"documents": shown, "total": total}
+    if want:
+        out["matched"] = len(rows)
+    if len(shown) < len(rows):
+        out["more"] = f"{len(rows) - len(shown)} more, older: limit {{ n }} lists more (0 lists all), document {{ text }} lists only names or labels with that text."
+    out["note"] = "action auto { documents } opens the newest good copy of each beside its file; accept { document } saves one over its file, after the person's approval (approve_file)."
+    return out
+
+
 def app_recover(s, a):
     import FreeCAD
 
     action = a.get("action", "list")
     if action == "list":
-        return {"documents": recovery.listing(), "note": "action auto { documents } opens the newest good copy of each beside its file; accept { document } saves one over its file, after the person's approval (approve_file)."}
+        return listed(recovery.listing(), a)
     if action == "auto":
         docs = a.get("documents")
         if not isinstance(docs, list) or not docs:

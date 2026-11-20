@@ -147,6 +147,7 @@ tests/safetynet/test_layout.py
 tests/safetynet/test_layout_placer.py
 tests/safetynet/test_macros.py
 tests/safetynet/test_pinned_free.py
+tests/safetynet/test_recover_list_limit.py
 tests/safetynet/test_recover_only_open.py
 tests/safetynet/test_restart_saved_unchanged.py
 tests/safetynet/test_store.py

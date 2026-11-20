@@ -176,7 +176,7 @@ class Recover(_Cmd):
     tip = "Open a saved copy of a document after a crash."
 
     def Activated(self):
-        r = call("app_recover", {"action": "list"})
+        r = call("app_recover", {"action": "list", "limit": 0})
         if r is None:
             return
         docs = r.get("documents") or []
