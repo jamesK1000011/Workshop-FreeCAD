@@ -42,9 +42,84 @@ SP = _Orca("presets")
 slicers = _Orca("cli")
 
 
+def _is_mesh(o):
+    """A mesh object (Mesh::Feature, or a Mesh::FeaturePython such as
+    Texturizer's Textured result): it has a Mesh and its type is Mesh's."""
+    return str(getattr(o, "TypeId", "")).startswith("Mesh::") and getattr(o, "Mesh", None) is not None
+
+
+def plate_item(s, ref):
+    """A body, or a mesh by its name, for the plate. A mesh goes on as it
+    is (no new triangles). An object that is neither is refused and named."""
+    try:
+        return s.body(ref)
+    except Exception as e:  # noqa: BLE001 — the host's refusal; a mesh or a named object is looked for below
+        if ref is None or getattr(e, "code", None) != "not_found":
+            raise
+        found = None
+        for x in getattr(s.doc, "Objects", None) or []:
+            if getattr(x, "Label", None) == ref or getattr(x, "Name", None) == ref or str(getattr(x, "Label", "")).lower() == str(ref).lower():
+                found = x
+                break
+        if found is None:
+            raise
+        if _is_mesh(found):
+            return found
+        raise ToolError("invalid_input", f"{found.Label} is a {getattr(found, 'TypeId', 'object')}, not a solid or a mesh: slice_with takes a body or a mesh (such as texture_apply's Textured object).")
+
+
+def source_of(s, o):
+    """The body a mesh was made from (Texturizer's Textured object: Source,
+    or SourceBody by name), else None. A body is its own source."""
+    if not _is_mesh(o):
+        return o
+    src = getattr(o, "Source", None)
+    if src is not None and getattr(src, "Label", None):
+        return src
+    name = getattr(o, "SourceBody", "") or ""
+    if name and hasattr(s.doc, "getObject"):
+        return s.doc.getObject(name)
+    return None
+
+
+def write_stl(o, path):
+    """o as an STL at path: a body is meshed at 0.01 mm deviation; a mesh
+    is written as it is, in its placement."""
+    if _is_mesh(o):
+        o.Mesh.write(path)
+        return
+    import MeshPart
+
+    MeshPart.meshFromShape(Shape=o.Shape, LinearDeflection=0.01, AngularDeflection=0.0873, Relative=False).write(path)
+
+
+def dropped_pauses(s, items, setup, why):
+    """The pauses that items would need alone, as a warning: with several on
+    one plate or with orient, none are written. None when there are none."""
+    lost = []
+    for b in items:
+        src = source_of(s, b)
+        if src is None:
+            continue
+        try:
+            own = store.setup_of(s.doc, src.Label, "print") or setup
+            ps = pauses_for(s, src, own)
+        except Exception:  # noqa: BLE001 — a body whose records cannot be read: nothing to say for it
+            ps = []
+        if ps:
+            lost.append((b.Label, ps))
+    if not lost:
+        return None
+    parts = "; ".join(f"{label}: {len(ps)} at z " + ", ".join("%g" % p["z"] for p in ps) + " mm" for label, ps in lost)
+    alone = " and ".join(f"slice_with {{ body: \"{label}\" }}" for label, _ in lost)
+    return (f"Pauses NOT written ({why}): {parts}. The print does not stop for the encased parts. "
+            f"To keep the pauses, slice that body alone, without orient: {alone}.")
+
+
 def slice_with(s, a):
-    others = [s.body(b) for b in (a.get("bodies") or [])]
-    o = others.pop(0) if others and not a.get("body") else s.body(a.get("body"))
+    others = [plate_item(s, b) for b in (a.get("bodies") or [])]
+    o = others.pop(0) if others and not a.get("body") else plate_item(s, a.get("body"))
+    src = source_of(s, o)
     name = (a.get("slicer") or "prusaslicer").lower()
     if name not in slicers.NAMES:
         raise ToolError("invalid_input", f"slicer: one of {', '.join(slicers.NAMES)}.")
@@ -52,9 +127,10 @@ def slice_with(s, a):
         cmd = gcodecheck.pause_command(a.get("pauseCommand"), slicers.PAUSE[name])
     except gcodecheck.PauseError as e:
         raise ToolError("invalid_input", str(e))
-    setup = store.setup_of(s.doc, o.Label, "print")
+    setup = store.setup_of(s.doc, o.Label, "print") or (store.setup_of(s.doc, src.Label, "print") if src is not None and src is not o else None)
     if not setup:
-        raise ToolError("invalid_state", f"{o.Label} is in no print setup: setup add {{ type: \"print\", bodies: [\"{o.Label}\"] }} once the person says it is printed.")
+        who = o.Label if src is None or src is o else f"{o.Label} (or its body {src.Label})"
+        raise ToolError("invalid_state", f"{who} is in no print setup: setup add {{ type: \"print\", bodies: [\"{o.Label}\"] }} once the person says it is printed.")
     profiles = a.get("profiles") or {}
     chosen = setup.get("slicerPresets")
     preset_note = None
@@ -80,19 +156,18 @@ def slice_with(s, a):
     given = str(a.get("material") or "").strip().lower()
     if given and given not in DENSITY:
         raise ToolError("invalid_input", f"material {a.get('material')!r}: a filament id, one of {', '.join(DENSITY)} (for this slice only; material_set records a body's own).")
-    mat = given or store.materials(s.doc).get(o.Label) or "pla"
+    mats = store.materials(s.doc)
+    mat = given or mats.get(o.Label) or (mats.get(src.Label) if src is not None else None) or "pla"
     settings["filament"] = mat.split("-")[0]
     settings["density"] = DENSITY.get(mat, 1.24)
     settings["volume"] = printability.PRINTERS.get(setup.get("printer") or "generic", printability.PRINTERS["generic"])
-    import MeshPart
-
     base = os.path.join(s.out_dir, a.get("name") or f"{o.Label.replace(' ', '_')}-{name}")
     stl, gcode = base + ".stl", base + ".gcode"
-    MeshPart.meshFromShape(Shape=o.Shape, LinearDeflection=0.01, AngularDeflection=0.0873, Relative=False).write(stl)
+    write_stl(o, stl)
     stls = [stl]
     for k, b in enumerate(x for x in others if x is not o):
         p = f"{base}-{k + 2}.stl"
-        MeshPart.meshFromShape(Shape=b.Shape, LinearDeflection=0.01, AngularDeflection=0.0873, Relative=False).write(p)
+        write_stl(b, p)
         stls.append(p)
     options = {k: bool(a.get(k)) for k in ("orient", "arrange") if a.get(k)}
     if a.get("overrides"):
@@ -110,8 +185,13 @@ def slice_with(s, a):
     except RuntimeError as e:
         raise ToolError("failed", str(e))
     read = slicers.read_gcode(gcode)
-    # Pauses are a body's own heights: with several on a plate (and moved by orient), none written.
-    want = pauses_for(s, o, setup) if len(stls) == 1 and not a.get("orient") else []
+    # Pauses are a body's own heights: with several on a plate (and moved by orient), none written,
+    # and the answer says which were dropped and how to keep them (desk-lamp test drive, finding 10).
+    # A mesh made from a body (a Textured result) takes that body's pauses: its heights are the body's.
+    alone = len(stls) == 1 and not a.get("orient")
+    want = pauses_for(s, src, setup) if alone and src is not None else []
+    lost = None if alone else dropped_pauses(s, [o] + [b for b in others if b is not o], setup,
+                                             "several bodies on one plate" if len(stls) > 1 else "orient turns the body")
     done = slicers.insert_pauses(gcode, want, cmd) if want else []
     out = {
         "body": o.Label, "slicer": name, "exe": os.path.basename(exe), "profiles": f"the person's presets: {preset_note}" if preset_note else used, "gcode": gcode, "bytes": os.path.getsize(gcode),
@@ -127,11 +207,16 @@ def slice_with(s, a):
         out["bodies"] = [o.Label] + [b.Label for b in others if b is not o]
     if options.get("project") and os.path.exists(options["project"]):
         out["project"] = options["project"]
+    if _is_mesh(o):
+        out["mesh"] = f"{o.Label} went on the plate as a mesh, as it is (no new triangles)."
     if want:
         out["pauses"] = done
         out["pauseCommand"] = cmd
         if len(done) < len(want):
             out["warning"] = f"{len(want) - len(done)} pause(s) not written: the G-code has no layer above them — check the part's height and the layer marks."
+    if lost:
+        out["pauses"] = []
+        out["warning"] = lost
     out["note"] = ("Profiles written from the print setup, the slicer's defaults for the rest: the person's own presets (slicer_presets use) are the authority. " if used in ("written", "setup") and not preset_note else "") + "Starting the print is the person's call."
     return out
 

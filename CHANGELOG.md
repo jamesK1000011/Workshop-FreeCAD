@@ -11,6 +11,19 @@ Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
 
 ## [Unreleased]
 
+### Fixed
+
+- `slice_with` takes a mesh: a `Mesh::Feature` (such as the Textured object of `texture_apply`) goes on the plate as it is, with no new triangles, in its placement. It takes the print setup, the material and the pauses of its source body when it has none of its own; `setup add` and `setup set` take a mesh too. An object that is neither a solid nor a mesh is refused, by its type. The answer says `mesh`. (Desk-lamp test drive, finding 5.)
+- `slice_with` with several bodies or with `orient` writes no pauses (the heights are those of one body as modelled). The answer now says it: `warning` names each pause dropped (body, count, z) and the call to keep it, `slice_with { body }` alone without orient. (Finding 10.)
+- `dfm_check` and `part_review` read a body in its own frame, +z of the body up, as modelled: a Placement (an assembly's pose) is left out. Bed contact and tall-thin use that frame; `frame` in the answer says which frame was used. (Finding 7.)
+- `dfm_check` and `part_review` read the `hw_embed` records: a flat ceiling over an embed's pocket is no bridge, because the part carries the layers after the pause. It comes back under `carried` ("carried by E1 after the pause"). New embed records keep the body's placement (`frame`). (Finding 8.)
+- `drawing_make` hole callouts: the text stays near the view that holds the hole (up, then down from it, 6 mm a try); no leader crosses another view or a text on the sheet; the text stays in the drawing area and off the title block. (Screenshot pass, finding 2; test drive, finding 13.)
+
+### Changed
+
+- `drawing_make`'s tool card is about 600 words, not about 2,000: inputs, traps, refusals and the main answer keys. The keys of `page` and `timing` and the behaviour in full are the guide section `drawing_make in full` (`guide_read { topic: "drawing", section: "drawing_make in full" }`), which the card names. `scripts/ste_check.py` finds a card's facts in its guide section (`GUIDE_SECTIONS`), so nothing of the text is lost. Every other Workshop card is under 800 words. (Finding 14; screenshot pass, finding 6.)
+- Tests: `tests/make/test_lamp_findings.py`, `tests/documents/test_drawing_callout_views.py`.
+
 ## [1.0.0] - 2026-11-19
 
 The first tagged release (V1). Workshop puts its features in the FreeCAD workbench where they belong.

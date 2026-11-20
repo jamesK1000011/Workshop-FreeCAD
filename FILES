@@ -62,6 +62,7 @@ tests/_narrowqt.py
 tests/documents/_stubs.py
 tests/documents/test_api.py
 tests/documents/test_drawing.py
+tests/documents/test_drawing_callout_views.py
 tests/documents/test_drawing_export_scene.py
 tests/documents/test_drawing_page.py
 tests/documents/test_drawing_page_dims.py
@@ -107,6 +108,7 @@ tests/make/test_frame.py
 tests/make/test_gui_text.py
 tests/make/test_handlers.py
 tests/make/test_icons.py
+tests/make/test_lamp_findings.py
 tests/make/test_layout.py
 tests/make/test_layout_placer.py
 tests/make/test_mass.py

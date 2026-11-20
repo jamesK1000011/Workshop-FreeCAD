@@ -42,6 +42,10 @@ PY_SOURCES = ("workshop_parts/fam_parts.py", "safetynet/fam_history.py", "safety
 GUARDS = {"copy": r"\bcop(?:y|ies|ied)\b", "undo": r"\bundo", "refuse": r"\brefus", "never": r"\bnever\b", "only": r"\bonly\b",
           "must": r"\bmust\b", "approval": r"\bapprov", "restart": r"\brestart", "sign-off": r"\bsign[- ]?off", "feasibility": r"\bfeasib"}
 UNITS = r"(?:mm³|mm²|mm/s|mm|cm|µm|um|m|in|deg|°C|°|N·m|Nm|N|MPa|GPa|kPa|Pa|ms|s|min|h|%|px|kB|KB|MB|GB|kg|g|W|V|A|Hz|K)"
+# A card whose long part went to a guide section (guide_read): the facts of
+# the original may be in the card or in that section, and the card must name
+# the section. {tool: (guide file, section name)}.
+GUIDE_SECTIONS = {"drawing_make": ("workshop_documents/guides/drawing.md", "drawing_make in full")}
 # (tool, kind, item): reason. kind is "number", "unit", "unitword", "input",
 # "tool", "code", "guard" or "sentence" (item: the sentence's first words).
 WAIVERS = {}
@@ -281,6 +285,23 @@ def _waived(tool, kind, item):
     return (tool, kind, item) in WAIVERS
 
 
+def guide_section(name):
+    """The text of the guide section a card points to (GUIDE_SECTIONS), or
+    None: no section is named, or the guide has no such section."""
+    if name not in GUIDE_SECTIONS:
+        return None
+    rel, sec = GUIDE_SECTIONS[name]
+    path = os.path.join(ROOT, rel)
+    if not os.path.exists(path):
+        return None
+    text = open(path, encoding="utf-8").read()
+    for part in re.split(r"(?m)^## ", text)[1:]:
+        head, _, body = part.partition("\n")
+        if head.strip() == sec:
+            return re.sub(r"<!--.*?-->", " ", body, flags=re.S)
+    return None
+
+
 def preservation(descs, originals):
     faults = []
     names = set(originals.get("toolNames", [])) | set(descs)
@@ -289,6 +310,14 @@ def preservation(descs, originals):
             faults.append((name, "tool", "the tool is gone"))
             continue
         old, new = o["description"], descs[name]["description"]
+        if name in GUIDE_SECTIONS:
+            sec = guide_section(name)
+            if sec is None:
+                faults.append((name, "guide", f"no section {GUIDE_SECTIONS[name][1]!r} in {GUIDE_SECTIONS[name][0]}"))
+                continue
+            if GUIDE_SECTIONS[name][1] not in new:
+                faults.append((name, "guide", f"the card does not name its guide section {GUIDE_SECTIONS[name][1]!r}"))
+            new = new + " " + " ".join(sec.split())
         lost = [("number", x) for x in sorted(_numbers(old) - _numbers(new))]
         lost += [("unit", x) for x in sorted(_units(old) - _units(new))]
         lost += [("guard", x) for x in sorted(_guards(old) - _guards(new))]
