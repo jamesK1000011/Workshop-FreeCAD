@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        series: ['1.1', '1.0']
+        series: ['1.1']
     name: freecad-${{ matrix.series }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
