@@ -10,7 +10,7 @@
   <url type="repository" branch="main">https://github.com/jamesK1000011/Workshop-FreeCAD</url>
   <url type="bugtracker">https://github.com/jamesK1000011/Workshop-FreeCAD/issues</url>
   <url type="readme">https://github.com/jamesK1000011/Workshop-FreeCAD/blob/main/README.md</url>
-  <freecadmin>1.0.0</freecadmin>
+  <freecadmin>1.1.0</freecadmin>
   <icon>workshop_make/icons/Workshop_Make_Workbench.svg</icon>
   <tag>3D printing</tag>
   <tag>Gridfinity</tag>

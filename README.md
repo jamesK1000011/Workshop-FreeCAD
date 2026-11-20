@@ -52,7 +52,7 @@ and copies none of it. Without Fasteners none of this shows. Notes:
 
 ## What you need
 
-- FreeCAD 1.0 or newer (1.1 recommended).
+- FreeCAD 1.1 or newer.
 - Optional: [Agent Link for FreeCAD](https://github.com/jamesK1000011/AgentLink-FreeCAD) and an MCP client (for example Claude Desktop), so that an agent can use Workshop.
 - Optional: a slicer (OrcaSlicer, Bambu Studio or PrusaSlicer) for slicing, KiCad files for boards, and [Fasteners Workbench](https://github.com/shaise/FreeCAD_FastenersWB) for screws.
 

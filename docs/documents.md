@@ -23,7 +23,7 @@ You do not need to know Python or TechDraw. You do not need an agent.
 
 ## Install
 
-You need FreeCAD 1.0 or newer.
+You need FreeCAD 1.1 or newer.
 
 **With the Addon Manager (custom repository).** This installs all four
 Workshop add-ons (Parts, Make, Electronics, Documents) together.
