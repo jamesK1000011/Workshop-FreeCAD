@@ -101,15 +101,21 @@ class OwnNodes(unittest.TestCase):
         # von Mises agrees with the stress along the member (the post's 200 MPa is not the arm's)
         self.assertAlmostEqual(arm["vonMisesMPa"], SIGMA, delta=0.01 * SIGMA)
         self.assertLessEqual(arm["vonMisesMPa"], max(abs(lo), abs(hi)) * 1.05)
+        self.assertEqual(arm["stressFrom"], "section forces")
         post = next(r for r in res["members"] if r["member"] == "Post")
-        self.assertAlmostEqual(post["vonMisesMPa"], 200.0, places=3)
+        self.assertAlmostEqual(post["solidNodesMPa"]["vonMises"], 200.0, places=3)  # the post's own nodes only
+        # the post by its section forces: 100 N down the post and P·L = 50,000 N·mm along it
+        a, i = math.pi * 20 ** 2, math.pi * 40 ** 4 / 64
+        lo, hi = post["axialBendingMPa"]
+        self.assertAlmostEqual(lo, -P / a - P * L * 20 / i, delta=0.01)
+        self.assertAlmostEqual(hi, -P / a + P * L * 20 / i, delta=0.01)
 
     def test_the_old_reach_took_the_neighbours_nodes(self):
         _text, book = book_of()
         frd = frd_of(book)
         without = frd[:frd.index("    3C")] + frd[frd.index("  100CL  101"):]  # no element block: the old way
         arm = next(r for r in FR.read_results(book, without, "")["members"] if r["member"] == "Arm")
-        self.assertGreater(arm["vonMisesMPa"], 150)  # the post's stress, as the runs saw it
+        self.assertGreater(arm["solidNodesMPa"]["vonMises"], 150)  # the post's stress, as the runs saw it
         self.assertLess(arm["axialBendingMPa"][1], SIGMA * 1.01)
 
     def test_elements_read(self):
@@ -148,6 +154,66 @@ class Sections(unittest.TestCase):
             with self.assertRaises(ValueError) as e:
                 FR.section_props(sec)
             self.assertIn(words, str(e.exception), sec)
+
+
+class SectionForces(unittest.TestCase):
+    """Bicycle runs (21 Nov), later finding 2: a cantilever L 47, circ d 26,
+    500 N at the tip read 12.78 MPa along it and 10.61 von Mises from the
+    expanded nodes against M·c/I = 13.62 at the root. The beams are solved
+    again for their section forces: the stresses against the hand figures."""
+
+    def solve(self, members, supports, loads):
+        _t, book = FR.build(members, supports, loads, None, 8, 1.0)
+        return FR.section_forces(book)
+
+    def cantilever(self, sec, L_=47.0, F=500.0):
+        got = self.solve([{"name": "A", "from": [0, 0, 0], "to": [L_, 0, 0], "section": sec, "E": 210000.0, "nu": 0.3}],
+                         [{"at": [0, 0, 0], "kind": "fixed"}], [{"at": [L_, 0, 0], "force": [0, 0, -F]}])
+        return got["A"]
+
+    def test_cantilever_every_kind_against_m_c_over_i(self):
+        for sec in ({"kind": "circ", "d": 26}, {"kind": "pipe", "d": 28.6, "t": 2}, {"kind": "rect", "b": 20, "d": 40}, {"kind": "box", "b": 40, "d": 60, "t": 3}):
+            _a, i, c, _ = FR.section_props(sec)
+            hand = 500 * 47 * c / i
+            r = self.cantilever(sec)
+            self.assertAlmostEqual(r["hi"], hand, delta=0.005 * hand, msg=sec)
+            self.assertAlmostEqual(r["lo"], -hand, delta=0.005 * hand, msg=sec)
+            self.assertGreaterEqual(r["vm"], hand * 0.999, sec)  # no shear at the outer fibre: von Mises is the bending there
+            self.assertLessEqual(r["vm"], hand * 1.03, sec)
+            self.assertEqual(r["at"], 0)  # at the root
+            self.assertAlmostEqual(abs(r["forces"]["My"]), 23500.0, delta=0.5)
+        self.assertAlmostEqual(self.cantilever({"kind": "circ", "d": 26})["hi"], 13.62, delta=0.01)
+
+    def test_torsion_joins_the_bending_in_von_mises(self):
+        # an L: A along x, B along y from its end, 200 N down at B's end: A takes 200·50 N·mm torque and 200·100 at its root
+        got = self.solve([{"name": "A", "from": [0, 0, 0], "to": [100, 0, 0], "section": {"kind": "circ", "d": 20}, "E": 210000.0},
+                          {"name": "B", "from": [100, 0, 0], "to": [100, 50, 0], "section": {"kind": "circ", "d": 20}, "E": 210000.0}],
+                         [{"at": [0, 0, 0], "kind": "fixed"}], [{"at": [100, 50, 0], "force": [0, 0, -200]}])
+        i, j = math.pi * 20 ** 4 / 64, math.pi * 20 ** 4 / 32
+        sig, tau = 200 * 100 * 10 / i, 200 * 50 * 10 / j
+        a = got["A"]
+        self.assertAlmostEqual(a["hi"], sig, delta=0.005 * sig)
+        self.assertAlmostEqual(abs(a["forces"]["T"]), 10000.0, delta=1)
+        self.assertAlmostEqual(a["vm"], math.sqrt(sig ** 2 + 3 * tau ** 2), delta=0.005 * sig)
+
+    def test_beams_with_a_load_along_them(self):
+        w, L_ = 1.0, 1000.0
+        sec = {"kind": "rect", "b": 20, "d": 40}
+        z = 20 * 40 ** 2 / 6  # W of the rect
+        m = [{"name": "A", "from": [0, 0, 0], "to": [L_, 0, 0], "section": sec, "E": 210000.0}]
+        fixed = self.solve(m, [{"at": [0, 0, 0], "kind": "fixed"}, {"at": [L_, 0, 0], "kind": "fixed"}], [{"member": "A", "w": [0, 0, -w]}])
+        self.assertAlmostEqual(fixed["A"]["hi"], w * L_ ** 2 / 12 / z, delta=0.005 * w * L_ ** 2 / 12 / z)
+        simple = self.solve(m, [{"at": [0, 0, 0], "kind": "pinned"}, {"at": [L_, 0, 0], "kind": "roller"}], [{"member": "A", "w": [0, 0, -w]}])
+        self.assertAlmostEqual(simple["A"]["hi"], w * L_ ** 2 / 8 / z, delta=0.005 * w * L_ ** 2 / 8 / z)
+        self.assertAlmostEqual(simple["A"]["at"], L_ / 2, delta=1)
+
+    def test_a_column_in_compression(self):
+        sec = {"kind": "pipe", "d": 40, "t": 3}
+        a = FR.section_props(sec)[0]
+        got = self.solve([{"name": "C", "from": [0, 0, 0], "to": [0, 0, 1000], "section": sec, "E": 210000.0}],
+                         [{"at": [0, 0, 0], "kind": "fixed"}], [{"at": [0, 0, 1000], "force": [0, 0, -1000]}])
+        self.assertAlmostEqual(got["C"]["lo"], -1000 / a, delta=0.001)
+        self.assertAlmostEqual(got["C"]["forces"]["N"], -1000, delta=0.01)
 
 
 if __name__ == "__main__":

@@ -152,7 +152,8 @@ def build(members, supports, loads, gravity=None, n=8, tol=1.0):
         n1 = orient(t)
         lines_sec += [f"*ELSET, ELSET=B{k + 1}", ccx_io._rows(es), f"*BEAM SECTION, ELSET=B{k + 1}, MATERIAL={mname}, SECTION={stype}", sline, f"{n1[0]:.6f}, {n1[1]:.6f}, {n1[2]:.6f}"]
         mem.append({"name": m.get("name") or f"M{k + 1}", "nodes": ids, "a": a, "b": b, "t": t, "L": L, "A": A, "I": I, "c": cmax, "elements": es,
-                    "rho": float(m.get("rho", 0)), "E": float(m["E"])})
+                    "rho": float(m.get("rho", 0)), "E": float(m["E"]), "nu": float(m.get("nu", 0.3)), "section": dict(m["section"]), "n1": n1,
+                    "w": [0.0, 0.0, 0.0]})
     byname = {m["name"]: m for m in mem}
 
     def addload(node, f):
@@ -160,7 +161,11 @@ def build(members, supports, loads, gravity=None, n=8, tol=1.0):
         for c in range(3):
             acc[c] += f[c]
 
+    points = {}
+
     def along(m, w):
+        for c in range(3):
+            m["w"][c] += w[c]
         le = m["L"] / n
         for e in range(n):
             a_, mid, c_ = m["nodes"][2 * e], m["nodes"][2 * e + 1], m["nodes"][2 * e + 2]
@@ -183,6 +188,9 @@ def build(members, supports, loads, gravity=None, n=8, tol=1.0):
             if j is None:
                 raise ValueError(f"load at {p}: no joint there (loads go on member ends or along members)")
             addload(jnode[j], [float(x) for x in ld["force"]])
+            acc = points.setdefault(jnode[j], [0.0, 0.0, 0.0])
+            for c in range(3):
+                acc[c] += float(ld["force"][c])
             applied += _norm(ld["force"])
     if gravity is not None:
         for m in mem:
@@ -236,7 +244,11 @@ def build(members, supports, loads, gravity=None, n=8, tol=1.0):
     for name, _, _, _ in sup_sets:
         out += [f"*NODE PRINT, NSET={name}, TOTALS=ONLY", "RF"]
     out += ["*END STEP", ""]
-    return "\n".join(out), {"members": mem, "supports": sup_sets, "applied": applied, "nodal": loads_c}
+    held = []
+    for ln in sup_lines:
+        nd, d0, d1 = (int(x) for x in ln.split(","))
+        held += [(nd, d) for d in range(d0, d1 + 1)]
+    return "\n".join(out), {"members": mem, "supports": sup_sets, "applied": applied, "nodal": loads_c, "points": points, "held": held, "xyz": node_xyz}
 
 
 def read_coords(frd):
@@ -295,7 +307,7 @@ def solve(ccx, workdir, members, supports, loads, gravity=None, n=8, timeout=300
     if os.path.isfile(os.path.join(workdir, "frame.dat")):
         with open(os.path.join(workdir, "frame.dat")) as f:
             dat = f.read()
-    return read_results(book, frd, dat, workdir)
+    return read_results(book, frd, dat, workdir, gravity)
 
 
 def read_elements(frd):
@@ -348,13 +360,16 @@ def member_nodes(m, els, xyz):
     return out
 
 
-def read_results(book, frd, dat, workdir=""):
+def read_results(book, frd, dat, workdir="", gravity=None):
     """The answer from CalculiX's files: each member's stress along it, von
-    Mises, deflection; each support's reaction (pure Python)."""
+    Mises, deflection; each support's reaction. The stresses come from the
+    section forces (section_forces) where the beams solve here; else from
+    the expanded solids' nodes."""
     disp, stress = ccx_io.read_frd(frd)
     xyz = read_coords(frd)
     els = read_elements(frd)
     reac = read_reactions(dat)
+    sf = section_forces(book, gravity) if book.get("xyz") else None
     rows = []
     for m in book["members"]:
         ns = member_nodes(m, els, xyz)
@@ -377,9 +392,18 @@ def read_results(book, frd, dat, workdir=""):
             d = [d[c] - m["t"][c] * _dot(d, m["t"]) for c in range(3)]
             rel = max(rel, _norm(d))
             tot = max(tot, _norm(u))
-        rows.append({"member": m["name"], "length": round(m["L"], 1), "axialBendingMPa": [round(min(sig), 3), round(max(sig), 3)] if sig else None,
-                     "vonMisesMPa": round(max(vm), 3) if vm else None, "deflectionMm": round(rel, 3), "spanOverDeflection": round(m["L"] / rel) if rel > 1e-9 else None,
-                     "movesMm": round(tot, 3)})
+        row = {"member": m["name"], "length": round(m["L"], 1), "axialBendingMPa": [round(min(sig), 3), round(max(sig), 3)] if sig else None,
+               "vonMisesMPa": round(max(vm), 3) if vm else None, "deflectionMm": round(rel, 3), "spanOverDeflection": round(m["L"] / rel) if rel > 1e-9 else None,
+               "movesMm": round(tot, 3), "stressFrom": "solid nodes"}
+        got = (sf or {}).get(m["name"])
+        if got:
+            f = got["forces"]
+            if sig or vm:
+                row["solidNodesMPa"] = {"axialBending": row["axialBendingMPa"], "vonMises": row["vonMisesMPa"]}
+            row.update({"axialBendingMPa": [round(got["lo"], 3), round(got["hi"], 3)], "vonMisesMPa": round(got["vm"], 3), "stressFrom": "section forces",
+                        "sectionForces": {"atMm": round(got["at"], 2), "axialN": round(f["N"], 2), "shearN": round(math.hypot(f["Vy"], f["Vz"]), 2),
+                                          "torqueNmm": round(f["T"], 1), "momentNmm": round(math.hypot(f["My"], f["Mz"]), 1)}})
+        rows.append(row)
     # what the support gives: CalculiX's reaction, plus the load laid right on
     # the supported node (it goes straight into the support)
     sups = []
@@ -396,4 +420,196 @@ def read_results(book, frd, dat, workdir=""):
         out["reactionsNote"] = (f"the reactions add to {[round(x, 1) for x in got]} N against {[round(-x, 1) for x in tot]} N of load: "
                                 "CalculiX reads beam supports short here — use the load total, and member stresses, which are sound")
     out["loadTotalN"] = [round(x, 1) for x in tot]
+    return out
+
+
+# ---- section forces by the beam solution (bicycle runs, 21 Nov 2026) -------------------
+# A cantilever L 47, circ d 26, 500 N at the tip: M·c/I is 13.62 MPa at the
+# root, but the expanded solids' nodes read 12.78 along it and 10.61 von
+# Mises. CalculiX expands a round section into a block of 20-node solids,
+# so its nodes are not on the outer fibre, and its own SECTION FORCES output
+# replaces the stresses and is said to be unsound. Thus the frame is solved
+# again here as beams (Euler-Bernoulli, 6 freedoms a node, the same nodes,
+# supports and loads as the deck) for the forces in each section, and the
+# stress is N/A ± M/W with the section's own W.
+
+def section_stiffness(sec):
+    """{A, Iy, Iz, J} in mm, mm⁴ about the section's own axes: y is the
+    1-direction (across, the width b), z the 2-direction (the depth d)."""
+    k = sec.get("kind", "rect")
+    z = section_check(sec)
+    if k == "circ":
+        d = z["d"]
+        i = math.pi * d ** 4 / 64
+        return {"A": math.pi * d * d / 4, "Iy": i, "Iz": i, "J": 2 * i}
+    if k == "pipe":
+        do, di = z["d"], z["d"] - 2 * z["t"]
+        i = math.pi * (do ** 4 - di ** 4) / 64
+        return {"A": math.pi * (do * do - di * di) / 4, "Iy": i, "Iz": i, "J": 2 * i}
+    if k == "rect":
+        b, d = z["b"], z["d"]
+        a_, c_ = max(b, d), min(b, d)
+        j = a_ * c_ ** 3 * (1 / 3 - 0.21 * (c_ / a_) * (1 - c_ ** 4 / (12 * a_ ** 4)))
+        return {"A": b * d, "Iy": b * d ** 3 / 12, "Iz": d * b ** 3 / 12, "J": j}
+    b, d, t = z["b"], z["d"], z["t"]
+    am = (b - t) * (d - t)
+    return {"A": b * d - (b - 2 * t) * (d - 2 * t), "Iy": (b * d ** 3 - (b - 2 * t) * (d - 2 * t) ** 3) / 12,
+            "Iz": (d * b ** 3 - (d - 2 * t) * (b - 2 * t) ** 3) / 12, "J": 4 * am * am * t / (2 * ((b - t) + (d - t)))}
+
+
+def section_stress(sec, f):
+    """(σ min, σ max, von Mises) in MPa for the section forces f { N, Vy, Vz,
+    T, My, Mz } (N, N·mm). σ = N/A ± M/W at the outer fibre (a round:
+    the resultant moment; a rect or box: the corner). von Mises: the outer
+    fibre with the torsion shear, or the neutral axis with the torsion and
+    the transverse shear, the larger."""
+    k = sec.get("kind", "rect")
+    z = section_check(sec)
+    p = section_stiffness(sec)
+    a = p["A"]
+    n_a = f["N"] / a
+    v = math.hypot(f["Vy"], f["Vz"])
+    t_ = abs(f["T"])
+    if k in ("circ", "pipe"):
+        r = z["d"] / 2
+        bend = math.hypot(f["My"], f["Mz"]) * r / p["Iy"]
+        tau_t = t_ * r / p["J"]
+        tau_v = (4 * v / (3 * a)) if k == "circ" else 2 * v / a
+    elif k == "rect":
+        b, d = z["b"], z["d"]
+        bend = abs(f["My"]) * (d / 2) / p["Iy"] + abs(f["Mz"]) * (b / 2) / p["Iz"]
+        a_, c_ = max(b, d), min(b, d)
+        tau_t = t_ * (3 * a_ + 1.8 * c_) / (a_ * a_ * c_ * c_)
+        tau_v = 1.5 * v / a
+    else:
+        b, d, t = z["b"], z["d"], z["t"]
+        bend = abs(f["My"]) * (d / 2) / p["Iy"] + abs(f["Mz"]) * (b / 2) / p["Iz"]
+        tau_t = t_ / (2 * t * (b - t) * (d - t))
+        tau_v = abs(f["Vz"]) / (2 * t * d) + abs(f["Vy"]) / (2 * t * b)
+    lo, hi = n_a - bend, n_a + bend
+    vm = max(math.sqrt(max(abs(lo), abs(hi)) ** 2 + 3 * tau_t ** 2), math.sqrt(n_a ** 2 + 3 * (tau_t + tau_v) ** 2))
+    return lo, hi, vm
+
+
+def _local_k(E, G, s, L):
+    import numpy as np
+
+    k = np.zeros((12, 12))
+    ea, gj = E * s["A"] / L, G * s["J"] / L
+    k[0, 0] = k[6, 6] = ea
+    k[0, 6] = k[6, 0] = -ea
+    k[3, 3] = k[9, 9] = gj
+    k[3, 9] = k[9, 3] = -gj
+    for (v1, r1, v2, r2, i, sg) in ((1, 5, 7, 11, s["Iz"], 1.0), (2, 4, 8, 10, s["Iy"], -1.0)):
+        a12, a6, a4, a2 = 12 * E * i / L ** 3, 6 * E * i / L ** 2, 4 * E * i / L, 2 * E * i / L
+        ent = {(v1, v1): a12, (v1, r1): sg * a6, (v1, v2): -a12, (v1, r2): sg * a6,
+               (r1, r1): a4, (r1, v2): -sg * a6, (r1, r2): a2,
+               (v2, v2): a12, (v2, r2): -sg * a6, (r2, r2): a4}
+        for (p_, q), val in ent.items():
+            k[p_, q] = k[q, p_] = val
+    return k
+
+
+def _fixed_end(q, L):
+    """The equivalent nodal loads (local) of a load q [qx, qy, qz] N/mm along the element."""
+    qx, qy, qz = q
+    return [qx * L / 2, qy * L / 2, qz * L / 2, 0.0, -qz * L * L / 12, qy * L * L / 12,
+            qx * L / 2, qy * L / 2, qz * L / 2, 0.0, qz * L * L / 12, -qy * L * L / 12]
+
+
+SECTION_DOF_LIMIT = 30000
+
+
+def section_forces(book, gravity=None):
+    """{member: {"lo", "hi", "vm", "at", "forces"}}: the frame solved as
+    beams on the deck's own end and mid nodes, the forces at each element
+    end, and the section's worst point along the member. None when it cannot
+    be solved here (no numpy, too many freedoms, a mechanism)."""
+    try:
+        import numpy as np
+    except ImportError:
+        return None
+    mem = book["members"]
+    nodes = []
+    for m in mem:
+        for nd in m["nodes"]:
+            if nd not in nodes:
+                nodes.append(nd)
+    idx = {nd: i for i, nd in enumerate(nodes)}
+    ndof = 6 * len(nodes)
+    if ndof > SECTION_DOF_LIMIT:
+        return None
+    try:
+        from scipy import sparse
+        from scipy.sparse.linalg import spsolve
+    except ImportError:
+        sparse = None
+        if ndof > 6000:
+            return None
+    rows, cols, vals = [], [], []
+    F = np.zeros(ndof)
+    elems = []
+    for m in mem:
+        s = section_stiffness(m["section"])
+        G = m["E"] / (2 * (1 + m.get("nu", 0.3)))
+        x = np.array(m["t"])
+        y = np.array(m["n1"])
+        zz = np.cross(x, y)
+        R = np.vstack([x, y, zz])
+        T = np.zeros((12, 12))
+        for b in range(4):
+            T[3 * b:3 * b + 3, 3 * b:3 * b + 3] = R
+        w = list(m.get("w") or [0.0, 0.0, 0.0])
+        if gravity is not None and m.get("rho"):
+            q = m["rho"] * 1e-12 * m["A"]
+            w = [w[c] + gravity[c] * q for c in range(3)]
+        ql = list(R @ np.array(w))
+        for e in range(len(m["nodes"]) - 1):
+            a_, b_ = m["nodes"][e], m["nodes"][e + 1]
+            pa, pb = book["xyz"][a_], book["xyz"][b_]
+            L = _norm(_sub(pb, pa))
+            kl = _local_k(m["E"], G, s, L)
+            kg = T.T @ kl @ T
+            fe = np.array(_fixed_end(ql, L))
+            dofs = [6 * idx[a_] + i for i in range(6)] + [6 * idx[b_] + i for i in range(6)]
+            F[dofs] += T.T @ fe
+            for i in range(12):
+                for j in range(12):
+                    if kg[i, j] != 0.0:
+                        rows.append(dofs[i])
+                        cols.append(dofs[j])
+                        vals.append(kg[i, j])
+            elems.append((m["name"], kl, T, fe, dofs, sum(_norm(_sub(book["xyz"][m["nodes"][i + 1]], book["xyz"][m["nodes"][i]])) for i in range(e)), L))
+    for nd, f in (book.get("points") or {}).items():
+        if nd in idx:
+            F[6 * idx[nd]:6 * idx[nd] + 3] += np.array(f)
+    held = {6 * idx[nd] + d - 1 for nd, d in book.get("held") or () if nd in idx}
+    free = np.array([i for i in range(ndof) if i not in held])
+    U = np.zeros(ndof)
+    try:
+        if sparse is not None:
+            K = sparse.coo_matrix((vals, (rows, cols)), shape=(ndof, ndof)).tocsr()
+            kf = K[free][:, free]
+            U[free] = spsolve(kf.tocsc(), F[free])
+        else:
+            K = np.zeros((ndof, ndof))
+            np.add.at(K, (np.array(rows), np.array(cols)), np.array(vals))
+            U[free] = np.linalg.solve(K[np.ix_(free, free)], F[free])
+    except Exception:  # noqa: BLE001 - a mechanism, or the solver failed: the expanded nodes answer
+        return None
+    if not np.all(np.isfinite(U)):
+        return None
+    out = {}
+    for name, kl, T, fe, dofs, s0, L in elems:
+        fl = kl @ (T @ U[dofs]) - fe
+        sec = next(m["section"] for m in mem if m["name"] == name)
+        for end, at in ((0, s0), (1, s0 + L)):
+            o = 6 * end
+            sg = -1.0 if end == 0 else 1.0  # the force of the far side on the section, as N + along the member
+            f = {"N": float(sg * fl[o]), "Vy": float(fl[o + 1]), "Vz": float(fl[o + 2]), "T": float(fl[o + 3]), "My": float(fl[o + 4]), "Mz": float(fl[o + 5])}
+            lo, hi, vm = section_stress(sec, f)
+            r = out.setdefault(name, {"lo": lo, "hi": hi, "vm": vm, "at": at, "forces": f})
+            r["lo"], r["hi"] = min(r["lo"], lo), max(r["hi"], hi)
+            if vm > r["vm"] or (vm == r["vm"] and at == 0):
+                r["vm"], r["at"], r["forces"] = vm, at, f
     return out
