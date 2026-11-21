@@ -37,22 +37,54 @@ def _unit(a):
     return [x / n for x in a]
 
 
-def section_props(sec):
-    """(area mm², I about the strong axis mm⁴, c the distance to the extreme fibre mm, ccx's section lines)."""
+# What each section kind takes (mm): d is always a diameter or a depth, never a radius.
+SECTION_KEYS = {"rect": ("b", "d"), "circ": ("d",), "pipe": ("d", "t"), "box": ("b", "d", "t")}
+
+
+def section_check(sec, where="section"):
+    """A section's sizes, checked: each kind's own keys, all over 0 mm, a
+    wall less than half the size. A radius (r, radius) is refused: d is the
+    diameter (bicycle runs, 21 Nov: a "circ section half-size trap")."""
     k = sec.get("kind", "rect")
+    if k not in SECTION_KEYS:
+        raise ValueError(f"{where}.kind: {', '.join(SECTIONS)}")
+    if any(x in sec for x in ("r", "radius", "ro", "ri")):
+        raise ValueError(f"{where}: {k} takes d, the outside diameter in mm, not a radius (r).")
+    out = {}
+    for key in SECTION_KEYS[k]:
+        v = sec.get(key)
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or v <= 0:
+            raise ValueError(f"{where}.{key}: mm, more than 0 ({k}: {', '.join(SECTION_KEYS[k])}; d is a diameter or a depth).")
+        out[key] = float(v)
+    if k == "pipe" and 2 * out["t"] >= out["d"]:
+        raise ValueError(f"{where}.t: less than half of d ({out['d'] / 2:g} mm): a pipe's wall; circ is a solid round.")
+    if k == "box" and 2 * out["t"] >= min(out["b"], out["d"]):
+        raise ValueError(f"{where}.t: less than half of the smaller of b and d: a box's wall; rect is a solid bar.")
+    return out
+
+
+def section_props(sec):
+    """(area mm², I about the strong axis mm⁴, c the distance to the extreme
+    fibre mm, ccx's section lines). CalculiX's lines as FreeCAD's own writer
+    gives them (femsolver/calculix/write_femelement_geometry.py, 1.1): RECT
+    the two sizes, CIRC the diameters (not the radius: the circle was made
+    half size before 21 Nov), PIPE the outer radius and the wall, BOX the
+    two sizes and the four walls."""
+    k = sec.get("kind", "rect")
+    z = section_check(sec)
     if k == "rect":
-        b, d = float(sec["b"]), float(sec["d"])
+        b, d = z["b"], z["d"]
         return b * d, b * d ** 3 / 12, d / 2, ("RECT", f"{b:.6g}, {d:.6g}")
     if k == "circ":
-        d = float(sec["d"])
+        d = z["d"]
         r = d / 2
-        return math.pi * r * r, math.pi * r ** 4 / 4, r, ("CIRC", f"{r:.6g}, {r:.6g}")
+        return math.pi * r * r, math.pi * r ** 4 / 4, r, ("CIRC", f"{d:.6g}, {d:.6g}")
     if k == "pipe":
-        d, t = float(sec["d"]), float(sec["t"])
+        d, t = z["d"], z["t"]
         ro, ri = d / 2, d / 2 - t
-        return math.pi * (ro * ro - ri * ri), math.pi * (ro ** 4 - ri ** 4) / 4, ro, ("PIPE", f"{ro - t / 2:.6g}, {t:.6g}")
+        return math.pi * (ro * ro - ri * ri), math.pi * (ro ** 4 - ri ** 4) / 4, ro, ("PIPE", f"{ro:.6g}, {t:.6g}")
     if k == "box":
-        b, d, t = float(sec["b"]), float(sec["d"]), float(sec["t"])
+        b, d, t = z["b"], z["d"], z["t"]
         I = (b * d ** 3 - (b - 2 * t) * (d - 2 * t) ** 3) / 12
         return b * d - (b - 2 * t) * (d - 2 * t), I, d / 2, ("BOX", f"{b:.6g}, {d:.6g}, {t:.6g}, {t:.6g}, {t:.6g}, {t:.6g}")
     raise ValueError(f"section kind: {', '.join(SECTIONS)}")
@@ -259,23 +291,73 @@ def solve(ccx, workdir, members, supports, loads, gravity=None, n=8, timeout=300
         raise RuntimeError("CalculiX refused the frame: " + " | ".join(err) + (" — it can move as a mechanism: more supports, or fixed ones." if singular else ""))
     with open(frd_p) as f:
         frd = f.read()
-    disp, stress = ccx_io.read_frd(frd)
-    xyz = read_coords(frd)
     dat = ""
     if os.path.isfile(os.path.join(workdir, "frame.dat")):
         with open(os.path.join(workdir, "frame.dat")) as f:
             dat = f.read()
+    return read_results(book, frd, dat, workdir)
+
+
+def read_elements(frd):
+    """{element: [nodes]} of the .frd's element block: CalculiX writes each
+    beam element expanded into a solid (C3D20R) under the beam's own number."""
+    els, on, cur = {}, False, None
+    for line in frd.splitlines():
+        if line.startswith("    3C"):
+            on = True
+            continue
+        if not on:
+            continue
+        if line.startswith(" -3"):
+            break
+        if line.startswith(" -1"):
+            cur = int(line[3:13])
+            els[cur] = []
+        elif line.startswith(" -2") and cur is not None:
+            els[cur] += [int(x) for x in line[3:].split()]
+    return els
+
+
+def member_nodes(m, els, xyz):
+    """The expanded nodes of a member: those of its own elements (finding
+    4a of the bicycle runs, 21 Nov). Before, every node within 1.6 c of the
+    member's axis counted: at a joint a short member took its neighbours'
+    nodes, whose von Mises (any direction) is not this member's stress
+    along it — a 35 mm member read 214 MPa against -9.9 … 5.4 MPa along it.
+    [(node, distance along the member)]; by the old reach when the .frd
+    has no elements."""
+    def along(p):
+        return _dot(_sub(p, m["a"]), m["t"])
+
+    if els:
+        seen, out = set(), []
+        for e in m["elements"]:
+            for nd in els.get(e, ()):
+                if nd not in seen and nd in xyz:
+                    seen.add(nd)
+                    out.append((nd, along(xyz[nd])))
+        if out:
+            return out
+    reach = m["c"] * 1.6 + 1.0
+    out = []
+    for nd, p in xyz.items():
+        v = _sub(p, m["a"])
+        s_ = _dot(v, m["t"])
+        if -1e-6 <= s_ <= m["L"] + 1e-6 and _norm([v[c] - m["t"][c] * s_ for c in range(3)]) <= reach:
+            out.append((nd, s_))
+    return out
+
+
+def read_results(book, frd, dat, workdir=""):
+    """The answer from CalculiX's files: each member's stress along it, von
+    Mises, deflection; each support's reaction (pure Python)."""
+    disp, stress = ccx_io.read_frd(frd)
+    xyz = read_coords(frd)
+    els = read_elements(frd)
     reac = read_reactions(dat)
-    # each expanded node to the member whose axis it lies by
     rows = []
     for m in book["members"]:
-        reach = m["c"] * 1.6 + 1.0
-        ns = []
-        for nd, p in xyz.items():
-            v = _sub(p, m["a"])
-            s_ = _dot(v, m["t"])
-            if -1e-6 <= s_ <= m["L"] + 1e-6 and _norm([v[c] - m["t"][c] * s_ for c in range(3)]) <= reach:
-                ns.append((nd, s_))
+        ns = member_nodes(m, els, xyz)
         if not ns:
             rows.append({"member": m["name"], "note": "no results found along it"})
             continue
@@ -289,7 +371,7 @@ def solve(ccx, workdir, members, supports, loads, gravity=None, n=8, timeout=300
             if nd not in disp:
                 continue
             u = disp[nd][:3]
-            f = s_ / m["L"]
+            f = min(max(s_ / m["L"], 0.0), 1.0)
             base = [ua[c] + (ub[c] - ua[c]) * f for c in range(3)]
             d = [u[c] - base[c] for c in range(3)]
             d = [d[c] - m["t"][c] * _dot(d, m["t"]) for c in range(3)]

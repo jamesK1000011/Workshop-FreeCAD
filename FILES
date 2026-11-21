@@ -108,6 +108,7 @@ tests/make/test_echo_words.py
 tests/make/test_embed.py
 tests/make/test_fcmaterials.py
 tests/make/test_frame.py
+tests/make/test_frame_results.py
 tests/make/test_gui_text.py
 tests/make/test_h2d_mass_tubes.py
 tests/make/test_handlers.py

@@ -110,9 +110,23 @@ def fea_frame(s, a):
     except RuntimeError as e:
         raise ToolError("failed", str(e))
     limit = float(a.get("deflectionLimit", 0) or 0)
+    # Bicycle runs (21 Nov), finding 4c: a card with no yield (Steel-Generic)
+    # gave no safety; yieldMPa in the call judges every member (a member's
+    # own yieldMPa first), and overrides the cards.
+    y_all = _yield_arg(a.get("yieldMPa"), "yieldMPa")
+    y_own = {}
+    for k, m in enumerate(a.get("members") or []):
+        if m.get("yieldMPa") is not None:
+            y_own[m.get("name") or f"M{k + 1}"] = _yield_arg(m["yieldMPa"], f"members[{k}].yieldMPa")
+    no_yield = []
     for row in res["members"]:
         c = cards.get(row["member"])
-        y = c.get("yield") if c else None
+        y = y_own.get(row["member"]) or y_all or (c.get("yield") if c else None)
+        if y:
+            row["yieldMPa"] = y
+            row["yieldFrom"] = "the member's yieldMPa" if row["member"] in y_own else ("the call's yieldMPa" if y_all else "the material card")
+        elif c:
+            no_yield.append(c.get("name") or row["member"])
         if y and row.get("vonMisesMPa"):
             row["safety"] = round(y / row["vonMisesMPa"], 2) if row["vonMisesMPa"] > 0 else None
         if limit and row.get("spanOverDeflection"):
@@ -126,6 +140,9 @@ def fea_frame(s, a):
     if isinstance(tot, (list, tuple)) and tot:
         out["loadN"] = round(sum(float(x) ** 2 for x in tot) ** 0.5, 1)
     out["verdict"] = frame_verdict(res["members"])
+    if no_yield:
+        out["yieldNote"] = (f"No yield on the card of {', '.join(sorted(set(no_yield))[:5])}: no safety for those members. "
+                            "yieldMPa: the yield in MPa (the supplier's figure) judges them.")
     if a.get("bodies"):
         out["bodies"] = [m["name"] for m in members[len(a.get("members") or []):]]
     sag = [r["deflectionMm"] for r in res["members"] if isinstance(r.get("deflectionMm"), (int, float))]
@@ -133,6 +150,14 @@ def fea_frame(s, a):
         out["deflectionMaxMm"] = max(sag)
     out["sceneMarks"] = scene_marks(members, res["members"], a.get("supports") or [])
     return out
+
+
+def _yield_arg(v, what):
+    if v is None:
+        return None
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or v <= 0:
+        raise ToolError("invalid_input", f"{what}: the yield strength in MPa, more than 0 (the supplier's figure).")
+    return float(v)
 
 
 def scene_marks(members, rows, supports):
