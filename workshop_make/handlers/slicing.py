@@ -116,6 +116,54 @@ def dropped_pauses(s, items, setup, why):
             f"To keep the pauses, slice that body alone, without orient: {alone}.")
 
 
+# Bambu Studio's command line stops on printers with two extruders (the
+# Bambu Lab H2D) where its window does not: code -11, "on_printer_model_change_cli:
+# eid out of bounds" (bicycle test drive, 20 Nov 2026). OrcaSlicer slices the
+# same presets (same format) without it.
+MULTI_CRASH = ("eid out of bounds", "on_printer_model_change_cli")
+
+
+def extruders_of(machine):
+    """How many extruders a printer preset has (its nozzle_diameter list):
+    a preset as a dict or the path of its JSON. 1 when it cannot be read."""
+    if isinstance(machine, str):
+        try:
+            with open(machine, encoding="utf-8") as f:
+                machine = json.load(f)
+        except (OSError, ValueError):
+            return 1
+    v = (machine or {}).get("nozzle_diameter") if isinstance(machine, dict) else None
+    if isinstance(v, str):
+        v = [x for x in v.replace(";", ",").split(",") if x.strip()]
+    return len(v) if isinstance(v, list) and v else 1
+
+
+def route_multi(name, machine, have_orca, crashed=None):
+    """(slicer to use, note or None). Bambu Studio with a printer of more
+    than one extruder goes to OrcaSlicer when it is here; so does a Bambu
+    Studio slice that stopped with the two-extruder crash (crashed: its
+    error text)."""
+    if name != "bambustudio" or not have_orca:
+        return name, None
+    if crashed is not None:
+        if any(m in str(crashed) for m in MULTI_CRASH):
+            return "orcaslicer", ("Bambu Studio's command line stopped on this two-extruder printer (\"eid out of bounds\"): "
+                                  "sliced with OrcaSlicer, the same presets.")
+        return name, None
+    n = extruders_of(machine)
+    if n > 1:
+        return "orcaslicer", (f"The printer has {n} extruders: Bambu Studio's command line stops on such printers (\"eid out of bounds\"), "
+                              "so OrcaSlicer sliced it with the same presets. Bambu Studio's window slices it as well.")
+    return name, None
+
+
+def _have(name):
+    try:
+        return bool(slicers.find(name))
+    except Exception:  # noqa: BLE001 — no Agent Link for OrcaSlicer: no slicer to route to
+        return False
+
+
 def slice_with(s, a):
     others = [plate_item(s, b) for b in (a.get("bodies") or [])]
     o = others.pop(0) if others and not a.get("body") else plate_item(s, a.get("body"))
@@ -133,6 +181,8 @@ def slice_with(s, a):
         raise ToolError("invalid_state", f"{who} is in no print setup: setup add {{ type: \"print\", bodies: [\"{o.Label}\"] }} once the person says it is printed.")
     profiles = a.get("profiles") or {}
     chosen = setup.get("slicerPresets")
+    chosen_data = False
+    data = None
     preset_note = None
     if not profiles and chosen and name != "prusaslicer":
         try:
@@ -142,6 +192,7 @@ def slice_with(s, a):
         if data["slicer"] != name:
             raise ToolError("invalid_input", f"The setup's presets are {data['slicer']}'s: slicer \"{data['slicer']}\", or slicer_presets use others.")
         profiles = SP.write_profiles(data, os.path.join(s.out_dir, f"{o.Label.replace(' ', '_')}-{name}-presets"))
+        chosen_data = True
         preset_note = f"{data['machine'].get('name')} / {data['process'].get('name')} / {data['filament'].get('name')}"
     for k, v in profiles.items():
         if k not in ("machine", "process", "filament", "config"):
@@ -178,8 +229,24 @@ def slice_with(s, a):
         options["project"] = base + ".3mf"
     if (options or len(stls) > 1) and name == "prusaslicer":
         raise ToolError("invalid_input", "orient, arrange, project and several bodies are OrcaSlicer's and Bambu Studio's: slicer orcaslicer.")
+    asked = name
+    name, routed = route_multi(name, (data["machine"] if chosen_data else None) or profiles.get("machine"), name == "bambustudio" and _have("orcaslicer"))
+
+    def run(slicer, at):
+        nonlocal cmd
+        if slicer != asked and not a.get("pauseCommand"):
+            cmd = gcodecheck.pause_command(None, slicers.PAUSE[slicer])
+        return slicers.slice_with(slicer, stls if len(stls) > 1 else stl, at, settings, profiles, options=options)
+
     try:
-        exe, used = slicers.slice_with(name, stls if len(stls) > 1 else stl, gcode, settings, profiles, options=options)
+        try:
+            exe, used = run(name, gcode)
+        except RuntimeError as e:
+            again, why = route_multi(name, None, name == "bambustudio" and _have("orcaslicer"), crashed=e)
+            if again == name:
+                raise
+            name, routed = again, why
+            exe, used = run(name, gcode)
     except FileNotFoundError as e:
         raise ToolError("unavailable", str(e))
     except RuntimeError as e:
@@ -197,12 +264,28 @@ def slice_with(s, a):
         "body": o.Label, "slicer": name, "exe": os.path.basename(exe), "profiles": f"the person's presets: {preset_note}" if preset_note else used, "gcode": gcode, "bytes": os.path.getsize(gcode),
         **read, "verdict": slice_verdict(read), "setup": f"{setup['name']} ({setup['id']})",
     }
+    if routed:
+        out["slicerAsked"] = asked
+        out["routed"] = routed
     if a.get("overrides"):
         out["overrides"] = a["overrides"]
     if given:
         out["material"] = (f"{given} for this slice only (not recorded: material_set records it)" if not (profiles.get("filament") or profiles.get("config"))
                            else f"{given} asked for, but the filament profile given (or the setup's presets) is what the slicer used")
     out.update(slicers.LAST)  # the slicer's warnings and plate statistics
+    if len(stls) == 1 and not _is_mesh(o):
+        # Its weight kept for mass_properties and part_review, which use it
+        # in place of their estimate while the body stays as sliced.
+        try:
+            from workshop_make import geo
+
+            from .. import printmass
+
+            kept = printmass.remember_slice(s.doc, o.Label, geo.stats(o.Shape), read, slicers.LAST, name, gcode)
+        except Exception:  # noqa: BLE001 — a shape that gives no figures: nothing kept
+            kept = None
+        if kept:
+            out["massKept"] = printmass.slice_words(kept) + " (mass_properties and part_review use it while the body stays as sliced)"
     if len(stls) > 1:
         out["bodies"] = [o.Label] + [b.Label for b in others if b is not o]
     if options.get("project") and os.path.exists(options["project"]):

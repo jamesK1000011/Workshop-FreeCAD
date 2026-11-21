@@ -206,9 +206,17 @@ def part_review(s, a):
         f = 1.0 if share is None else share + infill * (1 - share)
         body_g = vol * f * rho / 1000.0
         as_ = f"printed: {walls} walls, {tops} top and {bottoms} bottom layers of {lh} mm, {infill * 100:.0f}% infill — {f * 100:.0f}% of the solid, from {found or 'nothing read: taken as solid'} (an estimate; the slicer's figure is the authority)"
+        got, rec = printmass.slice_figure(s.doc, o.Label, geo.stats(shape))
+        if got:
+            mass_band = None
+            as_ = printmass.slice_words(rec) + f"; the estimate from walls and infill was {body_g:.1f} g"
+            body_g = got
+        else:
+            mass_band = printmass.band(body_g)
     else:
         body_g = vol * rho / 1000.0
         as_ = "solid"
+        mass_band = None
     mags = encased(s, o.Label)
     mag_g = sum(e["mass"] for e in mags)
     mass = body_g + mag_g
@@ -243,7 +251,7 @@ def part_review(s, a):
         "processFrom": f"setup {setup['name']} ({setup['id']})" if setup else "not said — setup add records it",
         "verdict": verdict,
         "findings": findings[:8],
-        "figures": {"volume": round(vol, 1), "mass": round(mass, 1), "material": material, "as": as_, **({"encasedMass": round(mag_g, 1)} if mags else {}),
+        "figures": {"volume": round(vol, 1), "mass": round(mass, 1), "material": material, "as": as_, **({"encasedMass": round(mag_g, 1)} if mags else {}), **({"massBand": mass_band} if mass_band else {}),
                     **({"safety": sfl} if fea_ok and sfl is not None else {}), **({"wall": least} if least is not None else {})},
         "checks": checks,
         "spec": spec,

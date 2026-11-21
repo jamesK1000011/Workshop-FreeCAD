@@ -161,6 +161,7 @@ is generated from the tool definitions (`workshop_make/data/tools.json`) by
 | `printer_stop` | printer | Stop the printer's job. |
 | `cut_check` | cut | Can a body in a cut setup be cut from sheet. |
 | `cut_export` | cut | The flat profiles of one or more sheet bodies laid out on the sheet by FreeCAD's BIM Nest where BIM is here … |
+| `tube_cutlist` | cut | A cut list for a weldment of round tubes: cut lengths, copes, notcher angles and phase, as markdown and CSV. |
 | `mill_check` | mill | Can a body in a mill setup be milled. |
 | `mill_export` | mill | STEP of a milled body and its setup sheet by FreeCAD's CAM. |
 | `fea_frame` | strength | A frame of straight members by beam elements. |

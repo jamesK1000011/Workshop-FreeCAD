@@ -344,3 +344,77 @@ def raster_sliced(V, F, setup, walls, cell=None, sample=60, small=70.0, stats=No
     if solid + sparse <= 0:
         return None
     return solid, sparse
+
+
+# ---- the estimate's error band, and the slicer's own figure ---------------------------
+
+# The slicer's figure over this estimate. Found against slicer numbers: a
+# bicycle saddle block that OrcaSlicer 2.5 sliced at 15% grid and 2 walls
+# weighed 442 g where this estimate said 168 g (x2.6). The model has no
+# solid infill where a surface slopes, no shell-thickness minimums, no brim
+# and no supports. So the estimate is a lower guide with this band, and a
+# slice of the same body, when there is one, is used in its place.
+BAND = (0.8, 2.7)
+
+# The last slice of each body this session, by (document, body label):
+# {grams, modelGrams, supportGrams, otherGrams, slicer, stats, gcode}.
+SLICED = {}
+
+
+def band(grams):
+    """[low, high] g the slicer's figure can be, from this estimate."""
+    return [round(grams * BAND[0], 1), round(grams * BAND[1], 1)]
+
+
+def _key(doc, label):
+    return (getattr(doc, "Name", None) or str(id(doc)), label)
+
+
+def remember_slice(doc, label, stats, read, last=None, slicer=None, gcode=None):
+    """Keep a slice's weight for a body (one body alone on the plate): the
+    model's own grams when the slicer says them (OrcaSlicer's plate
+    statistics), else the G-code's total. Returns what was kept, or None
+    when the slice gives no weight."""
+    st = (last or {}).get("statistics") or {}
+    by = st.get("weightBy") or {}
+    total = st.get("weightG") or (read or {}).get("filamentG")
+    try:
+        total = float(total)
+    except (TypeError, ValueError):
+        return None
+    if total <= 0:
+        return None
+    model = by.get("model")
+    rec = {"grams": round(total, 2), "slicer": slicer, "stats": stats, "gcode": gcode}
+    if model:
+        rec["modelGrams"] = round(float(model), 2)
+        if by.get("support"):
+            rec["supportGrams"] = round(float(by["support"]), 2)
+        other = sum(float(by.get(k) or 0) for k in ("prime_tower", "flush"))
+        if other:
+            rec["otherGrams"] = round(other, 2)
+    SLICED[_key(doc, label)] = rec
+    return rec
+
+
+def slice_figure(doc, label, stats):
+    """The body's slice weight when its shape is the one sliced: (grams of
+    the part itself, the record), else (None, None)."""
+    rec = SLICED.get(_key(doc, label))
+    if not rec or rec.get("stats") != stats:
+        return None, None
+    return rec.get("modelGrams") or rec["grams"], rec
+
+
+def slice_words(rec):
+    """How a slice figure was found, in a short line."""
+    parts = [f"sliced by {rec.get('slicer') or 'the slicer'}: {rec.get('modelGrams') or rec['grams']} g"]
+    if rec.get("modelGrams"):
+        parts.append("the part only")
+        if rec.get("supportGrams"):
+            parts.append(f"supports {rec['supportGrams']} g more")
+        if rec.get("otherGrams"):
+            parts.append(f"prime tower and flush {rec['otherGrams']} g more")
+    else:
+        parts.append("all the G-code's filament, brim and supports included")
+    return ", ".join(parts)

@@ -22,6 +22,8 @@ BEFORE = {
 }
 # The Fasteners bridge's, new (listed only with Fasteners Workbench installed).
 FASTENERS = {"fastener_types", "fastener_add", "fastener_set", "fastener_list", "fastener_print"}
+# Added since the combine.
+ADDED = {"tube_cutlist"}
 
 
 def tool_names():
@@ -59,7 +61,7 @@ class Families(unittest.TestCase):
             self.assertTrue(os.path.isdir(os.path.join(ROOT, p, "guides")), p)
 
     def test_tool_names_unchanged(self):
-        self.assertEqual(tool_names(), BEFORE | FASTENERS)
+        self.assertEqual(tool_names(), BEFORE | FASTENERS | ADDED)
 
 
 if __name__ == "__main__":

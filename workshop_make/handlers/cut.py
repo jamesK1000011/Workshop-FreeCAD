@@ -476,7 +476,79 @@ def cut_export(s, a):
     return out
 
 
+def tube_of(o):
+    """A straight round tube body as a cut-list member: its axis (the
+    largest cylindrical face's), outside and inside diameters (the largest
+    and least radius of the faces on that axis), and its centre line between
+    the farthest points of the body along the axis. A tube modelled node to
+    node (a plain pipe, not yet coped) gives the node points."""
+    sh = o.Shape
+    cyl = []
+    for f in sh.Faces:
+        srf = f.Surface
+        if "Cylinder" in type(srf).__name__ or getattr(srf, "TypeId", "") == "Part::GeomCylinder":
+            cyl.append((f.Area, srf))
+    if not cyl:
+        raise ToolError("invalid_input", f"{o.Label}: no round face; a tube body is a straight round pipe (PartDesign pipe or pad of a ring). Give members instead.")
+    big = max(cyl, key=lambda x: x[0])[1]
+    ax = big.Axis.normalize() if hasattr(big.Axis, "normalize") else big.Axis
+    c0 = big.Center
+    radii = []
+    for _, srf in cyl:
+        d = srf.Axis
+        cross = d.cross(ax)
+        off = (srf.Center - c0).cross(ax)
+        if cross.Length < 1e-6 and off.Length < 1e-3:
+            radii.append(srf.Radius)
+    od, idia = 2 * max(radii), 2 * min(radii)
+    if idia >= od - 1e-6:
+        raise ToolError("invalid_input", f"{o.Label}: one round face only on its axis (a rod, not a tube); give members with wall for it.")
+    ts = [(v.Point - c0).dot(ax) for v in sh.Vertexes]
+    t0, t1 = min(ts), max(ts)
+    p0, p1 = c0 + ax * t0, c0 + ax * t1
+    return {"name": o.Label, "from": [p0.x, p0.y, p0.z], "to": [p1.x, p1.y, p1.z], "od": round(od, 3), "wall": round((od - idia) / 2, 3)}
+
+
+def tube_cutlist(s, a):
+    from .. import tubecut as TC
+
+    members = list(a.get("members") or [])
+    for ref in a.get("bodies") or []:
+        members.append(tube_of(s.body(ref)))
+    if not members:
+        raise ToolError("invalid_input", "members [{ name, from, to, od, wall }] or bodies (straight round tube bodies): the tubes of the weldment.")
+    ends = a.get("ends") or {}
+    if ends:
+        if not isinstance(ends, dict):
+            raise ToolError("invalid_input", "ends: { tube name: { from, to } }, each the tube it meets or \"square\".")
+        for m in members:
+            if m.get("name") in ends:
+                m["ends"] = {**(m.get("ends") or {}), **ends[m["name"]]}
+    try:
+        tol = float(a.get("tol", 1.0))
+        rows, warnings = TC.cut_list(members, tol=tol)
+    except (TC.CutError, TypeError, ValueError) as e:
+        raise ToolError("invalid_input", str(e))
+    base = os.path.join(s.out_dir, a.get("name") or "tube-cut-list")
+    os.makedirs(os.path.dirname(base) or ".", exist_ok=True)
+    with open(base + ".md", "w", encoding="utf-8") as fh:
+        fh.write(TC.markdown(rows, a.get("title") or "Tube cut list", warnings))
+    with open(base + ".csv", "w", encoding="utf-8", newline="") as fh:
+        fh.write(TC.csv_text(rows))
+    stock = {}
+    for r in rows:
+        k = f"{r['od']:g} x {r['wall']:g}"
+        stock[k] = round(stock.get(k, 0) + r["cutLength"], 1)
+    out = {"tubes": rows, "stock": stock, "files": {"markdown": base + ".md", "csv": base + ".csv"},
+           "note": "Lengths in mm on the centre lines given. Cut length is between the long points of the copes; add the saw's kerf and a trim allowance. "
+                   "Copes are against each receiving tube's outside diameter, for a tight fit. Check the first tube of each kind before cutting the rest."}
+    if warnings:
+        out["warnings"] = warnings
+    return out
+
+
 HANDLERS = {
     "cut_check": cut_check,
     "cut_export": cut_export,
+    "tube_cutlist": tube_cutlist,
 }

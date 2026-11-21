@@ -163,11 +163,24 @@ def properties(session, o, rho=None, shape=None, meta=None, calibrated=True):
         k = float(cal["scale"])
         m_b, I_b = m_b * k, _scale(I_b, k)
         how += f"; calibrated ×{k:.3f} to a weighed print of {cal.get('body')} ({cal.get('grams')} g)"
+    estimate = None
+    if setup and calibrated and not (cal and cal.get("scale")) and shape is None:
+        # A slice of this body as it is now: the slicer's figure, not the estimate.
+        try:
+            got, rec = printmass.slice_figure(doc, o.Label, geo.stats(o.Shape))
+        except Exception:  # noqa: BLE001 — no figures for this shape: the estimate stands
+            got, rec = None, None
+        if got and m_b > 0:
+            estimate = m_b
+            k = got / m_b
+            m_b, I_b = got, _scale(I_b, k)
+            how = printmass.slice_words(rec) + f"; the estimate from walls and infill was {estimate:.1f} g"
     enc = encased_parts(session.meta.get(o.Label) if meta is None else meta)
     m, com, I = _combine([(m_b, c_b, I_b)] + [(e[0], e[1], e[2]) for e in enc])
     return {
         "mass": m, "com": com, "I": I, "bodyMass": m_b, "volume": vol, "as": how,
         "material": c, "materialSet": set_, "encased": enc, "printed": bool(setup),
+        "estimate": estimate,
     }
 
 
@@ -208,6 +221,10 @@ def report(o, p):
         "as": p["as"],
         "inertia": {"aboutCom": [[_r(x, 1) for x in row] for row in p["I"]], "units": "g·mm²"},
     }
+    if p.get("printed") and p.get("estimate") is None and str(p["as"]).startswith("printed"):
+        out["massBand"] = printmass.band(p["bodyMass"])
+    elif p.get("estimate") is not None:
+        out["massEstimate"] = _r(p["estimate"], 2)
     pr = _principal(p["I"])
     if pr:
         out["inertia"]["principal"] = pr
@@ -305,7 +322,8 @@ def mass_properties(s, a):
     if any("assumed" in b["material"] for b in out):
         res["note"] = "A body with no material is taken as PLA: set its material to change that."
     if any(b["as"].startswith("printed") for b in out):
-        res["printedNote"] = "As printed is an estimate from walls and infill; a slicer's figure (slice) is closer."
+        res["printedNote"] = (f"As printed is an estimate from walls and infill, a lower guide: the slicer's figure can be {printmass.BAND[0]} to {printmass.BAND[1]} times it "
+                              "(massBand). Slice the body alone (slice or slice_with) and this tool uses the slicer's figure instead.")
     return res
 
 

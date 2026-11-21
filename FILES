@@ -109,6 +109,7 @@ tests/make/test_embed.py
 tests/make/test_fcmaterials.py
 tests/make/test_frame.py
 tests/make/test_gui_text.py
+tests/make/test_h2d_mass_tubes.py
 tests/make/test_handlers.py
 tests/make/test_icons.py
 tests/make/test_lamp_findings.py
@@ -353,6 +354,7 @@ workshop_make/threads.py
 workshop_make/threemf.py
 workshop_make/tooldata.py
 workshop_make/tooldefs.py
+workshop_make/tubecut.py
 workshop_make/words.py
 workshop_make/workbench.py
 workshop_parts/__init__.py

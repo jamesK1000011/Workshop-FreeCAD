@@ -11,7 +11,14 @@ Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
 
 ## [Unreleased]
 
+### Added
+
+- `tube_cutlist` (Make, group cut): a cut list for a weldment of round tubes, from members (from, to, od, wall) or straight tube bodies. For each tube: the centre-line length, the cut length between the long points of the copes, and for each coped end the tube it meets, the included angle, the notcher angle and the cope depth (against the receiving tube's outside diameter), and the phase angle between the two copes. Markdown and CSV in the output folder.
+
 ### Fixed
+
+- `slice` and `slice_with` with Bambu Studio on a printer with two extruders (Bambu Lab H2D): its command line stopped (code -11, "on_printer_model_change_cli: eid out of bounds"). Such a printer now goes to OrcaSlicer when it is here (the same presets), and a Bambu Studio slice that stops so is sliced once more with OrcaSlicer. The answer says so (`slicerAsked`, `routed`).
+- The printed mass (`mass_properties`, `part_review`) said 168 g for a saddle block that OrcaSlicer sliced at 442 g (15% grid, 2 walls). The estimate has no solid infill on slopes, shell minimums, brim or supports: it now comes with its band (`massBand`, 0.8 to 2.7 times the estimate). After a slice of one body alone, the slicer's figure (the part's own grams when OrcaSlicer gives them) is used in its place while the body stays as sliced (`massKept`, `massEstimate`).
 
 - SafetyNet `app_recover` list (bicycle test drive, 20 Nov): more than 100 documents came back in one answer. It now lists the newest 10 (`limit`; 0 lists all) and gives `total`. `document` lists only the documents whose name or label holds that text, with `matched`; `more` says how many older ones are not shown. The SafetyNet panel and the Recovered Copies menu still read all of them.
 
