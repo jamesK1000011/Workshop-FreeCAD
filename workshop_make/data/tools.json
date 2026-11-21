@@ -1188,6 +1188,50 @@
     "Arch_Nest"
    ]
   },
+  "tube_cutlist": {
+   "group": "cut",
+   "description": "Write a cut list for a weldment of round tubes, as markdown and CSV in the output folder. Give members [{ name, from, to, od, wall }] in mm, from and to on the centre line. Or give bodies: straight round tube bodies, modelled node to node. An end meets a tube whose centre line is within its outside radius plus tol (1 mm by default). ends { tube: { from, to } } says it: the name of the tube it meets, or \"square\". Each tube gets od, wall, centreLength and cutLength. cutLength is between the long points of the copes. Each coped end gets meets, includedAngle, notcherAngle (0 for a square joint) and copeDepth. phase is the turn of the to-end cope from the from-end cope about the tube's axis, 0 to 180 degrees. The answer holds: tubes, stock (cut length by od x wall), files { markdown, csv }, warnings, note. Copes are against the receiving tube's outside diameter. The tool does not change the document.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "members": {
+      "type": "array",
+      "items": {
+       "type": "object"
+      },
+      "description": "The tubes: [{ name, from: [x, y, z], to: [x, y, z], od, wall, ends? }], mm."
+     },
+     "bodies": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Straight round tube bodies, by name."
+     },
+     "ends": {
+      "type": "object",
+      "description": "{ tube name: { from, to } }: the tube each end meets, or \"square\"."
+     },
+     "tol": {
+      "type": "number",
+      "description": "How far off a tube's outside an end can be and still meet it, mm (1)."
+     },
+     "name": {
+      "type": "string",
+      "description": "The file name without extension (tube-cut-list)."
+     },
+     "title": {
+      "type": "string"
+     }
+    },
+    "required": [],
+    "additionalProperties": false
+   },
+   "changes": false,
+   "source": "Workshop Make (bicycle test drive, 20 Nov 2026)",
+   "date": "2026-11-21",
+   "workbench": "WorkshopMakeWorkbench"
+  },
   "mill_check": {
    "group": "mill",
    "description": "Check if a body in a mill setup can be milled. It finds faces that no tool direction reaches (undercuts, named), and faces past the reach of the tool. It finds inside corners tighter than the least tool can leave. It finds holes and pockets past the reach, or over 4 times as deep as wide. It finds walls too thin for the material, and it checks the stock. directions: the sides the tool comes from (\"+z\", \"-x\" …). Left out, directions are the axes of the setup (\"3\": +z only; \"3+2\": all six). tool: the diameter of the least end mill, mm (the minTool of the setup, else 3). reach: mm (5 x tool or 20). material: aluminium, steel, stainless, brass, copper, titanium, plastic, pom, wood (aluminium when left out). stock: [x, y, z] mm as the part stands. Left out, stock is the box of the part + 2 mm a side and 1 mm top and bottom. Refused: the body is in no mill setup (setup add { type: \"mill\" } first). The answer holds: body, verdict (fix | pass with warnings | pass), directions, tool, reach, material, stock, findings [{ rule, severity, says, faces }] (the first 10), leastWall, setup, grade, assumed. assumed: every value that the setup or the call left out, in words. Trap: a face on the outside of the stock counts as the stock's own. Faces are sampled, so a small undercut between samples can be missed. Face names change after any edit. Changes nothing; heavy on bodies with many faces.",

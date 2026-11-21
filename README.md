@@ -188,6 +188,7 @@ separate add-ons):
 | `printer_stop` | printer | Stop the job of the printer. |
 | `cut_check` | cut | Check if a body in a cut setup can be cut from sheet. |
 | `cut_export` | cut | Write the flat profiles of sheet bodies as DXF and SVG in mm, laid out on a sheet. |
+| `tube_cutlist` | cut | Write a cut list for a weldment of round tubes, as markdown and CSV in the output folder. |
 | `mill_check` | mill | Check if a body in a mill setup can be milled. |
 | `mill_export` | mill | Write the STEP file of a milled body and its setup sheet to the folder of the session. |
 | `fea_frame` | strength | Solve a frame of straight members with beam elements. |
