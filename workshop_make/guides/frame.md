@@ -2,6 +2,7 @@
 
 ## Frames
 - `fea_frame` solves a frame of straight members with beam elements: members by ends and section (rect, circ, pipe, box), or BIM bodies (their centre lines and sizes, joined within `tolerance`). Supports pinned, fixed or roller at member ends; loads along members (N/mm, or kPa over a width) and at joints; `gravity` for own weight. Each member's stress, safety, deflection (span over deflection; `deflectionLimit` judges it) and each support's reaction. Checked: a simple beam's stress and deflection within 1 % of the textbook.
+- Stresses come from each section's forces (N, shear, torque, moment), from a beam solve of the same nodes, supports and loads: σ = N/A ± M/W. The expanded solids of CalculiX read low on a round section (12.8 against 13.6 MPa on a 26 mm cantilever); `solidNodesMPa` keeps their figures to compare.
 - Needs CalculiX (`ccx`). FreeCAD's FEM preference for ccx is used when set.
 
 ## A printed part
