@@ -3,7 +3,7 @@
 # Agent Link's own template code when its checkout is at hand). Window
 # review round 4: 4001 (gen_make) and 4007 (gen_part) showed no new part;
 # they are the model's measure: true calls (calls 1 and 7 of
-# docs/hardening/workshop-parts-model.json), which build the part only to
+# private records: workshop-parts-model.json), which build the part only to
 # answer its sizes. Their words now say "nothing made".
 import ast
 import json
