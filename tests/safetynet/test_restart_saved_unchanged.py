@@ -97,9 +97,15 @@ class SavedUnchanged(unittest.TestCase):
         fc = FakeFreeCAD([], self.cache)
         reopened = []
         rec, _ = self.run_fc(fc, lambda: recovery.recover_docs([{"name": "Bracket", "label": "Bracket", "file": self.file, "modified": False}], since=self.now, reopened=reopened))
-        self.assertEqual(reopened, [])
+        # Its own file opens too, beside the copy (live, 22 Nov: the original seemed gone).
+        self.assertEqual([r["why"] for r in reopened], [recovery.BESIDE_COPY])
         self.assertEqual(len(rec), 1)
         self.assertTrue(rec[0]["as"].startswith("Bracket (recovered "))
+        # The copy is beside the file, so an assembly's relative links still resolve.
+        copy_file = fc.docs[rec[0]["document"]].FileName
+        self.assertEqual(os.path.dirname(copy_file), os.path.dirname(self.file))
+        self.assertIn(recovery.BESIDE_MARK, os.path.basename(copy_file))
+        self.assertTrue(recovery.from_copy_folder(copy_file))
 
     def test_a_missing_file_comes_back_from_its_copy(self):
         os.remove(self.file)
@@ -118,20 +124,23 @@ class SavedUnchanged(unittest.TestCase):
         reopened = []
         rec, failed = self.run_fc(fc, lambda: recovery.recover_docs(docs, since=self.now, reopened=reopened))
         self.assertEqual([r["label"] for r in rec], ["Lid"])
-        self.assertEqual([r["label"] for r in reopened], ["Bracket"])
+        self.assertEqual([r["label"] for r in reopened], ["Bracket", "Lid"])  # Lid's own file beside its copy
         copy = fc.docs[rec[0]["document"]]
         self.assertFalse(copy.modified)  # relabel, recompute and record settled
         # What the restarted FreeCAD holds, as the next restart reads it.
         held = self.hidden(fc)
-        self.assertEqual({d["label"]: d["modified"] for d in held}, {"Bracket": False, copy.Label: False})
+        self.assertEqual({d["label"]: d["modified"] for d in held}, {"Bracket": False, "Lid": False, copy.Label: False})
         # Restart 2: from that list; nothing changed in between.
         later = time.time() + 5
         fc2 = OpensTouched([], self.cache)
         reopened = []
         rec, failed = self.run_fc(fc2, lambda: recovery.recover_docs(held, since=later, reopened=reopened))
         self.assertEqual(rec, [])
-        self.assertEqual(fc2.opened, [self.file])  # Bracket as itself, once
-        self.assertTrue(failed and all(f.get("notAgain") for f in failed))
+        self.assertEqual(sorted(fc2.opened), sorted([self.file, lid]))  # Bracket and Lid as themselves, once
+        # The unchanged copy is not recovered again (with its original open
+        # beside it, it is dropped as one of that original's); its file stays
+        # beside the original's.
+        self.assertTrue(all(f.get("notAgain") for f in failed))
         self.assertFalse(any("(recovered" in d.Label for d in fc2.docs.values()))
 
     def test_hidden_modified_headless_is_the_calls_changes(self):

@@ -61,9 +61,34 @@ def copy_label(label):
     return f"{original_label(t)} (recovered{' ' + times[-1] if times else ''})"
 
 
+# A recovered copy kept beside its original: "<name>.agentlink-recovered-<time>.FCStd".
+BESIDE_MARK = "." + TMP_PREFIX
+
+
 def from_copy_folder(file):
-    """True for a file open_copy opened (in a temporary agentlink-recovered- folder)."""
-    return TMP_PREFIX in os.path.basename(os.path.dirname(str(file or "")))
+    """True for a file open_copy opened: in a temporary agentlink-recovered-
+    folder, or beside its original with the .agentlink-recovered- mark."""
+    f = str(file or "")
+    return TMP_PREFIX in os.path.basename(os.path.dirname(f)) or BESIDE_MARK in os.path.basename(f)
+
+
+def copy_path(name, beside=None, t=None):
+    """Where open_copy puts a copy: beside the original's file when it has one
+    in a folder that can be written, so the copy's relative links (an
+    assembly's parts) still find the same files. From a temporary folder they
+    came out as "/../../Users/…" paths, and FreeCAD opened each part a second
+    time (live, 22 Nov: CrankL and CrankL1 from one file). Else a temporary
+    folder, as before (a document never saved)."""
+    d = os.path.dirname(os.path.abspath(beside)) if beside else ""
+    if d and os.path.isdir(d) and os.access(d, os.W_OK):
+        stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime(t or time.time()))
+        p = os.path.join(d, f"{safe(name)}{BESIDE_MARK}{stamp}.FCStd")
+        k = 1
+        while os.path.exists(p):
+            k += 1
+            p = os.path.join(d, f"{safe(name)}{BESIDE_MARK}{stamp}-{k}.FCStd")
+        return p
+    return os.path.join(tempfile.mkdtemp(prefix=TMP_PREFIX), f"{safe(name)}_recovered.FCStd")
 
 
 # Documents changed by a call here: { name: (time, id of the document) },
@@ -369,7 +394,7 @@ def rebuild_empty(nd, names):
     return touched
 
 
-def open_copy(src, name, label, t):
+def open_copy(src, name, label, t, beside=None):
     """A saved copy opened beside the person's file, never over it: named
     after the original document once, "<name>_recovered" and the label
     "<label> (recovered HH:MM)", however often it was recovered before;
@@ -378,8 +403,7 @@ def open_copy(src, name, label, t):
     import FreeCAD
 
     name, label = original_name(name), original_label(label)
-    tmpd = tempfile.mkdtemp(prefix=TMP_PREFIX)
-    tmp = os.path.join(tmpd, f"{safe(name)}_recovered.FCStd")
+    tmp = copy_path(name, beside, t)
     shutil.copy2(src, tmp)
     empty = empty_shapes(tmp)
     nd = FreeCAD.openDocument(tmp)
@@ -400,6 +424,7 @@ NOT_AGAIN = ("an earlier recovered copy with no changes of its own since it open
 
 
 SAVED_UNCHANGED = "saved and unchanged at the stop: opened again from its own file, as itself"
+BESIDE_COPY = "its file as saved, opened beside its recovered copy (the copy holds the changes made after the save)"
 ALREADY_OPEN = "saved and unchanged at the stop, and already open again from its own file"
 
 
@@ -471,6 +496,10 @@ def recover_docs(documents, since=None, reopened=None):
     FreeCAD opened again and nobody changed are closed (tidy). (recovered,
     failed)"""
     rec, failed, opened = [], [], []
+    # Originals whose recovered copy is open beside them: the copy holds the
+    # changes, so the original comes back as itself, not as a new copy from
+    # its older auto-save (else each restart made one more copy).
+    beside = {original_label(x.get("label") or "") for x in documents or [] if isinstance(x, dict) and is_recovered(x)}
     for d in dedupe(documents):
         name, label, fname = d.get("name"), d["baseLabel"], d.get("file") or ""
         if not name:
@@ -481,7 +510,7 @@ def recover_docs(documents, since=None, reopened=None):
             continue
         if saved_unchanged(d):
             fc = [(p, t) for p, t, _ in freecad_recovery_files(cache_dirs(), d.get("label") or label)]
-            newer = newer_than_file(recovery_sources(name, fc), fname) if _open_as(fname) is None else []
+            newer = newer_than_file(recovery_sources(name, fc), fname) if _open_as(fname) is None and label not in beside else []
             back = None if newer else reopen_saved(d)
             if back is not None:
                 if reopened is not None:
@@ -500,7 +529,7 @@ def recover_docs(documents, since=None, reopened=None):
         errors = []
         for src in srcs:
             try:
-                nd = open_copy(src["path"], d["base"], label, src["t"])
+                nd = open_copy(src["path"], d["base"], label, src["t"], beside=fname if fname and not copy and os.path.isfile(fname) else None)
             except Exception as e:
                 errors.append(f"{src['source']} {_hm(src['t'])}: {e}")
                 continue
@@ -515,6 +544,13 @@ def recover_docs(documents, since=None, reopened=None):
             opened.append(src["path"])
             rec.append({"label": label, "document": nd.Name, "as": nd.Label, "source": src["source"], "time": time.strftime("%Y-%m-%d %H:%M", time.localtime(src["t"])),
                         **({"lost": lost} if lost else {}), **({"skipped": errors} if errors else {}), "file": fname or None})
+            # The person's own file opens too, as saved, beside its recovered
+            # copy: it did not seem to be gone (live, 22 Nov: "Bicycle" was
+            # not open after a restart, only "Bicycle (recovered 09:16)").
+            if fname and not copy and os.path.isfile(fname) and reopened is not None:
+                back = reopen_saved(d)
+                if back is not None:
+                    reopened.append({**back, "why": ALREADY_OPEN if back.get("already") else BESIDE_COPY})
             break
         else:
             failed.append({"label": label, "why": "; ".join(errors)[:400]})
