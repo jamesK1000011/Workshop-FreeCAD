@@ -11,6 +11,7 @@ Make, Electronics, Documents and SafetyNet were separate add-ons until 15 Nov
 
 ## [Unreleased]
 
+- Neutral words in the GUI: SafetyNet's approval text says "approve it in your AI assistant" (before: "in Claude"). The person can use any MCP client. Test: tests/test_gui_words_neutral.py.
 - `fea_frame`, bicycle design runs of 21 Nov (finding 4; `tests/make/test_frame_results.py`, on a hand-made .frd, no CalculiX needed):
   - Each member now reads the nodes of its own expanded elements (the .frd's element block). Before, every node within 1.6 × its section of its axis counted: at a joint a short member took a neighbour's nodes, so its von Mises (any direction) did not agree with its stress along it (a 35 mm member: 214 MPa against −9.9 … 5.4 MPa). A hand-checked cantilever beside a loaded post now reads M·c/I for both.
   - CalculiX's section lines as FreeCAD's own writer gives them: CIRC takes the diameter (the round was modelled half size: the "circ trap"), PIPE the outer radius (not the mean radius). Every kind's sizes are checked: d is a diameter or a depth, a radius (r) is refused, walls under half the size.

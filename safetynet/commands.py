@@ -83,7 +83,7 @@ def approve_in_window(r, again):
 def pending_words(r, shown):
     tool = ((r or {}).get("approve") or {}).get("tool") or "the approval tool"
     return ("Press Approve in the dialog in the FreeCAD window." if shown else
-            f"This needs your approval: approve it in Claude ({tool}), or turn on Mod/AgentLink WindowApprove for a dialog here.")
+            f"This needs your approval: approve it in your AI assistant ({tool}), or turn on Mod/AgentLink WindowApprove for a dialog here.")
 
 
 def _with_agentlink():

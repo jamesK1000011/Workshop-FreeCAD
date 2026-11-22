@@ -156,6 +156,7 @@ tests/safetynet/test_store.py
 tests/safetynet/test_with_agentlink.py
 tests/test_families.py
 tests/test_files.py
+tests/test_gui_words_neutral.py
 tests/test_lessons.py
 tests/test_loads.py
 tests/test_matname.py
