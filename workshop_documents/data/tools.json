@@ -366,7 +366,8 @@
       ]
      },
      "scale": {
-      "type": "number"
+      "type": "number",
+      "exclusiveMinimum": 0
      },
      "dimensions": {
       "type": "boolean"
@@ -550,7 +551,8 @@
       "type": "array",
       "items": {
        "type": "object"
-      }
+      },
+      "minItems": 1
      },
      "explode": {
       "type": "number"

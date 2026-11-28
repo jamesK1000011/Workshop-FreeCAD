@@ -165,6 +165,31 @@ def _entry_texts(e):
     return d, d
 
 
+_LIMIT_KEYS = ("minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf", "minItems", "maxItems")
+
+
+def _schema_limits(entry):
+    """The limits of the inputs' schema in words ("1 500 mm"): the card shows them
+    from the schema (28 Nov), so they count as card words for what is kept."""
+    out = []
+    notes = (entry.get("card") or {}).get("inputNotes") or {}
+
+    def walk(spec, unit):
+        if not isinstance(spec, dict):
+            return
+        for k in _LIMIT_KEYS:
+            v = spec.get(k)
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                out.append(f"{v:g} {unit}".strip() if k not in ("minItems", "maxItems") else f"{v:g}")
+        walk(spec.get("items"), unit)
+        for s in spec.get("oneOf") or spec.get("anyOf") or ():
+            walk(s, unit)
+
+    for name, spec in ((entry.get("inputSchema") or {}).get("properties") or {}).items():
+        walk(spec, (notes.get(name) or {}).get("unit") or "")
+    return " ".join(out)
+
+
 def current():
     """{tool: {src, description, words, inputs}} as the files hold them now."""
     out = {}
@@ -174,6 +199,7 @@ def current():
         with open(path, encoding="utf-8") as f:
             for name, e in json.load(f)["entries"].items():
                 lint_text, words_text = _entry_texts(e)
+                words_text = (words_text + " " + _schema_limits(e)).strip()
                 out[name] = {"src": os.path.relpath(path, ROOT), "description": lint_text, "words": words_text,
                              "inputs": sorted(set(_json_names(e.get("inputSchema") or {})))}
     for rel in PY_SOURCES:

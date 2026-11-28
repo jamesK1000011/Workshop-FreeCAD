@@ -899,7 +899,8 @@
       ]
      },
      "depth": {
-      "type": "number"
+      "type": "number",
+      "exclusiveMinimum": 0
      },
      "from": {
       "type": "array",
@@ -1080,7 +1081,9 @@
       "type": "array",
       "items": {
        "type": "number"
-      }
+      },
+      "minItems": 3,
+      "maxItems": 3
      },
      "turn": {
       "type": "number"
@@ -2248,7 +2251,8 @@
       "type": "string"
      },
      "mass": {
-      "type": "number"
+      "type": "number",
+      "exclusiveMinimum": 0
      },
      "com": {
       "type": "array",
@@ -2257,7 +2261,9 @@
         "number",
         "null"
        ]
-      }
+      },
+      "minItems": 3,
+      "maxItems": 3
      },
      "massTol": {
       "type": "number"
@@ -2299,21 +2305,17 @@
       ]
      },
      "packing": {
-      "means": "The share of a pocket that the fill takes (0.6 loose shot, 1 a cast slug)",
-      "min": 0.1,
-      "max": 1
+      "means": "The share of a pocket that the fill takes (0.6 loose shot, 1 a cast slug)"
      },
      "diameter": {
       "means": "Pocket diameter",
       "unit": "mm",
-      "default": 8,
-      "min": 2
+      "default": 8
      },
      "minWall": {
       "means": "Kept clear of every surface (the minWall of the spec, else 1.2; at least 0.4)",
       "unit": "mm",
-      "default": 1.2,
-      "min": 0.4
+      "default": 1.2
      },
      "maxPockets": {
       "means": "The most pockets",
@@ -2430,17 +2432,23 @@
         "number",
         "null"
        ]
-      }
+      },
+      "minItems": 3,
+      "maxItems": 3
      },
      "fill": {},
      "packing": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0.1,
+      "maximum": 1
      },
      "diameter": {
-      "type": "number"
+      "type": "number",
+      "minimum": 2
      },
      "minWall": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0.4
      },
      "maxPockets": {
       "type": "integer"
@@ -2605,8 +2613,7 @@
      "So the printability check and the mass estimate read the print as the slicer will lay it",
      "export writes one file, the presets flattened",
      "Import that file on another computer, or give it to someone without this slicer's presets",
-     "limit 0 gives the counts and the person's own only",
-     "limit is 500 at most"
+     "limit 0 gives the counts and the person's own only"
     ],
     "returns": {
      "slicer": {
@@ -3902,8 +3909,6 @@
      },
      "copies": {
       "means": "n, or { \"body label\": n }",
-      "min": 1,
-      "max": 500,
       "forms": [
        "n",
        "{ \"body label\": n }"
@@ -4042,7 +4047,9 @@
       "type": [
        "integer",
        "object"
-      ]
+      ],
+      "minimum": 1,
+      "maximum": 500
      },
      "sheet": {
       "type": "array",
@@ -4757,7 +4764,8 @@
       "type": "number"
      },
      "yieldMPa": {
-      "type": "number"
+      "type": "number",
+      "exclusiveMinimum": 0
      }
     },
     "required": [],
