@@ -53,7 +53,7 @@ def fastener_set(s, a):
         done = _run(lambda: api.restore(s.doc))
         if not refs:
             s.snapshot("fastener_set")
-            return {"restored": done, "note": "Fasteners saved where Fasteners Workbench was not loaded have its proxy back." if done else "None needed restoring."}
+            return {"restored": done}
     if not refs:
         raise ToolError("invalid_input", "objects: the fasteners to change (fastener_list names them).")
     m = a.get("match")

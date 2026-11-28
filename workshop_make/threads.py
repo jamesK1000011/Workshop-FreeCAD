@@ -60,7 +60,7 @@ def _insert(size, inserts):
         return {"hole": f["hole"], "depth": f["depth"], "source": f["source"]}
     if size in inserts:
         ins = inserts[size]
-        return {"hole": ins[0], "depth": ins[1], "source": "Workshop Make (typical heat-set insert figures; FreeCAD has none)"}
+        return {"hole": ins[0], "depth": ins[1], "source": "Workshop Make"}
     return None
 
 
@@ -177,7 +177,7 @@ def _build():
             _profile(row, r["major"], p)
             if tpi:
                 row["tpi"] = tpi
-                row["tpiSource"] = "Workshop Make (FreeCAD's Python gives no Unified pitch)"
+                row["tpiSource"] = "Workshop Make"
             if ex and ex.get("tapDrillName"):
                 row["tapDrillName"] = ex["tapDrillName"]
         if (row["series"], row["size"]) in have:

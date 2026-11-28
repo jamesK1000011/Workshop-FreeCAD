@@ -445,22 +445,22 @@ class PageExport:
                 continue
             name = getattr(o, "Name", "?")
             if name in self.before:
-                left.append({"object": name, "why": "marked as changed before the export"})
+                left.append({"object": name, "why": "changedBefore"})
                 continue
             written = {p for what, n, p, _t in log if what == "changed" and n == name}
             other = sorted(written - own_writes(o))
             if not written:
-                left.append({"object": name, "why": "marked as changed with nothing written to it during the export"})
+                left.append({"object": name, "why": "nothingWritten"})
             elif other:
-                left.append({"object": name, "why": f"{', '.join(other)} changed during the export"})
+                left.append({"object": name, "why": "changedDuring", "props": other})
             elif not callable(getattr(o, "purgeTouched", None)):
-                left.append({"object": name, "why": "this FreeCAD cannot take the mark off"})
+                left.append({"object": name, "why": "noPurge"})
             else:
                 try:
                     o.purgeTouched()
                     cleared.append(name)
                 except Exception as e:  # noqa: BLE001
-                    left.append({"object": name, "why": f"the mark could not be taken off: {e}"})
+                    left.append({"object": name, "why": "purgeFailed", "error": str(e)})
         out = {"cleared": cleared, "waited": round(time.time() - t0, 2), **turns_since(mark),
                "seen": {"changed": sum(1 for e in log if e[0] == "changed"), "recomputed": sum(1 for e in log if e[0] == "recomputed")}}
         if late:
@@ -504,8 +504,7 @@ def page_reading(session, tool, changed):
     for p in pages:
         try:
             if p.Template is None:
-                out.append({"line": f"drawing page {p.Label} has no template: its exports have no frame or title block", "red": False,
-                            "todo": f"td_page gives {p.Label} a template, or drawing_make draws the sheet again"})
+                out.append({"line": f"drawing page {p.Label} has no template", "red": False})
             vs = list(p.Views or [])
         except Exception:  # noqa: BLE001
             continue
@@ -517,15 +516,13 @@ def page_reading(session, tool, changed):
             except Exception:  # noqa: BLE001
                 continue
             if not src:
-                out.append({"line": f"view {v.Label} on page {p.Label} draws nothing: its source is no longer in the document", "red": True,
-                            "todo": f"object_delete {v.Label} (and the dimensions on it), or drawing_make draws the sheet again from the bodies there are"})
+                out.append({"line": f"view {v.Label} on page {p.Label} has no source in the document", "red": True})
                 continue
             if asked >= HEALTH_VIEWS or not (id(v) in touched or any(id(x) in touched for x in src)):
                 continue
             asked += 1
             busy = view_busy(v)
             if busy:
-                out.append({"line": f"view {v.Label} on page {p.Label} is not drawn yet ({busy}): TechDraw works its lines out after the call", "red": False,
-                            "todo": "wait a moment before td_export; drawing_make waits for its own views by itself"})
+                out.append({"line": f"view {v.Label} on page {p.Label} is not drawn yet ({busy})", "red": False})
     return out
 

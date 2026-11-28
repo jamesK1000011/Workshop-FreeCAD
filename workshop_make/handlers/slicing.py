@@ -94,7 +94,7 @@ def write_stl(o, path):
 
 
 def dropped_pauses(s, items, setup, why):
-    """The pauses that items would need alone, as a warning: with several on
+    """The pauses that items would need alone, as a record: with several on
     one plate or with orient, none are written. None when there are none."""
     lost = []
     for b in items:
@@ -110,10 +110,7 @@ def dropped_pauses(s, items, setup, why):
             lost.append((b.Label, ps))
     if not lost:
         return None
-    parts = "; ".join(f"{label}: {len(ps)} at z " + ", ".join("%g" % p["z"] for p in ps) + " mm" for label, ps in lost)
-    alone = " and ".join(f"slice_with {{ body: \"{label}\" }}" for label, _ in lost)
-    return (f"Pauses NOT written ({why}): {parts}. The print does not stop for the encased parts. "
-            f"To keep the pauses, slice that body alone, without orient: {alone}.")
+    return {"reason": why, "bodies": [{"body": label, "count": len(ps), "z": [p["z"] for p in ps]} for label, ps in lost]}
 
 
 # Bambu Studio's command line stops on printers with two extruders (the
@@ -258,10 +255,10 @@ def slice_with(s, a):
     alone = len(stls) == 1 and not a.get("orient")
     want = pauses_for(s, src, setup) if alone and src is not None else []
     lost = None if alone else dropped_pauses(s, [o] + [b for b in others if b is not o], setup,
-                                             "several bodies on one plate" if len(stls) > 1 else "orient turns the body")
+                                             "severalBodies" if len(stls) > 1 else "orient")
     done = slicers.insert_pauses(gcode, want, cmd) if want else []
     out = {
-        "body": o.Label, "slicer": name, "exe": os.path.basename(exe), "profiles": f"the person's presets: {preset_note}" if preset_note else used, "gcode": gcode, "bytes": os.path.getsize(gcode),
+        "body": o.Label, "slicer": name, "exe": os.path.basename(exe), "profiles": "presets" if preset_note else used, "gcode": gcode, "bytes": os.path.getsize(gcode),
         **read, "verdict": slice_verdict(read), "setup": f"{setup['name']} ({setup['id']})",
     }
     if routed:
@@ -270,8 +267,8 @@ def slice_with(s, a):
     if a.get("overrides"):
         out["overrides"] = a["overrides"]
     if given:
-        out["material"] = (f"{given} for this slice only (not recorded: material_set records it)" if not (profiles.get("filament") or profiles.get("config"))
-                           else f"{given} asked for, but the filament profile given (or the setup's presets) is what the slicer used")
+        out["material"] = given
+        out["materialThisSliceOnly" if not (profiles.get("filament") or profiles.get("config")) else "materialIgnored"] = True
     out.update(slicers.LAST)  # the slicer's warnings and plate statistics
     if len(stls) == 1 and not _is_mesh(o):
         # Its weight kept for mass_properties and part_review, which use it
@@ -285,22 +282,21 @@ def slice_with(s, a):
         except Exception:  # noqa: BLE001 — a shape that gives no figures: nothing kept
             kept = None
         if kept:
-            out["massKept"] = printmass.slice_words(kept) + " (mass_properties and part_review use it while the body stays as sliced)"
+            out["massKept"] = printmass.slice_fields(kept)
     if len(stls) > 1:
         out["bodies"] = [o.Label] + [b.Label for b in others if b is not o]
     if options.get("project") and os.path.exists(options["project"]):
         out["project"] = options["project"]
     if _is_mesh(o):
-        out["mesh"] = f"{o.Label} went on the plate as a mesh, as it is (no new triangles)."
+        out["mesh"] = True
     if want:
         out["pauses"] = done
         out["pauseCommand"] = cmd
         if len(done) < len(want):
-            out["warning"] = f"{len(want) - len(done)} pause(s) not written: the G-code has no layer above them — check the part's height and the layer marks."
+            out["pausesNotWritten"] = len(want) - len(done)
     if lost:
         out["pauses"] = []
-        out["warning"] = lost
-    out["note"] = ("Profiles written from the print setup, the slicer's defaults for the rest: the person's own presets (slicer_presets use) are the authority. " if used in ("written", "setup") and not preset_note else "") + "Starting the print is the person's call."
+        out["pausesDropped"] = lost
     return out
 
 
@@ -382,12 +378,11 @@ def slicer_presets(s, a):
             out = {"slicer": slicer, **presets_listing(slicer, kind, a.get("query"), limit), "saved": SP.saved(s.out_dir)}
             said = _say_once(s, slicer, SP.roots(slicer))
             if said:
-                out = {"slicer": slicer, "from": said, **{k: v for k, v in out.items() if k != "slicer"},
-                       "next": "slicer_presets use { machine, process, filament } (names from here) or { bundle } (a saved one) for a body's print setup."}
+                out = {"slicer": slicer, "from": said, **{k: v for k, v in out.items() if k != "slicer"}}
             else:
-                out["saidBefore"] = ["from", "next"]
+                out["saidBefore"] = ["from"]
             if slicer == "orcaslicer" and SP.packed_only(slicer) and not SP.orca_cached():
-                out["note"] = "This OrcaSlicer packs its system presets (.opc), which cannot be read here: slicer_presets fetch { vendors: [\"BBL\", …] } brings the same version's as JSON. The person's own presets are read either way."
+                out["packedOnly"] = True
             return out
         if action == "fetch":
             if slicer != "orcaslicer":
@@ -398,7 +393,7 @@ def slicer_presets(s, a):
             version = a.get("version")
             if version is not None and not (isinstance(version, str) and VERSION.fullmatch(version)):
                 raise ToolError("invalid_input", "version: an OrcaSlicer release, three numbers such as 2.3.1. Left out, the version on this computer.")
-            return {**SP.fetch_orca(vendors, version), "next": "slicer_presets list { slicer: orcaslicer, kind, query } now shows them."}
+            return SP.fetch_orca(vendors, version)
         if action == "use":
             o = s.body(a.get("body"))
             sets = store.setups(s.doc)
@@ -419,7 +414,7 @@ def slicer_presets(s, a):
             setup["slicerPresets"] = choice
             store.save_setups(s.doc, sets)
             return {"setup": f"{setup['name']} ({setup['id']})", "presets": {k: data[k].get("name") for k in SP.KINDS}, "slicer": data["slicer"],
-                    "settingsFromPresets": took, "note": "The setup's layer height, walls, infill and shells now come from the presets, so the printability check and the mass estimate read the print as the slicer will lay it."}
+                    "settingsFromPresets": took}
         if action == "export":
             if a.get("bundle"):
                 data = SP.load_saved(s.out_dir, a["bundle"])
@@ -438,8 +433,7 @@ def slicer_presets(s, a):
             with open(path, "w", encoding="utf-8") as f:
                 json.dump({**data, "name": name}, f, indent=1)
             kept = SP.save(s.out_dir, {**data, "name": name}, name)[0]
-            return {"exported": path, "name": kept, "presets": {k: data[k].get("name") for k in SP.KINDS},
-                    "note": "One file, the presets flattened: slicer_presets import it on another computer, or give it to someone without this slicer's presets."}
+            return {"exported": path, "name": kept, "presets": {k: data[k].get("name") for k in SP.KINDS}}
         if action == "import":
             path = a.get("path")
             if not path or not os.path.isfile(os.path.expanduser(path)):
@@ -447,7 +441,7 @@ def slicer_presets(s, a):
             with open(os.path.expanduser(path), encoding="utf-8") as f:
                 data = SP.check_bundle(json.load(f))
             name, kept = SP.save(s.out_dir, data, a.get("name"))
-            return {"imported": name, "kept": kept, "presets": {k: data[k].get("name") for k in SP.KINDS}, "next": f"slicer_presets use {{ body, bundle: \"{name}\" }}."}
+            return {"imported": name, "kept": kept, "presets": {k: data[k].get("name") for k in SP.KINDS}}
     except SP.PresetError as e:
         raise ToolError("not_found", str(e))
     except (OSError, ValueError) as e:
@@ -521,7 +515,7 @@ def slice_open(s, a):
         subprocess.Popen(["open", "-a", exe.split(".app/")[0] + ".app", p])
     else:
         subprocess.Popen([exe, p], start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    return {"opened": p, "in": name, "next": "When the person has saved it there, slice_read { path } brings back what they changed (slice: true slices it as it stands)."}
+    return {"opened": p, "in": name}
 
 
 HANDLERS = {

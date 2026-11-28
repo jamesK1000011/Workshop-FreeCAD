@@ -182,7 +182,7 @@ class LateViews(unittest.TestCase):
         out = run(LATE + r'''
 ext = {"done": [], "missed": [], "todo": [todo("front", front, "x", True, 1100), todo("front", front, "z", False, 950), todo("top", top, "y", False, 80)], "doc": doc, "page": None}
 D.place_extents(ext, top)                       # Top drawn in time: placed at once
-missed = [{"view": "front", "type": t, "value": v, "why": "the view was not drawn within its time limit: placed when it is drawn before the export (page.lateExtents), else left off"}
+missed = [{"view": "front", "type": t, "value": v, "why": "timeLimit"}
           for t, v in (("DistanceX", 1100), ("DistanceY", 950))]
 made = {"extentDimensions": 1, "extents": list(ext["done"]), "notOnPage": list(missed) + [{"view": "front", "item": "R5", "why": "other"}], "_late": ext}
 OUT["early"] = D.place_late(dict(made, _late={"done": [], "missed": [], "todo": [], "doc": doc, "page": None}))

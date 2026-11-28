@@ -93,15 +93,10 @@ def _row(size):
     return r
 
 
-NOTE = ("Sizes, majors and tap drills are FreeCAD's own (PartDesign Hole's thread tables); pitch diameter and minors from the ISO 68-1 basic profile. "
-        "A Unified pitch and drill name are Workshop Make's, where FreeCAD has none; heat-set insert holes are Fasteners Workbench's IUT table when it is installed, else Workshop Make's typical figures (each row's source says). "
-        "A printed hole is better tapped or fitted with an insert than printed threaded under M5.")
-
-
 def thread_lookup(s, a):
     if a.get("size"):
         r = _row(a["size"])
-        return {"thread": r, "units": "mm", "note": NOTE}
+        return {"thread": r, "units": "mm"}
     series = (a.get("series") or "all").lower()
     if series not in tt.SERIES + ("all",):
         raise ToolError("invalid_input", f"series: {', '.join(tt.SERIES)} or all.")
@@ -109,7 +104,7 @@ def thread_lookup(s, a):
     if a.get("near") is not None:
         d = float(a["near"])
         rows = sorted(rows, key=lambda r: abs(r["major"] - d))[:6]
-    return {"threads": [{k: r[k] for k in ("size", "major", "pitch", "minorInt", "tapDrill")} for r in rows], "units": "mm", "columns": "size, major, pitch, internal minor, tap drill",
+    return {"threads": [{k: r[k] for k in ("size", "major", "pitch", "minorInt", "tapDrill")} for r in rows], "units": "mm",
             "source": "FreeCAD's PartDesign Hole thread tables"}
 
 
@@ -122,7 +117,7 @@ def thread_identify(s, a):
         b = out.get("best") or {}
         if out.get("verdict") == "match" and b.get("family") in ("metric", "unc", "unf"):
             size = b["designation"].replace("×", "x").replace(" UNC", "").replace(" UNF", "")
-            out["next"] = f"thread_cut {{ size: \"{size}\" }} threads the modelled hole or shaft to match."
+            out["threadSize"] = size
         return out
     if not a.get("faces"):
         raise ToolError("invalid_input", "faces: the hole or shaft's face by query — or scan: { axis } to read a scanned thread.")
@@ -145,16 +140,12 @@ def thread_identify(s, a):
     t = tt.tie(near)
     if t and not a.get("pitch"):
         out["needs"] = "pitch"
-        out["ask"] = f"Same diameter for pitches {', '.join(str(x['pitch']) for x in t)} mm ({', '.join(x['size'] for x in t)}): ask which, or measure it — thread_identify {{ pitch }} picks."
+        out["tie"] = [{"size": x["size"], "pitch": x["pitch"]} for x in t]
     elif a.get("pitch"):
         m = [x for x in near if abs(x["pitch"] - float(a["pitch"])) < 0.01]
         out["best"] = m[0] if m else None
-        if not m:
-            out["note"] = "No near size has that pitch."
     else:
         out["best"] = near[0]
-    if out.get("best") and abs(out["best"]["off"]) > 0.3:
-        out["note"] = f"{out['best']['off']:+.2f} mm off the nearest: maybe not a thread size — a clearance hole, a press fit or a print's shrinkage."
     return out
 
 
@@ -279,18 +270,14 @@ def _cut_in_body(s, o, pd, cyl, end, row, mode, depth, rec, threads):
            "route": "PartDesign Hole", "features": [x.Name for x in made]}
     if not sound["ok"]:
         out["problems"] = sound["problems"][:3]
-    return _notes(out, doc, o, row, mode, cyl, hole_d, "FreeCAD's own Hole in the Body (double-click it to edit). ")
+    return _notes(out, doc, o, row, mode, cyl, hole_d)
 
 
-def _notes(out, doc, o, row, mode, cyl, hole_d, lead=""):
-    if mode == "cosmetic":
-        out["note"] = lead + "The hole is at the thread's tapping size and the thread is recorded with the document; tap it after making."
-    elif lead:
-        out["note"] = lead.strip()
+def _notes(out, doc, o, row, mode, cyl, hole_d):
     if mode != "cosmetic" and store.setup_of(doc, o.Label, "print") and row["major"] < 5:
-        out["warning"] = "A modelled thread under M5 rarely prints cleanly: print the tapping hole and tap it, or use a heat-set insert."
+        out["warning"] = "modelledUnderM5"
     if cyl["diameter"] > hole_d + 0.01:
-        out["warning2"] = f"The hole was {cyl['diameter']:.2f} mm, over the {hole_d:.2f} mm the thread drills: the thread is shallow there."
+        out["holeOverDrill"] = {"hole": round(cyl["diameter"], 2), "drills": round(hole_d, 2)}
     return out
 
 
@@ -320,7 +307,7 @@ def thread_cut(s, a):
             raise ToolError("unavailable", "An outside thread cannot be modelled here: FreeCAD's PartDesign threads holes only. mode: cosmetic records it; a printed bolt is better bought.")
         if cyl["diameter"] > row["major"] + 0.05:
             raise ToolError("invalid_state", f"The shaft ({cyl['diameter']:.2f} mm) is over {row['size']}'s major diameter ({row['major']} mm): turn it to the major first.")
-        rec["note"] = "Recorded only: the shaft is left at its diameter."
+        rec["recordedOnly"] = True
         threads.append(rec)
         store.write(s.doc, "threads", threads)
         s.snapshot("thread_cut")

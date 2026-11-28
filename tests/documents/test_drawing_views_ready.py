@@ -129,7 +129,7 @@ OUT["never"] = [sorted(paths), sorted(why), why.get("pdf", ""), rep["viewsInExpo
         paths, why, pdf, counts, n = out["never"]
         self.assertEqual(paths, ["dxf"])
         self.assertEqual(why, ["pdf", "svg"])
-        self.assertIn("no view geometry", pdf)
+        self.assertEqual("noViewGeometry", pdf)
         self.assertFalse(counts["ok"])
         self.assertEqual(counts["viewEdges"], 20)
         self.assertEqual(n, 2)
@@ -219,7 +219,7 @@ OUT["no_doc"] = T.page_reading(types.SimpleNamespace(doc=None), "x", [])
         self.assertIn("Top", got[0]["line"])
         self.assertIn("waiting", got[0]["line"])
         self.assertIn("Right", got[1]["line"])
-        self.assertIn("object_delete", got[1]["todo"])
+        self.assertNotIn("todo", got[1])
         self.assertIn("Bare", got[2]["line"])
         # A call that recomputed neither a view nor its source asks no view whether it is drawn.
         self.assertEqual([x["red"] for x in out["after_other_change"]], [True, False])
@@ -430,9 +430,9 @@ OUT["marked"] = marked(page)
         s = out["settled"]
         self.assertEqual(s["cleared"], ["Template001", "Dimension005"])
         self.assertEqual([x["object"] for x in s["left"]], ["Dimension003", "Dimension004", "Page001"])
-        self.assertIn("before the export", s["left"][0]["why"])
-        self.assertIn("X changed during the export", s["left"][1]["why"])
-        self.assertIn("nothing written", s["left"][2]["why"])
+        self.assertEqual("changedBefore", s["left"][0]["why"])
+        self.assertEqual(("changedDuring", ["X"]), (s["left"][1]["why"], s["left"][1]["props"]))
+        self.assertEqual("nothingWritten", s["left"][2]["why"])
         self.assertEqual(out["marked"], ["Dimension003", "Dimension004", "Page001"])
 
     def test_a_dimension_not_seen_again_in_time_is_said(self):

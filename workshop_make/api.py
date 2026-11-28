@@ -34,14 +34,15 @@ def calibration(doc, body=None):
     return (c, "calibrated") if c else (dict(fits.DEFAULT_CAL), NO_CALIBRATION)
 
 
-# What printerFit says with no calibration kept: a clause that reads in a
-# sentence ("Printer calibration: none, so …").
-NO_CALIBRATION = "none, so holes are assumed to print 0.2 mm small"
+# What printerFit says with no calibration kept: "none". The clause below
+# is for the Report view and the panel, not the answer.
+NO_CALIBRATION = "none"
+NONE_CLAUSE = "none, so holes are assumed to print 0.2 mm small"
 
 
 def calibration_said(said):
     """printerFit as a person reads it after "Printer calibration: "."""
-    return "the one kept with this document" if said == "calibrated" else str(said)
+    return "the one kept with this document" if said == "calibrated" else NONE_CLAUSE if said == NO_CALIBRATION else str(said)
 
 
 def calibrate(doc, hole=0.2, shaft=0.0):
@@ -161,10 +162,6 @@ def hole(doc, body, kind, size="M3", at=None, direction="-z", depth="through", f
                 "depth": depth, **({"through": through} if through else {}), "removed": round(before - pd.Shape.Volume, 2),
                 "route": "PartDesign Hole", "features": names,
                 **pdhole.head_side(kind, list(at) if at and sk is None else None, dvec),
-                # sizes.allowanceOn says how the allowance is kept: named here, not said twice.
-                "note": ("FreeCAD's own Hole (double-click it to edit). " + (f"Printer allowance {float(cal.get('hole', 0.0)):g} mm added: sizes.allowanceOn says where and how it is kept."
-                                                                             if sizes.get("allowanceOn") else
-                         "No printer allowance: FreeCAD's sizes as they are, kept by its size and fit.")),
                 "sound": s["ok"], **({"problems": s["problems"]} if not s["ok"] else {})}
     if sk is not None:
         raise Refused("sketch: a sketch's circles make holes in a PartDesign Body only; give at for a plain Part solid.")
@@ -196,7 +193,6 @@ def hole(doc, body, kind, size="M3", at=None, direction="-z", depth="through", f
     return {"body": o.Label, "kind": kind, "size": size, "sizes": sizes, "printerFit": said, "allowance": float(cal.get("hole", 0.0)),
             "depth": depth, **({"through": through} if through else {}), "removed": round(removed, 2),
             "route": "Part solid", **pdhole.head_side(kind, list(at), fits._dir(direction)),
-            "note": "Cut as a shape: the part is a plain Part solid, not a PartDesign Body, so FreeCAD's Hole cannot go on it (put it in a Body for an editable Hole).",
             "sound": s["ok"], **({"problems": s["problems"]} if not s["ok"] else {})}
 
 
@@ -239,7 +235,7 @@ MAGNET_T_MM = 2.0  # a 6 x 2 mm magnet, as Workshop Parts' Gridfinity bins take
 
 
 def setup_types():
-    return {k: v["settings"] for k, v in records.TYPES.items()}
+    return {k: list(v["settings"]) for k, v in records.TYPES.items()}
 
 
 def _settings(kind, given):
@@ -373,7 +369,7 @@ def freecad_material(doc, bodies, material=None):
     Make's: the FreeCAD card for the filament material, or FreeCAD's
     default when material is None (forgotten). So FreeCAD's Inspect
     Material names what Make weighs the part with. {label: {"card"} or
-    {"note"}}."""
+    {"why"} or {"left"}}."""
     from . import fcmaterials, materials
 
     out = {}
@@ -382,11 +378,11 @@ def freecad_material(doc, bodies, material=None):
         if not objs:
             continue
         if material is None:
-            out[b] = {"card": "FreeCAD's default"} if fcmaterials.clear(objs[0]) else {"note": "FreeCAD's material left as it was"}
+            out[b] = {"card": "FreeCAD's default"} if fcmaterials.clear(objs[0]) else {"left": True}
             continue
         key = str(material).lower()
         name, why = fcmaterials.give(objs[0], key, (materials.FILAMENTS.get(key) or {}).get("name"))
-        out[b] = {"card": name} if name else {"note": why}
+        out[b] = {"card": name} if name else {"why": why}
     return out
 
 

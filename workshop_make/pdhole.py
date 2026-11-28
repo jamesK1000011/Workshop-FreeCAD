@@ -443,7 +443,6 @@ def _configure(h, kind, size, depth, fit, add):
         out = {"hole": round(hd, 3), "depth": round(hdep, 3)}
         if kind == "insert":
             out["insertSource"] = src
-            out["note"] = note
         return out
     h.ThreadType = "ISOMetricProfile"
     pick = pick_size(_enums(h, "ThreadSize"), size)
@@ -517,10 +516,7 @@ def _keep_allowance(h, kind, size, fv, add):
         h.Label2 = said
     except Exception:  # noqa: BLE001
         pass
-    props = "Diameter" + (" and HoleCutDiameter" if was else "")
-    out["allowanceOn"] = (f"the Hole's {props} (FreeCAD's size + {_n(add)} mm): a plain hole (Profile None) so FreeCAD keeps it on "
-                          f"recompute and reopen; {size} and the fit are in its description (Label2). Double-click it to change "
-                          f"the diameters; for another size run hw_hole again (a size picked in its panel takes FreeCAD's size without the allowance).")
+    out["allowanceOn"] = {"props": ["Diameter"] + (["HoleCutDiameter"] if was else []), "addMm": round(float(add), 3)}
     return out
 
 
@@ -530,15 +526,15 @@ def _n(x):
 
 
 def head_side(kind, at, d):
-    """Which face the hole's head side is on, in words, for the answer:
-    dir runs into the material, so the screw head, counterbore,
-    countersink or nut trap is on the face at enters by, facing against
-    dir ("countersink on the face at x=0, facing -x"). A wall-mount
-    bracket drilled from the wall side has its countersink on the wall."""
+    """Which face the hole's head side is on, as a record: dir runs into the
+    material, so the screw head, counterbore, countersink or nut trap is on
+    the face at enters by, facing against dir ({head: "countersink", face:
+    "x=0", facing: "-x"}). A wall-mount bracket drilled from the wall side
+    has its countersink on the wall."""
     what = {"clearance": "screw head", "counterbore": "counterbore", "countersink": "countersink", "nut_trap": "nut trap",
             "insert": "insert pocket's opening", "magnet": "magnet pocket's opening"}.get(kind, "hole's entry")
     if at is None:
-        return {"headSide": f"{what} on the face the sketch is on (FreeCAD's Hole goes into the material from the sketch)."}
+        return {"head": what, "onSketch": True}
     v = [float(getattr(d, k)) for k in "xyz"] if hasattr(d, "x") else [float(x) for x in d]
     n = sum(x * x for x in v) ** 0.5 or 1.0
     v = [x / n for x in v]
@@ -547,11 +543,8 @@ def head_side(kind, at, d):
         ax = "xyz"[big]
         facing = ("-" if v[big] > 0 else "+") + ax
         face = f"{ax}={_n(at[big])}"
-        out = {"face": face, "facing": facing}
-        s = f"{what} on the face at {face}, facing {facing}"
+        out = {"head": what, "face": face, "facing": facing}
     else:
         facing = [round(-x, 4) for x in v]
-        out = {"facing": facing}
-        s = f"{what} on the face through {[round(float(x), 3) for x in at]}, facing {facing}"
-    out["headSide"] = s + " (dir runs into the material from there; for it on the opposite face, enter from that face with dir reversed)."
+        out = {"head": what, "headAt": [round(float(x), 3) for x in at], "facing": facing}
     return out

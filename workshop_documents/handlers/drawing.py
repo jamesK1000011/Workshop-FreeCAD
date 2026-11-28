@@ -84,7 +84,7 @@ def _settle(vs, draw=True, limits=None, on_ready=None):
                     raise
                 kw.pop(next(k for k in ("on_ready", "limits", "draw") if k in kw))
     except Exception as e:  # noqa: BLE001
-        return {"seconds": 0.0, "notReady": [{"view": "?", "why": f"the wait failed: {type(e).__name__}: {e}"}]}
+        return {"seconds": 0.0, "notReady": [{"view": "?", "why": "waitFailed", "error": f"{type(e).__name__}: {e}"}]}
     if not isinstance(got, dict):
         got = {"seconds": float(got or 0.0), "notReady": []}
     if on_ready is not None:
@@ -354,7 +354,7 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
                 doc.recompute()
                 sec_note = {"section": sv.Label}
             except Exception as e:
-                sec_note = {"sectionNote": f"the section view could not go on the page here ({e}); the files have it"}
+                sec_note = {"sectionNote": {"reason": "notOnPage", "error": str(e)}}
         # Every view's lines worked out (TechDraw's own thread) before a
         # dimension goes on them, each view within its own limit, and said
         # so: the wait once sat in a try that could skip it unnoticed. The
@@ -377,7 +377,7 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
         ready = _settle([v for _, v in made], limits=lim, on_ready=(lambda v: place_extents(ext, v)) if todo else None)
         for t in ext["todo"]:
             ext["missed"].append({"view": t["view"], "type": "DistanceX" if t["horizontal"] else "DistanceY", "value": round(t["mm"], 4),
-                                  "why": "the view was not drawn within its time limit: placed when it is drawn before the export (page.lateExtents), else left off"})
+                                  "why": "timeLimit"})
         if ext["done"]:
             doc.recompute()
         dimmed = len(ext["done"])
@@ -394,7 +394,7 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
                 ann.X, ann.Y = table["at"][0] + 2, H - table["at"][1] - 2
                 table_note = {"holeTable": ann.Label}
             except Exception as e:  # noqa: BLE001
-                table_note = {"holeTableNote": f"the hole table could not go on the page here ({e}); the files have it"}
+                table_note = {"holeTableNote": {"reason": "notOnPage", "error": str(e)}}
         out = {"views": len(made), "viewsReadyIn": ready["seconds"], **({"viewsNotReady": ready["notReady"]} if ready["notReady"] else {}),
                "viewLimit": lim[0] if lim else float(limit or 30.0), **({"coarse": True} if coarse else {}),
                "extentDimensions": dimmed, "template": os.path.basename(path) if path else None, **sec_note, **table_note}
@@ -420,13 +420,13 @@ def _techdraw_page(doc, objs, placed, scale, paper, label, dims, specs=(), drawn
             try:
                 done, missed = _page_dims(doc, page, made, drawn, specs, {vw: (x, y) for vw, (x, y) in placed}, H)
             except Exception as e:  # noqa: BLE001 — the page stands without them
-                done, missed = [], [{**_brief(sp), "why": f"TechDraw could not take dimensions here: {type(e).__name__}: {e}"} for sp in specs]
+                done, missed = [], [{**_brief(sp), "why": "failed", "error": f"{type(e).__name__}: {e}"} for sp in specs]
             out["dimensions"] = done
             if missed:
                 out["notOnPage"] = out.get("notOnPage", []) + missed
         return page, out
     except Exception as e:
-        return None, f"the TechDraw page could not be made here ({e}); the files stand on their own"
+        return None, {"reason": "notMade", "error": str(e)}
 
 
 def place_extents(ext, v):
@@ -439,9 +439,10 @@ def place_extents(ext, v):
         try:
             got = _extent_dim(doc, page, v, t["horizontal"], t["mm"])
         except Exception as e:  # noqa: BLE001
-            got = {"why": f"TechDraw refused it: {type(e).__name__}: {e}"}
+            got = {"why": "refused", "error": f"{type(e).__name__}: {e}"}
         if got.get("dimension") is None:
-            ext["missed"].append({"view": t["view"], "type": "DistanceX" if t["horizontal"] else "DistanceY", "value": round(t["mm"], 4), "why": got["why"]})
+            ext["missed"].append({"view": t["view"], "type": "DistanceX" if t["horizontal"] else "DistanceY", "value": round(t["mm"], 4),
+                                  **{k: got[k] for k in ("why", "error", "measured", "wanted", "tried") if k in got}})
             continue
         dim = got.pop("dim")
         bx, off = t["box"], t["off"]
@@ -478,8 +479,8 @@ def place_late(made):
         ext["doc"].recompute()
     except Exception:  # noqa: BLE001
         pass
-    made["notOnPage"] = [m for m in made.get("notOnPage", []) if not ("time limit" in m.get("why", "") and m.get("view") in late_views)]
-    made["notOnPage"] += [m for m in ext["missed"] if m.get("view") in late_views and "time limit" not in m.get("why", "") and m not in made["notOnPage"]]
+    made["notOnPage"] = [m for m in made.get("notOnPage", []) if not (m.get("why") == "timeLimit" and m.get("view") in late_views)]
+    made["notOnPage"] += [m for m in ext["missed"] if m.get("view") in late_views and m.get("why") != "timeLimit" and m not in made["notOnPage"]]
     if not made["notOnPage"]:
         made.pop("notOnPage")
     made["extents"] = list(ext["done"])
@@ -583,9 +584,9 @@ def _export_page(page, out_dir, base, kinds=("dxf", "pdf", "svg"), report=None, 
             if os.path.isfile(p) and os.path.getsize(p) > 0:
                 paths["dxf"] = p
             else:
-                why["dxf"] = "TechDraw wrote nothing"
+                why["dxf"] = "wroteNothing"
         except Exception as e:  # noqa: BLE001
-            why["dxf"] = f"TechDraw could not write it ({e})"
+            why["dxf"] = {"reason": "failed", "error": str(e)}
         ms["dxf"] = _ms(t0)
     gui = getattr(FreeCAD, "GuiUp", False)
     if gui and any(k in kinds for k in ("pdf", "svg")):
@@ -599,9 +600,9 @@ def _export_page(page, out_dir, base, kinds=("dxf", "pdf", "svg"), report=None, 
         if k not in kinds:
             continue
         if not gui:
-            why[k] = "TechDraw exports it with FreeCAD's window only"
+            why[k] = "needsWindow"
             continue
-        if k == "pdf" and why.get("svg", "").startswith(("TechDraw left the template out", "TechDraw's export held no view")):
+        if k == "pdf" and why.get("svg") in ("templateLeftOut", "noViewGeometry"):
             why[k] = why["svg"]
             continue
         p = os.path.join(out_dir, f"{base}.{k}")
@@ -636,18 +637,17 @@ def _export_page(page, out_dir, base, kinds=("dxf", "pdf", "svg"), report=None, 
                     held = None  # another file now
             t0 = time.perf_counter()
             if not (os.path.isfile(p) and os.path.getsize(p) > 0):
-                why[k] = "TechDraw wrote nothing"
+                why[k] = "wroteNothing"
             elif k == "svg" and not template_in_svg(p, page):
-                why[k] = "TechDraw left the template out of its export (no frame or title block in it)"
+                why[k] = "templateLeftOut"
             elif k == "svg" and pv and not (views_in_svg(p, page, pv, report) if held is None else held):
-                why[k] = ("TechDraw's export held no view geometry (only the template and dimensions), twice; "
-                          "the page itself is fine: File ▸ Export it in FreeCAD's window")
+                why[k] = "noViewGeometry"
             else:
                 paths[k] = p
             if k == "svg":
                 ms["check"] = ms.get("check", 0) + _ms(t0)
         except Exception as e:  # noqa: BLE001
-            why[k] = f"TechDraw could not write it ({e})"
+            why[k] = {"reason": "failed", "error": str(e)}
     return paths, why
 
 
@@ -1025,14 +1025,14 @@ def _extent_dim(doc, page, v, horizontal, mm):
     or {why}."""
     verts = _vertices(v)
     if len(verts) < 2:
-        return {"why": "the view has no vertices yet (TechDraw had not drawn it)"}
+        return {"why": "noVertices"}
     try:
         sv = float(getattr(v, "Scale", 1.0) or 1.0)
     except Exception:  # noqa: BLE001
         sv = 1.0
     pairs = extent_pairs(verts, _edge_ends(v, verts), horizontal, mm, sv)
     if not pairs:
-        return {"why": "its extreme vertices are one point"}
+        return {"why": "onePoint"}
     first = None
     for lo, hi in pairs:
         try:
@@ -1044,7 +1044,7 @@ def _extent_dim(doc, page, v, horizontal, mm):
             doc.recompute()
             raw = float(dim.getRawValue())
         except Exception as e:  # noqa: BLE001
-            return {"why": f"TechDraw refused it: {e}"}
+            return {"why": "refused", "error": str(e)}
         if abs(raw - mm) <= max(0.05, 0.002 * mm):
             return {"dim": dim, "dimension": dim.Name, "measured": round(raw, 4), "value": round(mm, 4)}
         first = raw if first is None else first
@@ -1053,8 +1053,7 @@ def _extent_dim(doc, page, v, horizontal, mm):
             doc.removeObject(dim.Name)
         except Exception:  # noqa: BLE001
             pass
-    return {"why": f"TechDraw measured {first:.4g} between the view's extreme vertices, not {mm:.4g}"
-                   + (f" (and no other pair of its vertices measured it, {len(pairs)} tried)" if len(pairs) > 1 else "") + ": left off"}
+    return {"why": "measuredOther", "measured": round(first, 4), "wanted": round(mm, 4), "tried": len(pairs)}
 
 
 def match_circle(circles, centre, radius, frames):
@@ -1099,7 +1098,7 @@ def _page_dims(doc, page, made, drawn, specs, at=None, H=None):
         try:
             got = _page_dim(doc, page, by_view, view_frames, drawn, sp, at, H)
         except Exception as e:  # noqa: BLE001 — this item only; the rest go on
-            got = {"why": f"TechDraw could not take it here: {type(e).__name__}: {e}"}
+            got = {"why": "failed", "error": f"{type(e).__name__}: {e}"}
         if "why" in got:
             missed.append({**_brief(sp), **got})
         else:
@@ -1116,12 +1115,12 @@ def _page_dim(doc, page, by_view, view_frames, drawn, sp, at=None, H=None):
     view = sp["view"]
     v = by_view.get(view)
     if v is None:
-        return {"why": "the view is not on the page"}
+        return {"why": "viewNotOnPage"}
     if view not in view_frames:
         view_frames[view] = _view_frame(v, drawn[view]["box"])
     fr = view_frames[view]
     if fr is None:
-        return {"why": "the view has no geometry headless"}
+        return {"why": "noGeometry"}
     bx = drawn[view]["box"]
     tol = max(0.05, 0.002 * fr[0] * max(bx[2] - bx[0], bx[3] - bx[1]))
     refs = []
@@ -1190,7 +1189,7 @@ def _page_dim(doc, page, by_view, view_frames, drawn, sp, at=None, H=None):
                     if any(abs(rr - sp["radius"] * k) <= 0.02 * sp["radius"] * k + 1e-6 for k in {sv, 1.0, fr[0]})]
             if same:
                 hit = min(same, key=lambda i: math.hypot(circles[i][0] - c[0], circles[i][1] - c[1]))
-                sized = "placed on the view's circle of that size nearest the hole (its place did not match): check it is the hole meant"
+                sized = True
         if hit is not None:
             refs = [(v, f"Edge{idx[hit]}")]
     else:
@@ -1203,7 +1202,7 @@ def _page_dim(doc, page, by_view, view_frames, drawn, sp, at=None, H=None):
                 break
             refs.append((v, f"Vertex{near}"))
     if not refs:
-        return {"why": "no vertex or circle of the view there (a hidden line, or a point TechDraw does not draw)"}
+        return {"why": "noReference"}
     try:
         dim = doc.addObject("TechDraw::DrawViewDimension", "Dimension")
         dim.Type = sp["type"]
@@ -1241,12 +1240,9 @@ def _page_dim(doc, page, by_view, view_frames, drawn, sp, at=None, H=None):
         doc.recompute()
         raw = float(dim.getRawValue())
     except Exception as e:
-        return {"why": f"TechDraw refused it: {e}"}
+        return {"why": "refused", "error": str(e)}
     ok = abs(raw - sp["value"]) <= max(0.01, 0.002 * sp["value"])
-    warn = None if ok else f"TechDraw measures {raw:.4g}, not {sp['value']:.4g}: check its references in the GUI"
-    if sized:
-        warn = f"{warn}; {sized}" if warn else sized
-    return {"dimension": dim.Name, "measured": round(raw, 4), **({"warning": warn} if warn else {})}
+    return {"dimension": dim.Name, "measured": round(raw, 4), **({} if ok else {"wanted": round(sp["value"], 4)}), **({"placedOn": "nearestCircle"} if sized else {})}
 
 
 def _source_centre(v):
@@ -2104,9 +2100,8 @@ def drawing_make(s, a):
             on = hole_circle(drawn[hv].get("circles"), [views.point(c, hv) for c in cs], dia / 2, thread=bool(g.get("thread")))
             spec_at = {}
             if on is None:
-                row["calloutOff"] = (f"no circle of ⌀{_num(dia)} drawn where the hole is in the {hv} view "
-                                     "(hidden there, or drawn otherwise): left off the sheet rather than on another round edge")
-                off.append({"view": hv, "label": label, "why": row["calloutOff"]})
+                row["calloutOff"] = {"reason": "noCircle", "diameter": dia, "view": hv}
+                off.append({"view": hv, "label": label, "why": "noCircle", "diameter": dia})
             else:
                 c0 = cs[on[0]]
                 pa = _to_paper(on[1][:2], box, centre, sv)
@@ -2155,7 +2150,7 @@ def drawing_make(s, a):
     tb.setdefault("date", datetime.date.today().isoformat())
     title_block_grid(sheet, tb)
     folder, base = out_place(s.out_dir, a.get("file"), name)
-    page, made = (None, "not asked for")
+    page, made = (None, {"reason": "notAsked"})
     sheet_ms, page_ms = _ms(started), None
     split["rest"] = max(0, sheet_ms - split["bodies"] - sum(split["views"].values()) - split.get("extents", 0))
     limit = _td_wait.view_limit(edges, coarse)
@@ -2184,8 +2179,8 @@ def drawing_make(s, a):
             for k in ("viewsNotReady", "viewsInExport", "exportScene", "exportSceneAgain"):
                 if k in exported:
                     made[k if k != "viewsNotReady" else "exportViewsNotReady"] = exported[k]
-        frm = {k: "TechDraw page" for k in paths}
-        frm.update({k: f"Workshop's sheet writer: {w}" for k, w in why.items()})
+        frm = {k: "techdrawPage" for k in paths}
+        frm.update({k: _sheet_writer(w) for k, w in why.items()})
     if isinstance(made, dict):
         made.pop("_late", None)
     rest = [k for k in ("svg", "pdf", "dxf") if k not in paths]
@@ -2197,7 +2192,7 @@ def drawing_make(s, a):
             lines_ms = _ms(t_l)
         paths.update(_write(s, base, sheet, rest, folder))
         for k in rest:
-            frm.setdefault(k, "Workshop's sheet writer: no TechDraw page")
+            frm.setdefault(k, _sheet_writer("noPage"))
     paths = {k: paths[k] for k in ("svg", "pdf", "dxf")}
     page_label = page.Label if page is not None else None
     s.snapshot("drawing_make")
@@ -2228,12 +2223,8 @@ def drawing_make(s, a):
     if lines_ms is not None:
         out["timing"]["sheetLines"] = lines_ms
     out["lines"] = {"coarse": coarse, "from": coarse_from, "edges": edges, "viewLimit": limit,
-                    "sheetLines": ("worked out for the files TechDraw did not write" if lines_ms is not None else "not needed: TechDraw wrote every file") if later
-                    else "worked out with the views"}
-    if a.get("dimensions", True):
-        out["note"] = ("The drawing is the TechDraw page (edit it in TechDraw: its views, section, dimensions and title block are TechDraw's own; "
-                       "page.dimensions, and any it could not place under page.notOnPage). The files are the page's exports where TechDraw can write them "
-                       "(filesFrom); the rest come from Workshop's sheet writer, which also draws the hole callouts and overall sizes the page has as TechDraw dimensions.")
+                    "sheetLines": ("forMissingFiles" if lines_ms is not None else "notNeeded") if later
+                    else "withViews"}
     return out
 
 
@@ -2392,7 +2383,7 @@ def drawing_exploded(s, a):
         if not any(b.XMin < p.Shape.BoundBox.XMax and p.Shape.BoundBox.XMin < b.XMax and b.YMin < p.Shape.BoundBox.YMax and p.Shape.BoundBox.YMin < b.YMax for p in prior):
             apart.append(o.Label)
     if apart:
-        out["warnings"] = [f"{', '.join(apart)} lie apart from the parts before them, not where they go: each part is lifted over its place in the document, so put them there first (object_set Placement — a lid printed top down turns over about X), then again. view_render shows where they are."]
+        out["apart"] = apart
     out.update(_exploded_in_assembly(s, a, steps, order, seen, explode, direction, mid, item_of, items))
     if out.get("route") == OWN_ROUTE and a.get("page", True) and made_steps:
         out.update(_steps_page(s, a.get("title") or a.get("name") or "Assembly", made_steps[-1]))
@@ -2421,12 +2412,17 @@ def _steps_page(s, title, last):
         except Exception:  # noqa: BLE001
             pass
         s.doc.recompute()
-        return {"page": page.Label, "pageShows": f"step {last['step']} of the manual (its SVG)"}
+        return {"page": page.Label, "pageShows": {"step": last["step"]}}
     except Exception as e:  # noqa: BLE001 — the manual stands without it
-        return {"pageNote": f"the TechDraw page of the steps could not be made here ({e})"}
+        return {"pageNote": {"reason": "notMade", "error": str(e)}}
 
 
 OWN_ROUTE = "Workshop's own exploded shapes"
+
+
+def _sheet_writer(why):
+    """The files filesFrom says Workshop's sheet writer wrote: {from, why[, error]}."""
+    return {"from": "sheetWriter", **(why if isinstance(why, dict) else {"why": why})}
 
 
 def _exploded_in_assembly(s, a, steps, order, seen, explode, direction, mid, item_of, items):
@@ -2437,7 +2433,7 @@ def _exploded_in_assembly(s, a, steps, order, seen, explode, direction, mid, ite
     materials. Else the step pictures stand alone, and the answer says so."""
     asm = fcexplode.assembly_of(s.doc, order)
     if asm is None:
-        return {"route": OWN_ROUTE, "routeNote": "The parts are in no FreeCAD Assembly, so the steps are drawn from Workshop's own exploded shapes; put them in an Assembly for its own Exploded View, editable there."}
+        return {"route": OWN_ROUTE, "routeNote": {"reason": "noAssembly"}}
     offsets, by_label, labels = {}, {}, []
     for o in order:
         k = seen[o.Label]
@@ -2488,7 +2484,7 @@ def _exploded_in_assembly(s, a, steps, order, seen, explode, direction, mid, ite
         s.doc.recompute()
         out["page"] = page.Label
     except Exception as e:  # noqa: BLE001 — the Exploded View stands without it
-        out["pageNote"] = f"the TechDraw page could not be made here ({e})"
+        out["pageNote"] = {"reason": "notMade", "error": str(e)}
     return out
 
 
@@ -2597,18 +2593,18 @@ def patent_figures(s, a):
                     got, why = _export_page(pg, s.out_dir, os.path.basename(fp), ("pdf", "svg"), report=exported)
                 if _worth_saying(px.settled):
                     fig["settled"] = px.settled
-                frm = {kk: "TechDraw page" for kk in got}
-                frm.update({kk: f"Workshop's sheet writer: {w}" for kk, w in why.items()})
+                frm = {kk: "techdrawPage" for kk in got}
+                frm.update({kk: _sheet_writer(w) for kk, w in why.items()})
             else:
                 fig["pageNote"] = note
         if "svg" not in got:
             with open(fp + ".svg", "w", encoding="utf-8") as f:
                 f.write(sheet.svg())
-            frm.setdefault("svg", "Workshop's sheet writer: no TechDraw page")
+            frm.setdefault("svg", _sheet_writer("noPage"))
         if "pdf" not in got:
             with open(fp + ".pdf", "wb") as f:
                 f.write(sheet.pdf())
-            frm.setdefault("pdf", "Workshop's sheet writer: no TechDraw page")
+            frm.setdefault("pdf", _sheet_writer("noPage"))
         fig.update({"svg": fp + ".svg", "pdf": fp + ".pdf", "filesFrom": frm})
         # Where this figure's time went (found live, run 3: 6.6 s for two
         # figures, none of it in the answer).
@@ -2621,8 +2617,7 @@ def patent_figures(s, a):
     with open(np_, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
     s._patent = {"name": a.get("name"), "numerals": numerals, "figures": [{"fig": f["fig"], "view": f["view"]} for f in figs]}
-    out = {"figures": figs, "numerals": numerals, "list": np_, "note": "Black line art, no shading or hidden lines, on A4 within the USPTO's margins; numerals 3.5 mm high with lead lines to a face of each part. "
-           "Each figure is an ordinary TechDraw page (page), its numerals TechDraw balloons with no bubble, editable in TechDraw; the files are its exports where TechDraw can write them (filesFrom)."}
+    out = {"figures": figs, "numerals": numerals, "list": np_, "paper": "A4", "numeralMm": 3.5}
     if unseen:
         out["notSeenIn"] = unseen
     out["timing"] = {"figures": len(figs), **_turns_since(call_turns), "total": _ms(call_started)}
@@ -2655,7 +2650,7 @@ def _patent_page(s, objs, shapes, view, k, scale, centre, numerals, label):
         s.doc.recompute()
         return page, None
     except Exception as e:  # noqa: BLE001 — the files stand without it
-        return None, f"the TechDraw page could not be made here ({e})"
+        return None, {"reason": "notMade", "error": str(e)}
 
 
 # ---- patent_draft ----------------------------------------------------------------------
@@ -2750,7 +2745,7 @@ def patent_draft(s, a):
     p = os.path.join(s.out_dir, f"{_safe(a.get('name') or title)}_patent_draft.md")
     with open(p, "w", encoding="utf-8") as f:
         f.write("\n".join(md) + "\n")
-    return {"draft": p, "numerals": numerals, "figures": len(figs), "adjoining": [[o1.Label, o2.Label] for o1, o2 in touch], "note": "A draft for an attorney's review, written to the output folder only — nothing is filed or sent."}
+    return {"draft": p, "numerals": numerals, "figures": len(figs), "adjoining": [[o1.Label, o2.Label] for o1, o2 in touch]}
 
 
 HANDLERS = {

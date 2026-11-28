@@ -259,16 +259,15 @@ print(json.dumps(out, default=str))
     def test_no_yield_says_so(self):
         out = self.run_frame({"members": self.M[:1], "material": "steel", "supports": self.S})
         self.assertNotIn("safety", out["members"][0])
-        self.assertIn("No yield on the card of Steel-Generic", out["yieldNote"])
-        self.assertIn("yieldMPa", out["yieldNote"])
+        self.assertEqual(["Steel-Generic"], out["noYield"])
 
     def test_yield_in_the_call_and_on_a_member(self):
         out = self.run_frame({"members": self.M, "material": "steel", "supports": self.S, "yieldMPa": 250})
         a, b = out["members"]
-        self.assertEqual((a["safety"], a["yieldFrom"]), (2.5, "the call's yieldMPa"))
-        self.assertEqual((b["safety"], b["yieldFrom"]), (8.0, "the member's yieldMPa"))
+        self.assertEqual((a["safety"], a["yieldFrom"]), (2.5, "call"))
+        self.assertEqual((b["safety"], b["yieldFrom"]), (8.0, "member"))
         self.assertEqual(out["verdict"], "least safety 2.5, A")
-        self.assertNotIn("yieldNote", out)
+        self.assertNotIn("noYield", out)
 
     def test_a_bad_yield_is_refused(self):
         out = self.run_frame({"members": self.M[:1], "material": "steel", "supports": self.S, "yieldMPa": -5})

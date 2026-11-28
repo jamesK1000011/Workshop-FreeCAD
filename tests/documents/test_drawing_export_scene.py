@@ -119,7 +119,7 @@ OUT["r"] = [sorted(paths), sorted(why), why.get("svg", ""), rep["exportScene"], 
         paths, why, svg_why, steps, n = out["r"]
         self.assertEqual(paths, ["dxf"])
         self.assertEqual(why, ["pdf", "svg"])
-        self.assertIn("no view geometry", svg_why)
+        self.assertEqual("noViewGeometry", svg_why)
         self.assertNotIn("activate", steps)
         self.assertEqual(n, 2)
 

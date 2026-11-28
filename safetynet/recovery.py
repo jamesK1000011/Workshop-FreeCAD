@@ -419,13 +419,10 @@ def open_copy(src, name, label, t, beside=None):
     return nd
 
 
-NOT_AGAIN = ("an earlier recovered copy with no changes of its own since it opened: not recovered again "
-             "(a copy of a copy); the original's own copies are under app_recover list")
-
-
-SAVED_UNCHANGED = "saved and unchanged at the stop: opened again from its own file, as itself"
-BESIDE_COPY = "its file as saved, opened beside its recovered copy (the copy holds the changes made after the save)"
-ALREADY_OPEN = "saved and unchanged at the stop, and already open again from its own file"
+NOT_AGAIN = "notAgain"
+SAVED_UNCHANGED = "savedUnchanged"
+BESIDE_COPY = "besideCopy"
+ALREADY_OPEN = "alreadyOpen"
 
 
 def saved_unchanged(d):
@@ -524,14 +521,14 @@ def recover_docs(documents, since=None, reopened=None):
                 failed.append({"label": d.get("label") or label, "why": NOT_AGAIN, "notAgain": True})
                 continue
         if not srcs:
-            failed.append({"label": label, "why": "no saved copy (no checkpoint, auto-save or FreeCAD recovery file)"})
+            failed.append({"label": label, "why": "noSavedCopy"})
             continue
         errors = []
         for src in srcs:
             try:
                 nd = open_copy(src["path"], d["base"], label, src["t"], beside=fname if fname and not copy and os.path.isfile(fname) else None)
             except Exception as e:
-                errors.append(f"{src['source']} {_hm(src['t'])}: {e}")
+                errors.append({"source": src["source"], "time": _hm(src["t"]), "error": str(e)})
                 continue
             m = dict(nd.Meta or {})
             m[RECOVERED_FOR] = json.dumps({"file": fname, "label": label, "source": src["source"], "t": src["t"], "opened": time.time()})
@@ -539,11 +536,10 @@ def recover_docs(documents, since=None, reopened=None):
             settle(nd)
             lost = None
             if since:
-                mins = max(0, int(round((float(since) - src["t"]) / 60.0)))
-                lost = "nothing after it lost" if mins == 0 else f"about {mins} min of changes lost"
+                lost = max(0, int(round((float(since) - src["t"]) / 60.0)))
             opened.append(src["path"])
             rec.append({"label": label, "document": nd.Name, "as": nd.Label, "source": src["source"], "time": time.strftime("%Y-%m-%d %H:%M", time.localtime(src["t"])),
-                        **({"lost": lost} if lost else {}), **({"skipped": errors} if errors else {}), "file": fname or None})
+                        **({"lostMinutes": lost} if lost is not None else {}), **({"skipped": errors} if errors else {}), "file": fname or None})
             # The person's own file opens too, as saved, beside its recovered
             # copy: it did not seem to be gone (live, 22 Nov: "Bicycle" was
             # not open after a restart, only "Bicycle (recovered 09:16)").
@@ -553,7 +549,7 @@ def recover_docs(documents, since=None, reopened=None):
                     reopened.append({**back, "why": ALREADY_OPEN if back.get("already") else BESIDE_COPY})
             break
         else:
-            failed.append({"label": label, "why": "; ".join(errors)[:400]})
+            failed.append({"label": label, "why": "openFailed", "errors": errors})
     _remember(opened, [r["label"] for r in rec], crash=bool(since))
     if since:
         try:
@@ -667,8 +663,7 @@ def accept(ref, confirm, approve=None):
     # original's label and the document is not left changed by the relabel.
     nd.Label = info.get("label") or nd.Label
     nd.saveAs(target)
-    return nd, {"saved": target, "document": nd.Name, **({"previousFile": backup} if backup else {}),
-                "note": "The recovered copy is now the file; what was there before is kept at previousFile."}
+    return nd, {"saved": target, "document": nd.Name, **({"previousFile": backup} if backup else {})}
 
 
 # ---- what a hidden FreeCAD holds, for after a crash ----------------------------------------

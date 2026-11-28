@@ -261,7 +261,7 @@ def machine_of(s, setup, a, assumed):
     said = a.get("machine") or setup.get("machine") or ""
     if not said:
         m = "laser"
-        assumed["machine"] = "laser (the setup does not say)"
+        assumed["machine"] = "laser"
     else:
         m = _cm.machine(said)
         if m is None:
@@ -269,7 +269,7 @@ def machine_of(s, setup, a, assumed):
     said = a.get("material") or setup.get("material") or ""
     if not said:
         mat = "plywood" if m == "router" else "steel"
-        assumed["material"] = f"{mat} (not said)"
+        assumed["material"] = mat
     else:
         mat = _cm.material(said)
         if mat is None:
@@ -278,7 +278,7 @@ def machine_of(s, setup, a, assumed):
         kerf = float(setup["kerf"])
     else:
         kerf = KERF[m]
-        assumed["kerf"] = f"{kerf} mm, a typical {m}" + (" cutter's diameter" if m == "router" else "'s")
+        assumed["kerf"] = kerf
     return m, mat, kerf
 
 
@@ -304,47 +304,46 @@ def cut_check(s, a):
     info = sheet_part(s, o)
     findings = []
 
-    def find(rule, severity, says, value=None, limit=None, at=None):
-        findings.append({"rule": rule, "severity": severity, **({"value": value} if value is not None else {}), **({"limit": limit} if limit is not None else {}), **({"at": at} if at else {}), "says": says})
+    def find(rule, severity, value=None, limit=None, at=None, **more):
+        findings.append({"rule": rule, "severity": severity, **({"value": value} if value is not None else {}), **({"limit": limit} if limit is not None else {}), **({"at": at} if at else {}), **more})
 
     if not info["sheet"]:
-        find("not-sheet", "error", f"Not a sheet part — {info['problem']}. A sheet is cut straight through: make every side square to the faces, or mill it.")
+        find("not-sheet", "error")
         return {"body": o.Label, "verdict": "fix", "machine": m, "findings": findings, "sheet": {k: info[k] for k in ("thickness", "normal", "notSquare", "steps")}}
     t = info["thickness"]
     if setup.get("thickness") is not None and abs(float(setup["thickness"]) - t) > 0.02:
-        find("thickness", "error", f"{t:.2f} mm thick, the setup's sheet is {float(setup['thickness']):g} mm: make the part as thick as the sheet, or set the setup's thickness.", t, float(setup["thickness"]))
+        find("thickness", "error", t, float(setup["thickness"]))
     elif setup.get("thickness") is None:
-        assumed["thickness"] = f"{t:g} mm, read from the part (the setup does not say)"
+        assumed["thickness"] = t
     r, floor = rules(m, mat, t, kerf)
     flat, outer, holes = flatten(o.Shape, info)
     for h in hole_sizes(holes):
         if h["d"] < floor["hole"] - 1e-6:
-            why = {"plasma": "under the sheet's thickness, plasma can't cut it clean", "router": "under the cutter's diameter"}.get(m, "too small for the beam to pierce clean")
-            find("small-hole", "error", f"A hole {h['d']:.2f} mm across, {why}: drill it after, or make it at least {floor['hole']:.2f} mm.", h["d"], floor["hole"], h["at"])
+            find("small-hole", "error", h["d"], floor["hole"], h["at"])
         elif h["d"] < r["hole"] - 1e-6:
-            find("small-hole", "warning", f"A hole {h['d']:.2f} mm across, under {r['hole']:.2f} mm for {m} in {t:g} mm {mat}: it may come out tapered or not round — make it bigger or drill it.", h["d"], r["hole"], h["at"])
+            find("small-hole", "warning", h["d"], r["hole"], h["at"])
     webs, gaps = narrows(flat, t, [outer] + holes)
     if webs is None:
-        assumed["webs"] = f"not read: over {MAX_EDGES} edges in the profile"
+        assumed["webs"] = {"read": False, "overEdges": MAX_EDGES}
     else:
         for w in webs[:3]:
             if w["width"] < r["web"] - 1e-6:
-                find("thin-web", "error" if w["width"] < kerf else "warning", f"Material {w['width']:.2f} mm wide between two cuts, under {r['web']:.2f} mm: it can burn through, warp or snap — widen it.", w["width"], r["web"], w["at"])
+                find("thin-web", "error" if w["width"] < kerf else "warning", w["width"], r["web"], w["at"])
         for g in gaps[:3]:
             if g["width"] < floor["slot"] - 1e-6:
-                find("narrow-slot", "error", f"A gap {g['width']:.2f} mm wide, under the cut's own width {floor['slot']:.2f} mm: it cannot be cut — widen it.", g["width"], floor["slot"], g["at"])
+                find("narrow-slot", "error", g["width"], floor["slot"], g["at"])
             elif g["width"] < r["slot"] - 1e-6:
-                find("narrow-slot", "warning", f"A gap {g['width']:.2f} mm wide, under {r['slot']:.2f} mm: the slug may not drop out clean — widen it.", g["width"], r["slot"], g["at"])
+                find("narrow-slot", "warning", g["width"], r["slot"], g["at"])
     if m == "router":
         for c in inside_corners(flat, t, [outer] + holes, kerf / 2)[:6]:
-            find("inside-corner", "warning", f"An inside corner of radius {c['radius']:.2f} mm, tighter than the cutter's {kerf / 2:.2f} mm: it comes out rounded — round it to {kerf / 2:.2f} mm or more, or add a dogbone.", c["radius"], round(kerf / 2, 3), c["at"])
+            find("inside-corner", "warning", c["radius"], round(kerf / 2, 3), c["at"])
     bb = flat.BoundBox
     size = [round(bb.XLength, 2), round(bb.YLength, 2)]
     sheet = a.get("sheet") or setup.get("sheet")  # the cut setup's sheet when none is given
     if sheet:
         sw, sh = float(sheet[0]), float(sheet[1])
         if not ((size[0] <= sw and size[1] <= sh) or (size[0] <= sh and size[1] <= sw)):
-            find("sheet-size", "error", f"{size[0]} x {size[1]} mm does not fit the {sw:g} x {sh:g} mm sheet: split it.", max(size), max(sw, sh))
+            find("sheet-size", "error", max(size), max(sw, sh), size=size, sheet=[sw, sh])
     order = {"error": 0, "warning": 1}
     findings.sort(key=lambda f: order[f["severity"]])
     verdict = "fix" if any(f["severity"] == "error" for f in findings) else ("pass" if not findings else "pass with warnings")
@@ -356,10 +355,9 @@ def cut_check(s, a):
         "setup": f"{setup['name']} ({setup['id']})",
     }
     if not sheet:
-        out["unjudged"] = ["sheet size: give sheet [w, h] mm (or set the cut setup's sheet) to check it fits"]
+        out["unjudged"] = [{"what": "sheetSize", "reason": "noSheet"}]
     if assumed:
         out["assumed"] = assumed
-    out["note"] = "Least features are rules of thumb for the machine, material and thickness; the shop's own figures win."
     return out
 
 
@@ -471,8 +469,7 @@ def cut_export(s, a):
     out = {"files": wrote, "placed": placed, "sheet": [round(W, 2), round(H, 2)], "thickness": thick, "kerf": kerf, "compensated": comp, "gap": gap, "entities": want,
            "layout": layout}
     if left:
-        out["left"] = {"bodies": left, "why": "no room on the sheet: a bigger sheet, fewer copies, or another sheet"}
-    out["note"] = ("Profiles offset out by half the kerf (holes in): cut on the line." if comp else "Profiles as modelled: let the cutter's software take off the kerf.") + " Layers OUTER and HOLES; cut holes first."
+        out["left"] = {"bodies": left}
     return out
 
 
@@ -539,9 +536,7 @@ def tube_cutlist(s, a):
     for r in rows:
         k = f"{r['od']:g} x {r['wall']:g}"
         stock[k] = round(stock.get(k, 0) + r["cutLength"], 1)
-    out = {"tubes": rows, "stock": stock, "files": {"markdown": base + ".md", "csv": base + ".csv"},
-           "note": "Lengths in mm on the centre lines given. Cut length is between the long points of the copes; add the saw's kerf and a trim allowance. "
-                   "Copes are against each receiving tube's outside diameter, for a tight fit. Check the first tube of each kind before cutting the rest."}
+    out = {"tubes": rows, "stock": stock, "files": {"markdown": base + ".md", "csv": base + ".csv"}}
     if warnings:
         out["warnings"] = warnings
     return out

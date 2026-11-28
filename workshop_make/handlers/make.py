@@ -105,7 +105,7 @@ def setup(s, a):
     if act == "of":
         o = s.body(a.get("body"))
         st = store.setup_of(s.doc, o.Label)
-        return {"body": o.Label, "setup": st} if st else {"body": o.Label, "setup": None, "none": "in no setup: how it is made is not recorded — ask, then setup add"}
+        return {"body": o.Label, "setup": st} if st else {"body": o.Label, "setup": None}
     if act == "add":
         if a.get("type") not in store.TYPES:
             raise ToolError("invalid_input", f"type: one of {', '.join(store.TYPES)}.")
@@ -157,13 +157,13 @@ def part_review(s, a):
     shape = o.Shape
     findings, checks, unjudged, informed = [], {}, [], []
 
-    def find(into, source, severity, says, at=None):
-        into.append({"source": source, "severity": severity, "says": says, **({"at": at} if at else {})})
+    def find(into, source, severity, rule, **fields):
+        into.append({"source": source, "severity": severity, "rule": rule, **fields})
 
     snd = geo.soundness(shape)
     checks["body_check"] = "ran"
     for p in snd["problems"]:
-        find(findings, "body_check", "error", p)
+        find(findings, "body_check", "error", "unsound", **p)
 
     setup = store.setup_of(s.doc, o.Label)
     printed = bool(setup and setup["type"] == "print")
@@ -176,22 +176,22 @@ def part_review(s, a):
     rules, _ = api.rules_of(s.doc, o.Label)
     fshape, frame, pl = api.print_frame(o)
     dfm = printability.check(fshape, rules, [x for x in store.waivers(s.doc) if x.get("body") == o.Label], carried=api.carried_tops(s.doc, o, pl, fshape))
-    checks["dfm_check"] = "ran" if printed or not setup else "skipped: not printed"
+    checks["dfm_check"] = "ran" if printed or not setup else {"skipped": "notPrinted"}
     into = findings if printed else informed
     if printed or not setup:
         for f in dfm["findings"]:
             if not f.get("waived"):
-                find(into, "dfm_check", f["severity"], f"{f['id']} {f['rule']}: {f['says']}", f["at"])
+                find(into, "dfm_check", f["severity"], f["rule"], finding=f["id"], **{k: v for k, v in f.items() if k not in ("id", "rule", "severity", "waived", "points")})
     least = dfm["wall"]["least"]
     if "minWall" in spec:
         open_thin = [f["value"] for f in dfm["findings"] if f["rule"] == "thin-wall" and not f.get("waived")]
         judged = min(open_thin) if open_thin else (least if least is not None and least >= spec["minWall"] else None)
         if least is None:
-            unjudged.append("minWall: no wall reading")
+            unjudged.append({"what": "minWall", "reason": "noWallReading"})
         elif judged is not None and judged < spec["minWall"]:
-            find(findings, "dfm_check", "error", f"Least wall not waived {judged:.2f} mm, under the spec's {spec['minWall']} mm.")
+            find(findings, "dfm_check", "error", "spec-minWall", value=round(judged, 2), limit=spec["minWall"])
         elif judged is None and spec["minWall"] > rules["minWall"]:
-            unjudged.append(f"minWall: the least wall is waived, and the check reads walls only under {rules['minWall']} mm")
+            unjudged.append({"what": "minWall", "reason": "waived", "readsUnder": rules["minWall"]})
 
     vol = shape.Volume
     walls = int((setup or {}).get("walls", 2))
@@ -205,26 +205,26 @@ def part_review(s, a):
         share, found = printmass.solid_of(shape, setup, walls)
         f = 1.0 if share is None else share + infill * (1 - share)
         body_g = vol * f * rho / 1000.0
-        as_ = f"printed: {walls} walls, {tops} top and {bottoms} bottom layers of {lh} mm, {infill * 100:.0f}% infill — {f * 100:.0f}% of the solid, from {found or 'nothing read: taken as solid'} (an estimate; the slicer's figure is the authority)"
+        as_ = {"basis": "printed", "walls": walls, "topLayers": tops, "bottomLayers": bottoms, "layerHeight": lh, "infillPct": round(infill * 100), "solidPct": round(f * 100), "read": found or None}
         got, rec = printmass.slice_figure(s.doc, o.Label, geo.stats(shape))
         if got:
             mass_band = None
-            as_ = printmass.slice_words(rec) + f"; the estimate from walls and infill was {body_g:.1f} g"
+            as_ = {"basis": "sliced", **printmass.slice_fields(rec), "estimateGrams": round(body_g, 1)}
             body_g = got
         else:
             mass_band = printmass.band(body_g)
     else:
         body_g = vol * rho / 1000.0
-        as_ = "solid"
+        as_ = {"basis": "solid"}
         mass_band = None
     mags = encased(s, o.Label)
     mag_g = sum(e["mass"] for e in mags)
     mass = body_g + mag_g
     checks["mass"] = "ran"
     if "massMax" in spec and mass > spec["massMax"]:
-        find(findings, "mass", "error", f"Weighs {mass:.1f} g; the spec asks at most {spec['massMax']} g.")
+        find(findings, "mass", "error", "spec-massMax", value=round(mass, 1), limit=spec["massMax"])
     if "massMin" in spec and mass < spec["massMin"]:
-        find(findings, "mass", "error", f"Weighs {mass:.1f} g; the spec asks at least {spec['massMin']} g.")
+        find(findings, "mass", "error", "spec-massMin", value=round(mass, 1), limit=spec["massMin"])
     sfl = None
     fea = last_fea(s)
     fea_ok = bool(fea and fea.get("body") == o.Label and fea.get("stats") == geo.stats(shape) and fea.get("result"))
@@ -235,20 +235,21 @@ def part_review(s, a):
         sfl = min(x for x in (sf, across) if x is not None) if (sf is not None or across is not None) else None
         checks["fea_results"] = "ran"
         if sfl is not None and "minSafety" in spec and sfl < spec["minSafety"]:
-            find(findings, "fea_results", "error", f"Safety factor {sfl:.2f}, under the spec's {spec['minSafety']}.")
+            find(findings, "fea_results", "error", "spec-minSafety", value=round(sfl, 2), limit=spec["minSafety"])
     elif fea and fea.get("body") == o.Label:
-        checks["fea_results"] = "skipped: stale — the body changed since the solve; fea_solve again"
+        checks["fea_results"] = {"skipped": "stale"}
     else:
-        checks["fea_results"] = "skipped: nothing solved"
+        checks["fea_results"] = {"skipped": "nothingSolved"}
     if "minSafety" in spec and not fea_ok:
-        unjudged.append("minSafety: " + checks["fea_results"].replace("skipped: ", ""))
+        unjudged.append({"what": "minSafety", "reason": checks["fea_results"]["skipped"]})
     order = {"error": 0, "warning": 1, "info": 2}
     findings.sort(key=lambda f: order[f["severity"]])
     verdict = "fix" if any(f["severity"] == "error" for f in findings) else ("unknown" if unjudged else "pass")
     out = {
         "body": o.Label,
         "process": "printed" if printed else (setup["type"] if setup else "unknown"),
-        "processFrom": f"setup {setup['name']} ({setup['id']})" if setup else "not said — setup add records it",
+        "processFrom": "setup" if setup else "notSaid",
+        **({"setup": f"{setup['name']} ({setup['id']})"} if setup else {}),
         "verdict": verdict,
         "findings": findings[:8],
         "figures": {"volume": round(vol, 1), "mass": round(mass, 1), "material": material, "as": as_, **({"encasedMass": round(mag_g, 1)} if mags else {}), **({"massBand": mass_band} if mass_band else {}),
@@ -269,9 +270,9 @@ def part_review(s, a):
         pauses = {}
         for e in mags:
             layer = int(math.ceil(e["pauseAt"] / lh - 1e-9))
-            p = pauses.setdefault(layer, {"z": round(layer * lh, 3), "afterLayer": layer, "note": []})
-            p["note"].append(e["what"])
-        out["printing"] = {"pauses": [{**p, "note": "Insert " + "; ".join(p["note"])} for _, p in sorted(pauses.items())]}
+            p = pauses.setdefault(layer, {"z": round(layer * lh, 3), "afterLayer": layer, "insert": []})
+            p["insert"].append(e["what"])
+        out["printing"] = {"pauses": [p for _, p in sorted(pauses.items())]}
     return out
 
 
@@ -339,7 +340,8 @@ def slice(s, a):
         if not other:
             raise ToolError("unavailable", f"{e} OrcaSlicer and Bambu Studio are not here either.")
         out = slice_with({k: v for k, v in {**a, "slicer": other, "material": given}.items() if k in ("body", "slicer", "pauseCommand", "name", "profiles", "material") and v is not None})
-        out["note"] = f"PrusaSlicer is not on this computer: sliced with {other} (slice_with). " + out.get("note", "")
+        out["slicedWith"] = other
+        out["notOnComputer"] = "prusaslicer"
         return out
     except RuntimeError as e:
         raise ToolError("failed", str(e))
@@ -357,8 +359,7 @@ def slice(s, a):
         "verdict": api.slice_verdict(read),
         "setup": f"{setup['name']} ({setup['id']})",
         **({"pauses": pauses} if mags else {}),
-        **({"material": f"{given} for this slice only (not recorded: material_set records it)"} if given else {}),
-        "note": "Sliced with the slicer's own defaults for anything the setup leaves unset; the printer's profile in the slicer is the authority. Starting the print is the person's.",
+        **({"material": given, "materialThisSliceOnly": True} if given else {}),
     }
 
 

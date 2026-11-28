@@ -80,7 +80,7 @@ OUT["fail"] = X.make_view(FakeDoc([]), asm, [], {}, "x")[1]
         self.assertIsNone(out["why"])
         self.assertEqual(out["refs"], ["Assembly", ["Link."]])
         self.assertEqual(out["move"], ["Normal", [0, 0, 30]])
-        self.assertIn("no Assembly here", out["fail"])
+        self.assertIn("no Assembly here", out["fail"]["error"])
 
 
 class Pages(unittest.TestCase):

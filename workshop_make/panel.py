@@ -15,6 +15,7 @@ beside the model tree. No Agent Link import here."""
 
 from workshop import narrow
 
+from . import finding_words as fw
 from . import materials as fil
 from . import records as store
 from . import results
@@ -326,7 +327,7 @@ def review_lines(out, body):
     rows = []
     for f in out.get("findings") or []:
         sev = {"error": "✗", "warning": "!", "info": "·"}.get(str(f.get("severity", "")).lower(), "·")
-        rows.append((sev, str(f.get("says") or f.get("message") or f.get("what") or f.get("id", "")), str(f.get("fix") or f.get("do") or "")))
+        rows.append((sev, str(fw.says(f, out) if (f.get("says") or f.get("rule")) else (f.get("message") or f.get("what") or f.get("id", ""))), str(f.get("fix") or f.get("do") or "")))
     return head, role, rows, results.figures_line(out.get("figures") or {})
 
 

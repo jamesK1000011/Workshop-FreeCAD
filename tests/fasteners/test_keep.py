@@ -230,7 +230,7 @@ OUT["listed"] = api.listing(doc).get("warnings")
 ''')
         self.assertEqual(out["was"], "Body.Edge3")
         self.assertEqual(out["now"], "Body.Edge5")  # the same circle, its new number
-        self.assertIn("renumbered", out["re"])
+        self.assertEqual(out["re"]["was"], "Edge3")
         self.assertEqual(out["at"], [40, 0, 10])
         self.assertIsNone(out["listed"])
 
@@ -244,8 +244,8 @@ L = api.listing(doc)
 OUT["warn"] = L.get("warnings")
 OUT["lost"] = L["fasteners"][0].get("lost")
 ''')
-        self.assertTrue(out["warn"] and "lost its hole" in out["warn"][0], out)
-        self.assertIn("M8x25-Screw", out["warn"][0])
+        self.assertTrue(out["warn"] and out["warn"][0]["reason"] == "edgeLost", out)
+        self.assertIn("M8x25-Screw", out["warn"][0]["fastener"])
         self.assertTrue(any("lost its hole" in e for e in out["errs"]))  # the Report view
         self.assertEqual(out["lost"], out["warn"][0])
 

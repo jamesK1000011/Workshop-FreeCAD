@@ -78,8 +78,7 @@ def person_ok(a, word, name, p, title, lines, file=None, sha=None):
         if got.get("ok"):
             return None
         return {"pending": True, "printer": name, "action": word, **({"sha256": sha} if sha else {}),
-                **({"approve": got["approve"]} if got.get("approve") else {}), "next": got.get("next"),
-                "note": "Nothing was sent to the printer. After the person approves, call this tool again with the same arguments."}
+                **({"approve": got["approve"]} if got.get("approve") else {}), "next": got.get("next")}
     want = f"{word} {name}"
     if (a.get("confirm") or "").strip() != want:
         raise ToolError("invalid_input", f"confirm: \"{want}\", word for word. Ask the person first; it is their call, not yours.")
@@ -113,11 +112,11 @@ def printer_add(s, a):
     local = P.is_local(url)
     warn = []
     if not local:
-        warn.append(f"{url} is not on this network (not a private address or a .local name). Keep printers on the LAN.")
+        warn.append({"reason": "notOnLan", "url": url})
     if url.startswith("http://") and (p.get("key") or p.get("password")):
-        warn.append("Plain http sends the key in clear text on the network.")
+        warn.append({"reason": "plainHttp"})
     if warn:
-        out["warning"] = " ".join(warn)
+        out["warnings"] = warn
     if a.get("check", local):
         try:
             st = P.status(p)
@@ -171,7 +170,7 @@ def printer_send(s, a):
                  "The printer heats and moves when the print starts." if start else "The file is uploaded, not started."]
         if issues:
             lines.append(f"The file has {len(issues)} command(s) to look at:")
-            lines += [f"line {x['line']}: {x['why']}" for x in issues]
+            lines += [f"line {x['line']}: {G.issue_says(x)}" for x in issues]
         title = f"{'Start a print of' if start else 'Send'} {os.path.basename(path)} on {name}" + (" (it has commands to look at)" if issues else "")
         waits = person_ok(a, word, name, p, title, lines, path, sha)
         if waits is not None:
@@ -193,8 +192,6 @@ def printer_send(s, a):
     r.update({"printer": name, "bytes": os.path.getsize(path), "sha256": sha})
     if issues:
         r["issues"] = issues
-    if not start:
-        r["note"] = "Uploaded, not started. Starting the print is the person's call: printer_send again with start: true (the person approves it), or start it on the printer."
     return r
 
 

@@ -33,8 +33,7 @@ def history_checkpoint(s, a):
     if name is not None and (not isinstance(name, str) or not name.strip() or len(name) > 60):
         raise Refused("invalid_input", "name: a short name for the checkpoint (60 characters at most).")
     e, dropped = checkpoints.take(s, name)
-    out = {"checkpoint": e["id"], **({"name": name} if name else {}), "step": e["step"], "file": e["file"], "bytes": e["bytes"],
-           "note": "A saved copy: history_restore comes back to it even past the undo stack, or after FreeCAD restarts."}
+    out = {"checkpoint": e["id"], **({"name": name} if name else {}), "step": e["step"], "file": e["file"], "bytes": e["bytes"]}
     if dropped:
         out["dropped"] = [x["id"] for x in dropped]
     return out
@@ -69,8 +68,7 @@ def listed(rows, a):
     if want:
         out["matched"] = len(rows)
     if len(shown) < len(rows):
-        out["more"] = f"{len(rows) - len(shown)} more, older: limit {{ n }} lists more (0 lists all), document {{ text }} lists only names or labels with that text."
-    out["note"] = "action auto { documents } opens the newest good copy of each beside its file; accept { document } saves one over its file, after the person's approval (approve_file)."
+        out["more"] = len(rows) - len(shown)
     return out
 
 
@@ -91,8 +89,7 @@ def app_recover(s, a):
         if rec or reopened:
             s.switch(FreeCAD.getDocument((rec or reopened)[0]["document"]))
         return {"recovered": rec, **({"reopened": reopened} if reopened else {}), **({"failed": failed} if failed else {}),
-                **({"notRecoveredAgain": again, "why": recovery.NOT_AGAIN} if again else {}),
-                "note": "Opened beside the person's files as \"(recovered …)\"; their files are untouched. accept { document } saves one over its file, after the person's approval (approve_file)."}
+                **({"notRecoveredAgain": again} if again else {})}
     if action == "accept":
         ask = PERSON_OK
         # With Agent Link, the approval is approve_file (the client's tool
@@ -131,8 +128,7 @@ def _recover_ok(ask, nd, target):
 
 
 def pref_history(s, a):
-    return {"changes": settings.history_rows(int(a.get("limit", 20) or 20)),
-            "note": "Newest first. pref_rollback { to: change } puts the settings back as they were before that change (a snapshot of the whole settings file)."}
+    return {"changes": settings.history_rows(int(a.get("limit", 20) or 20))}
 
 
 def pref_rollback(s, a):
@@ -158,19 +154,18 @@ def pref_rollback(s, a):
         current = settings.snapshot_now()
         settings.settings_log({"tool": "pref_rollback", "to": str(to), "restoredFrom": snap, "snapshot": current, "restart": False, "inPlace": True})
         settings.apply_in_place(snap)
-        return {"rolledBackTo": os.path.basename(snap), "before": current,
-                "note": "Read into FreeCAD's settings now and saved; a setting FreeCAD reads only at start takes effect when it next opens. Rolling back to the newest change undoes this."}
+        return {"rolledBackTo": os.path.basename(snap), "before": current, "inPlace": True}
     if gui and restart is None:
         raise Refused("unavailable", "No app_restart here to start FreeCAD again around the file. Nothing was changed.")
     current = settings.snapshot_now()
     settings.settings_log({"tool": "pref_rollback", "to": str(to), "restoredFrom": snap, "snapshot": current, "restart": True})
     if gui:
         out = restart.fn({"_cfg_from": snap, "save": a.get("save", "agent")})
-        out.update({"rolledBackTo": os.path.basename(snap), "note": "FreeCAD quits, its settings file is put back, and it opens again in the background with its documents. pref_rollback again with the newest change undoes this."})
+        out.update({"rolledBackTo": os.path.basename(snap), "restart": True})
         return out
     shutil.copy2(snap, settings.user_cfg())
     s.exit_after_reply = "nosave"
-    return {"rolledBackTo": os.path.basename(snap), "restarting": "the hidden FreeCAD, at once (the window is closed: it reads these settings when it next opens)"}
+    return {"rolledBackTo": os.path.basename(snap), "restarting": "hidden"}
 
 
 # ---- macros ---------------------------------------------------------------------------
@@ -229,8 +224,7 @@ def macro_save(s, a):
         f.write(text)
     state = macros.approval_state(name, p)
     consts, _ = macros.macro_calls(text)
-    return {"macro": name, "path": p, "calls": len(picked), "constants": consts, "approved": state == "approved",
-            "note": "Saved in FreeCAD's macro folder (Macro › Macros… runs it by hand too). Agent Link runs it only after the person approves it: macro_approve { name } shows the OK in the FreeCAD window, and the person presses Approve there."}
+    return {"macro": name, "path": p, "calls": len(picked), "constants": consts, "approved": state == "approved"}
 
 
 def macro_list(s, a):
@@ -273,7 +267,7 @@ def macro_approve(s, a):
         raise Refused("not_found", f"No macro {name}: macro_list lists them.")
     sha = macros.sha256_file(p)
     if macros.approval_state(name, p) == "approved":
-        return {"approved": name, "sha256": sha, "note": "It was approved already. macro_run runs it."}
+        return {"approved": name, "sha256": sha, "already": True}
     ask = PERSON_OK
     if ask is None:
         raise Refused("unavailable", "This Agent Link has no approval (person_ok). Update Agent Link, then ask again. Nothing was changed.")
@@ -293,9 +287,8 @@ def macro_approve(s, a):
     except Exception as e:  # noqa: BLE001 — Agent Link's Refused
         raise Refused(getattr(e, "code", "unavailable"), getattr(e, "message", str(e)))
     if macros.approval_state(name, p) == "approved":
-        return {"approved": name, "sha256": sha, "note": "macro_run runs it from now on; a change to its file needs approving again."}
-    return {"approved": False, "pending": True, "macro": name, "sha256": sha, **({"approve": got["approve"]} if got.get("approve") else {}), "next": got.get("next"),
-            "note": "Then macro_list shows it approved, and macro_run runs it."}
+        return {"approved": name, "sha256": sha}
+    return {"approved": False, "pending": True, "macro": name, "sha256": sha, **({"approve": got["approve"]} if got.get("approve") else {}), "next": got.get("next")}
 
 
 def _ask(ask, kind, name, title, lines, sha, on_ok, shown):
@@ -368,7 +361,7 @@ def macro_run(s, a):
     except Exception:  # noqa: BLE001 — the macro may have closed the document
         pass
     if cp is not None:
-        out.update({"checkpoint": cp["id"], "note": f"history_restore {{ checkpoint: {cp['id']} }} goes back to before it."})
+        out["checkpoint"] = cp["id"]
     return out
 
 

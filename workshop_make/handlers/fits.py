@@ -17,7 +17,7 @@ def fit(s, a):
     try:
         if act == "calibrate":
             c = api.calibrate(s.doc, a.get("hole", 0.2), a.get("shaft", 0.0))
-            return {"calibration": c, "note": "Every hole and fit sized from now on takes it; a print setup's own fit wins for its parts."}
+            return {"calibration": c}
         if act == "stack":
             return api.stack(a.get("items") or [], a.get("target"))
         if act == "size":
@@ -49,13 +49,13 @@ def _screw(s, a, out):
         from workshop_fasteners import api as fasteners
         from workshop_fasteners import detect
     except Exception as e:  # noqa: BLE001
-        return {"screwNote": f"The Fasteners bridge did not load ({e})."}
+        return {"screwNote": {"reason": "bridgeNotLoaded", "error": str(e)}}
     if not detect.present():
-        return {"screwNote": "Fasteners Workbench is not installed: the Addon Manager has it (Fasteners)."}
+        return {"screwNote": {"reason": "notInstalled"}}
     try:
         return fasteners.hole_screw(s.doc, a, out, a["screw"])
     except Exception as e:  # noqa: BLE001 — the hole stands; the screw is said
-        return {"screwNote": getattr(e, "message", None) or f"{type(e).__name__}: {e}"}
+        return {"screwNote": {"reason": "error", "error": getattr(e, "message", None) or f"{type(e).__name__}: {e}"}}
 
 
 HANDLERS = {

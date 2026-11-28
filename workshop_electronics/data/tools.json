@@ -5,7 +5,114 @@
  "entries": {
   "kicad_import": {
    "group": "electronics",
-   "description": "Read a KiCad board into the document (.kicad_pcb, KiCad 5 to 9). The file is parsed here; KiCad is not needed. path (required): the full path of the file. It makes the board as a solid body \"PCB <name>\" from its Edge.Cuts outline and thickness. The cut-outs and mounting holes go through it. It makes each tall component as a box over its courtyard, a body each. The height of a component comes from heights { \"J1\": mm } given here. Else it comes from the STEP model of the footprint, where this computer has it. Else it comes from a Height property on the footprint. With no height known, no box is made, and noHeight lists the refs. minHeight (3 mm): components under it get no box. centre: true (default) moves the middle of the board to the origin; moved says by how much. centre: false keeps KiCad's own coordinates, with y turned up. name: the name of the board (the file's name when left out). The bodies are plain Part solids. Every import adds a new board and components. Delete the old ones (object_delete) before you import a changed file. The facts of the board (size, holes, footprints, edge connectors, the path of the file) are kept with the document. board_enclosure and pcb_order_package use them. Refused: path is not a file. Refused: the file is not a board that KiCad 5 to 9 wrote. Refused: no closed Edge.Cuts outline. A big board with hundreds of footprints takes several seconds. The answer holds: board (its label), size [x, y], thickness, copperLayers, holes [{ at, d, kind }], footprints (how many), tall [{ ref, value, side, height, from }], edgeConnectors, bodies, noHeight { count, refs, note }, openOutline, moved, step. edgeConnectors: the connectors that board_enclosure opens the walls for. openOutline: pieces of Edge.Cuts that join nothing. The answer of a changing call can also hold health { ok, verdict, todo } from the shared check.",
+   "card": {
+    "does": "Reads a KiCad board into the document (.kicad_pcb, KiCad 5 to 9).",
+    "inputNotes": {
+     "path": {
+      "means": "The full path of the file"
+     },
+     "heights": {
+      "means": "The height of a component by ref: { \"J1\": mm }",
+      "unit": "mm",
+      "forms": [
+       "{ \"J1\": mm }"
+      ]
+     },
+     "minHeight": {
+      "means": "Components under it get no box",
+      "unit": "mm",
+      "default": 3
+     },
+     "centre": {
+      "means": "true moves the middle of the board to the origin; false keeps KiCad's own coordinates, with y turned up",
+      "default": true
+     },
+     "name": {
+      "means": "The name of the board (the file's name when left out)"
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "heights",
+       "minHeight"
+      ],
+      "rel": "order",
+      "line": "A component's height comes from heights, else the footprint's STEP model, else a Height property on the footprint"
+     }
+    ],
+    "effects": [
+     "The file is parsed here",
+     "KiCad is not needed",
+     "It makes the board as a solid body \"PCB <name>\" from its Edge.Cuts outline and thickness",
+     "The cut-outs and mounting holes go through it",
+     "It makes each tall component as a box over its courtyard, a body each",
+     "The height of a component comes from the STEP model of the footprint, where this computer has it",
+     "Else the height comes from a Height property on the footprint",
+     "With no height known, no box is made, and noHeight lists the refs",
+     "moved says by how much the board moved",
+     "The bodies are plain Part solids",
+     "Every import adds a new board and components",
+     "The facts of the board (size, holes, footprints, edge connectors, the path of the file) are kept with the document",
+     "board_enclosure and pcb_order_package use the kept facts",
+     "A big board with hundreds of footprints takes several seconds",
+     "The answer of a changing call can also hold health from the shared check",
+     "A part with no STEP model and no Height property has no known height: heights { ref: mm } gives it."
+    ],
+    "returns": {
+     "board": {
+      "means": "Its label"
+     },
+     "size": {
+      "means": "[x, y]"
+     },
+     "thickness": {
+      "means": "Thickness"
+     },
+     "copperLayers": {
+      "means": "Copper layers"
+     },
+     "holes": {
+      "means": "Per hole: at, d, kind"
+     },
+     "footprints": {
+      "means": "How many"
+     },
+     "tall": {
+      "means": "Per tall component: ref, value, side, height, from"
+     },
+     "edgeConnectors": {
+      "means": "The connectors that board_enclosure opens the walls for"
+     },
+     "bodies": {
+      "means": "The bodies made"
+     },
+     "noHeight": {
+      "means": "the parts with no known height: { count, refs [first 20] }"
+     },
+     "openOutline": {
+      "means": "how many pieces of Edge.Cuts join nothing and were left out",
+      "unit": "count"
+     },
+     "moved": {
+      "means": "How far the board moved"
+     },
+     "step": {
+      "means": "The step"
+     },
+     "health": {
+      "means": "the shared health check after the call: { recompute, fault, shapes, sketches, measured, window, addons }, or \"nothing new\""
+     }
+    },
+    "refusalNotes": [
+     "Refused: path is not a file",
+     "Refused: the file is not a board that KiCad 5 to 9 wrote",
+     "Refused: no closed Edge.Cuts outline"
+    ],
+    "hints": [
+     "Delete the old board and components (object_delete) before you import a changed file"
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -40,7 +147,159 @@
   },
   "board_enclosure": {
    "group": "electronics",
-   "description": "Make an enclosure round a board that kicad_import read, placed round it where it stands. It makes two new bodies: the box and its lid. The lid is laid beside, printed top down; turn it over about X to put it on. board: the label of the board (you can leave it out when one board is imported). It puts a standoff under each mounting hole. The screw comes from the size of the hole, unless screw says M2, M2.5, M3 …. The standoff height clears the parts on the underside. The headroom clears the tallest part on top. standoff and headroom (mm) override them. It opens the walls for the edge connectors that kicad_import found. skip [refs] leaves some closed. openings [{ side: front|back|left|right, at, width, height, z }] adds more, as gen_part's board_box takes them. wall, floor, radius, lid, lip, clearance, gap (board edge to walls) and margin (round each opening): all mm, as board_box's. name: the label of the box. Holes take the fit calibration of the printer (fit calibrate). When none is kept, holes are made 0.2 mm big, and printerFit says so. Refused: no board imported yet. Use kicad_import first, or gen_part { generator: \"board_box\" } with the sizes by hand. Refused: several boards and none named. Refused: a name that is not an imported board. Refused: a value out of the range of board_box. Each call adds a new box and lid: delete the old pair before you make it again. The answer holds: board, bodies [box, lid], outside [x, y, z], standoff, headroom, standoffs { screw, at, diameter, pilot, pilotDepth }, openings [{ …, for: the connector's ref or \"given\" }], printerFit, sound { label: true|false }, openingHeightGuessed { refs, mm, note }, step. openingHeightGuessed: connectors with no known height got a 5 mm opening; give heights in kicad_import. The answer of a changing call can also hold health { ok, verdict, todo } from the shared check.",
+   "card": {
+    "does": "Makes an enclosure round a board that kicad_import read, placed round it where it stands.",
+    "inputNotes": {
+     "board": {
+      "means": "The label of the board (you can leave it out when one board is imported)"
+     },
+     "name": {
+      "means": "The label of the box"
+     },
+     "screw": {
+      "means": "The screw size, unless taken from the hole",
+      "forms": [
+       "M2",
+       "M2.5",
+       "M3"
+      ]
+     },
+     "standoff": {
+      "means": "The standoff height; overrides the clearance of the parts on the underside",
+      "unit": "mm"
+     },
+     "headroom": {
+      "means": "The headroom; overrides the clearance of the tallest part on top",
+      "unit": "mm"
+     },
+     "wall": {
+      "means": "A box size, as board_box's",
+      "unit": "mm"
+     },
+     "floor": {
+      "means": "A box size, as board_box's",
+      "unit": "mm"
+     },
+     "radius": {
+      "means": "A box size, as board_box's",
+      "unit": "mm"
+     },
+     "lid": {
+      "means": "A box size, as board_box's",
+      "unit": "mm"
+     },
+     "lip": {
+      "means": "A box size, as board_box's",
+      "unit": "mm"
+     },
+     "clearance": {
+      "means": "A box size, as board_box's",
+      "unit": "mm"
+     },
+     "gap": {
+      "means": "Board edge to walls",
+      "unit": "mm"
+     },
+     "margin": {
+      "means": "Round each opening",
+      "unit": "mm"
+     },
+     "skip": {
+      "means": "Refs of edge connectors left closed"
+     },
+     "openings": {
+      "means": "More openings: [{ side: front|back|left|right, at, width, height, z }], as gen_part's board_box takes them",
+      "forms": [
+       "{ side: front|back|left|right, at, width, height, z }"
+      ]
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "standoff",
+       "headroom"
+      ],
+      "rel": "with",
+      "line": "standoff and headroom override the computed heights"
+     },
+     {
+      "inputs": [
+       "skip",
+       "openings"
+      ],
+      "rel": "with",
+      "line": "skip leaves some connector openings closed; openings adds more"
+     }
+    ],
+    "effects": [
+     "It makes two new bodies: the box and its lid",
+     "The lid is laid beside, printed top down; turn it over about X to put it on",
+     "It puts a standoff under each mounting hole",
+     "The screw comes from the size of the hole, unless screw says so",
+     "The standoff height clears the parts on the underside",
+     "The headroom clears the tallest part on top",
+     "It opens the walls for the edge connectors that kicad_import found",
+     "Holes take the fit calibration of the printer (fit calibrate)",
+     "When no fit calibration is kept, holes are made 0.2 mm big, and printerFit says so",
+     "Each call adds a new box and lid",
+     "The answer of a changing call can also hold health from the shared check",
+     "The lid is laid beside the box, printed top down; turn it over about X to put it on.",
+     "A connector with no known height gets the guessed height: give it as heights in kicad_import, or openings by hand."
+    ],
+    "returns": {
+     "board": {
+      "means": "The board"
+     },
+     "bodies": {
+      "means": "[box, lid]"
+     },
+     "outside": {
+      "means": "[x, y, z]"
+     },
+     "standoff": {
+      "means": "Standoff height"
+     },
+     "headroom": {
+      "means": "Headroom"
+     },
+     "standoffs": {
+      "means": "screw, at, diameter, pilot, pilotDepth"
+     },
+     "openings": {
+      "means": "Per opening: ..., for: the connector's ref or \"given\""
+     },
+     "printerFit": {
+      "means": "calibrated: the calibration kept with the document; none: no calibration kept, holes assumed to print 0.2 mm small"
+     },
+     "sound": {
+      "means": "{ label: true|false }"
+     },
+     "openingHeightGuessed": {
+      "means": "connectors with no known height: { refs, mm: the height used }"
+     },
+     "step": {
+      "means": "The step"
+     },
+     "health": {
+      "means": "the shared health check after the call: { recompute, fault, shapes, sketches, measured, window, addons }, or \"nothing new\""
+     },
+     "openAtRim": {
+      "means": "true on an opening that runs open at the rim (in openings)"
+     }
+    },
+    "refusalNotes": [
+     "Refused: no board imported yet",
+     "Refused: several boards and none named",
+     "Refused: a name that is not an imported board",
+     "Refused: a value out of the range of board_box"
+    ],
+    "hints": [
+     "Use kicad_import first, or gen_part { generator: \"board_box\" } with the sizes by hand",
+     "Delete the old box and lid before you make it again",
+     "Give heights in kicad_import for connectors with no known height"
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -106,7 +365,104 @@
   },
   "pcb_order_package": {
    "group": "electronics",
-   "description": "Package the fabrication files of a board for ordering. Nothing is uploaded, ordered or paid for: the person does that. files (required): full paths of the Gerbers, drill files, BOM and placement (CPL) files that KiCad's fabrication outputs wrote. They are sorted by kind. vendor: jlcpcb | pcbway | oshpark. The order sheet says what to upload where for that house. The size of the board comes from board (the label of an imported board). Else it comes from size [x, y] mm, else it is read from the outline Gerber. layers (copper), thickness mm, quantity. name: the stem of the files. It writes to the folder of the session: <name>_gerbers.zip (upload-ready), <name>_order.zip and <name>_ORDER.md. <name>_order.zip holds the Gerber zip, the assembly files and the order sheet. When kicad-cli is on the PATH of this computer, it runs KiCad's design rule check on kicadPcb. kicadPcb is a .kicad_pcb path; else it is the imported board's own file. It reports the check under drc { errors, warnings, unconnected, first }. Otherwise drc says why the check was not run: an order is not checked until it is. Refused: a path in files that is not a file. Refused: no Gerber among them. Refused: an unknown vendor. Refused: a board that was not imported. Changes nothing in the document. The answer holds: gerberZip, package, orderSheet (paths), vendor, board { size, layers, thickness }, files { kind: how many }, drc, warnings, note.",
+   "card": {
+    "does": "Packages the fabrication files of a board for ordering.",
+    "inputNotes": {
+     "files": {
+      "means": "Full paths of the Gerbers, drill files, BOM and placement (CPL) files that KiCad's fabrication outputs wrote"
+     },
+     "vendor": {
+      "means": "The fabrication house",
+      "values": [
+       "jlcpcb",
+       "pcbway",
+       "oshpark"
+      ]
+     },
+     "board": {
+      "means": "The label of an imported board; the size of the board comes from it"
+     },
+     "size": {
+      "means": "The board size [x, y], else read from the outline Gerber",
+      "unit": "mm"
+     },
+     "layers": {
+      "means": "Copper layers"
+     },
+     "thickness": {
+      "means": "Board thickness",
+      "unit": "mm"
+     },
+     "quantity": {
+      "means": "How many boards"
+     },
+     "kicadPcb": {
+      "means": "A .kicad_pcb path for the design rule check; else the imported board's own file"
+     },
+     "name": {
+      "means": "The stem of the files"
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "board",
+       "size"
+      ],
+      "rel": "order",
+      "line": "Size comes from board, else size, else the outline Gerber"
+     }
+    ],
+    "effects": [
+     "Nothing is uploaded, ordered or paid for: the person does that",
+     "The files are sorted by kind",
+     "The order sheet says what to upload where for that house",
+     "It writes to the folder of the session: <name>_gerbers.zip (upload-ready), <name>_order.zip and <name>_ORDER.md",
+     "<name>_order.zip holds the Gerber zip, the assembly files and the order sheet",
+     "When kicad-cli is on the PATH of this computer, it runs KiCad's design rule check on kicadPcb",
+     "Otherwise drc says why the check was not run: an order is not checked until it is",
+     "Changes nothing in the document",
+     "Uploading and paying are the person's to do."
+    ],
+    "returns": {
+     "gerberZip": {
+      "means": "Path"
+     },
+     "package": {
+      "means": "Path"
+     },
+     "orderSheet": {
+      "means": "Path"
+     },
+     "vendor": {
+      "means": "The vendor"
+     },
+     "board": {
+      "means": "size, layers, thickness"
+     },
+     "files": {
+      "means": "{ kind: how many }"
+     },
+     "drc": {
+      "means": "the kicad-cli result { errors, warnings, unconnected, first }, or { run: false, reason: noKicadCli | noKicadPcb | failed, error }"
+     },
+     "warnings": {
+      "means": "codes: noOutlineGerber (the board house cannot cut the board without an outline Gerber: Edge_Cuts, .gko, .gm1), noDrillFile (a board with holes needs a .drl file), assemblyNeedsBomAndCpl (assembly needs both a BOM and a placement file, one is given)"
+     },
+     "note": {
+      "means": "A note"
+     }
+    },
+    "refusalNotes": [
+     "Refused: a path in files that is not a file",
+     "Refused: no Gerber among them",
+     "Refused: an unknown vendor",
+     "Refused: a board that was not imported"
+    ],
+    "hints": [
+     "Run Inspect › Design Rules Checker in KiCad before ordering when drc did not run, and fix its errors and unconnected items."
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -161,7 +517,174 @@
   },
   "printed_channel": {
    "group": "electronics",
-   "description": "Cut a channel inside a body along a path, for a wire or a conductive trace. path (required): [[x, y, z] …], two or more points in document coordinates. Each point is at least the size of the section from the one before. An end on a face of the part opens there; it is carried 1 mm past the face. An end inside stops blind. Between its ends, the channel must stay inside the part. section { shape: round | square, size: 0.4 to 20 mm (the diameter or side; 2 when left out) }. Corners are rounded to bend mm: the size of the section or 2, whichever is more. A turn of over 170° is refused. fill: wire (default), filament or paint. fill wire: the channel takes the hole calibration of the printer. awg (10 to 40, 22 when left out) gives the diameter of the wire, and its copper resistance. It also says whether the wire fits with 0.4 mm to spare. fill filament also makes the trace as its own body \"<body> trace\" for a second material, unless trace: false. Its resistance comes from material carbon-pla | electrifi, or from resistivity Ω·cm. fill paint: the resistance comes the same way. The channel is written into the body as a plain shape. So the body must be a plain Part solid (Part::Feature). Examples: an enclosure from board_enclosure or gen_part, an import, a part_transform copy. A PartDesign Body or a parametric Part object is refused, naming the plain copy to make. FreeCAD would rebuild it and lose the channel. Refused too: the sweep fails; use fewer, longer segments or a larger bend. Refused too: the channel cuts nothing (the path is outside the part). Refused too: it leaves the part unsound; move the path off the faces it grazes. Face and edge numbers of the body change. The answer holds: body, bodies (the trace too), length mm, section { shape, size, areaMm2 }, ends [open | blind, …], bend, removed mm³, sound, conductor { fill, resistivityOhmCm, ohms, note, wire { awg, diameter, ohms, channelAtLeast, fits, note } }, printerFit, step. A printed trace reads several times higher across layers than the figure given. The answer of a changing call can also hold health { ok, verdict, todo } from the shared check.",
+   "card": {
+    "does": "Cuts a channel inside a body along a path, for a wire or a conductive trace.",
+    "inputNotes": {
+     "body": {
+      "means": "The body to cut; a plain Part solid (Part::Feature)"
+     },
+     "path": {
+      "means": "[[x, y, z] ...], two or more points in document coordinates"
+     },
+     "section": {
+      "means": "{ shape: round | square, size: 0.4 to 20 mm (the diameter or side; 2 when left out) }",
+      "forms": [
+       "{ shape: round | square, size }"
+      ]
+     },
+     "bend": {
+      "means": "Corners are rounded to this: the size of the section or 2, whichever is more",
+      "unit": "mm"
+     },
+     "fill": {
+      "means": "wire (default), filament or paint",
+      "values": [
+       "wire",
+       "filament",
+       "paint"
+      ],
+      "default": "wire"
+     },
+     "material": {
+      "means": "For the trace resistance: carbon-pla | electrifi",
+      "values": [
+       "carbon-pla",
+       "electrifi"
+      ]
+     },
+     "resistivity": {
+      "means": "Resistivity for the trace resistance",
+      "unit": "Ω·cm"
+     },
+     "awg": {
+      "means": "Wire gauge; gives the diameter of the wire, and its copper resistance",
+      "min": 10,
+      "max": 40,
+      "default": 22
+     },
+     "trace": {
+      "means": "false: no separate trace body with fill filament",
+      "values": [
+       false
+      ]
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "fill",
+       "trace"
+      ],
+      "rel": "with",
+      "line": "fill filament also makes the trace as its own body \"<body> trace\" for a second material, unless trace: false",
+      "when": "fill filament"
+     },
+     {
+      "inputs": [
+       "fill",
+       "awg"
+      ],
+      "rel": "with",
+      "line": "awg gives the wire diameter and copper resistance",
+      "when": "fill wire"
+     },
+     {
+      "inputs": [
+       "fill",
+       "material"
+      ],
+      "rel": "with",
+      "line": "Resistance of filament comes from material or from resistivity",
+      "when": "fill filament"
+     },
+     {
+      "inputs": [
+       "material",
+       "resistivity"
+      ],
+      "rel": "with",
+      "line": "Resistance comes from material or from resistivity"
+     },
+     {
+      "inputs": [
+       "fill",
+       "resistivity"
+      ],
+      "rel": "with",
+      "line": "fill paint: the resistance comes the same way",
+      "when": "fill paint"
+     }
+    ],
+    "effects": [
+     "Each point is at least the size of the section from the one before",
+     "An end on a face of the part opens there; it is carried 1 mm past the face",
+     "An end inside stops blind",
+     "Between its ends, the channel must stay inside the part",
+     "A turn of over 170° is refused",
+     "fill wire: the channel takes the hole calibration of the printer",
+     "It also says whether the wire fits with 0.4 mm to spare",
+     "The channel is written into the body as a plain shape",
+     "Examples of a plain Part solid: an enclosure from board_enclosure or gen_part, an import, a part_transform copy",
+     "FreeCAD would rebuild a PartDesign Body or a parametric Part object and lose the channel",
+     "Face and edge numbers of the body change",
+     "A printed trace reads several times higher across layers than the figure given",
+     "The answer of a changing call can also hold health from the shared check",
+     "ohms is R = ρ·L/A on the channel's section, from typical resistivities; the filament's sheet is the authority.",
+     "Printed traces read higher across layers, several times up the Z axis.",
+     "The wire's ohms are for solid copper at 20 °C; its insulation adds to the diameter, so check the wire's own."
+    ],
+    "returns": {
+     "body": {
+      "means": "The body"
+     },
+     "bodies": {
+      "means": "The bodies (the trace too)"
+     },
+     "length": {
+      "means": "Channel length",
+      "unit": "mm"
+     },
+     "section": {
+      "means": "shape, size, areaMm2"
+     },
+     "ends": {
+      "means": "[open | blind, ...]"
+     },
+     "bend": {
+      "means": "The bend"
+     },
+     "removed": {
+      "means": "Volume removed",
+      "unit": "mm³"
+     },
+     "sound": {
+      "means": "Whether the body is sound"
+     },
+     "conductor": {
+      "means": "{ fill, resistivityOhmCm, ohms } for filament or paint; { fill, ohms: null, reason: noResistivity, material, materials } when the resistivity is not known; wire { awg, diameter, ohms, channelAtLeast, fits }"
+     },
+     "printerFit": {
+      "means": "The fit calibration used"
+     },
+     "step": {
+      "means": "The step"
+     },
+     "health": {
+      "means": "the shared health check after the call: { recompute, fault, shapes, sketches, measured, window, addons }, or \"nothing new\""
+     }
+    },
+    "refusalNotes": [
+     "A PartDesign Body or a parametric Part object is refused, naming the plain copy to make",
+     "Refused too: the sweep fails",
+     "Refused too: the channel cuts nothing (the path is outside the part)",
+     "Refused too: it leaves the part unsound"
+    ],
+    "hints": [
+     "After a failed sweep, use fewer, longer segments or a larger bend",
+     "When the part is left unsound, move the path off the faces it grazes",
+     "Give resistivity, or a material from materials, when the resistivity is not known."
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {

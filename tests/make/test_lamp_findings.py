@@ -106,13 +106,13 @@ OUT["written"] = written
 ''')
         r = out["r"]["ok"]
         self.assertEqual(r["body"], "Knob Textured")
-        self.assertIn("as it is", r["mesh"])
+        self.assertTrue(r["mesh"])
         # Written by the mesh itself, not meshed again from a shape.
         self.assertEqual([k for k, _ in out["written"]], ["mesh"])
         # Its setup and its pauses are those of the body it was made from.
         self.assertEqual(r["setup"], "Print (S1)")
         self.assertEqual([p["z"] for p in r["pauses"]], [3.2])
-        self.assertNotIn("warning", r)
+        self.assertNotIn("pausesDropped", r)
 
     def test_mesh_beside_a_body(self):
         out = run(PLATE + r'''
@@ -146,21 +146,18 @@ OUT["r"] = call({"bodies": ["Base", "Knob"], "slicer": "orcaslicer"})
 ''')
         r = out["r"]["ok"]
         self.assertEqual(r["pauses"], [])
-        w = r["warning"]
-        self.assertIn("NOT written", w)
-        self.assertIn("several bodies", w)
-        self.assertIn("Base: 1 at z 11.4 mm", w)
-        self.assertIn("Knob: 1 at z 3.2 mm", w)
-        self.assertIn('slice_with { body: "Base" }', w)
-        self.assertIn('slice_with { body: "Knob" }', w)
+        w = r["pausesDropped"]
+        self.assertEqual(w["reason"], "severalBodies")
+        self.assertIn({"body": "Base", "count": 1, "z": [11.4]}, w["bodies"])
+        self.assertIn({"body": "Knob", "count": 1, "z": [3.2]}, w["bodies"])
 
     def test_orient(self):
         out = run(PLATE + r'''
 OUT["r"] = call({"body": "Base", "slicer": "orcaslicer", "orient": True})
 ''')
         r = out["r"]["ok"]
-        self.assertIn("orient", r["warning"])
-        self.assertIn('slice_with { body: "Base" }', r["warning"])
+        self.assertEqual(r["pausesDropped"]["reason"], "orient")
+        self.assertEqual(r["pausesDropped"]["bodies"][0]["body"], "Base")
 
     def test_alone_keeps_them_without_a_warning(self):
         out = run(PLATE + r'''
@@ -170,9 +167,9 @@ PAUSES.clear()
 OUT["none"] = call({"bodies": ["Base", "Knob"], "slicer": "orcaslicer"})
 ''')
         self.assertEqual([p["z"] for p in out["r"]["ok"]["pauses"]], [11.4])
-        self.assertNotIn("warning", out["r"]["ok"])
-        self.assertIn("NOT written", out["plain"]["ok"]["warning"])
-        self.assertNotIn("warning", out["none"]["ok"])
+        self.assertNotIn("pausesDropped", out["r"]["ok"])
+        self.assertIn("pausesDropped", out["plain"]["ok"])
+        self.assertNotIn("pausesDropped", out["none"]["ok"])
 
 
 class CarriedCeiling(unittest.TestCase):
@@ -241,7 +238,7 @@ class OnFreeCAD(unittest.TestCase):
         err, rv = self.call("part_review", {"body": "Arm stood"})
         self.assertFalse(err, rv)
         self.assertIn("own frame", rv["frame"])
-        self.assertFalse(any("tall-thin" in f["says"] for f in rv.get("ifPrinted", []) + rv["findings"]), rv)
+        self.assertFalse(any(f.get("rule") == "tall-thin" for f in rv.get("ifPrinted", []) + rv["findings"]), rv)
 
     def test_2_ceiling_over_an_embed_is_carried(self):
         # Finding 8: a steel plate encased in a base: the pocket's flat
@@ -258,7 +255,7 @@ class OnFreeCAD(unittest.TestCase):
         print("\ndfm_check embed:", json.dumps({k: d.get(k) for k in ("verdict", "findings", "carried")}))
         self.assertFalse(any(f["rule"] == "bridge" for f in d["findings"]), d["findings"])
         self.assertEqual([c["by"] for c in d["carried"]], [e["id"]])
-        self.assertIn(f"carried by {e['id']} after the pause", d["carried"][0]["says"])
+        self.assertEqual(e["id"], d["carried"][0]["by"])
         # The record gone (the pocket kept open, the part pressed in after):
         # the same ceiling is a bridge again.
         err, u = self.call("hw_unembed", {"body": "Plate base", "id": e["id"], "keepPocket": True})
@@ -317,7 +314,7 @@ class OnFreeCAD(unittest.TestCase):
             r = SW.slice_with(self.session, {"body": "Knob Textured"})
             written = Mesh.Mesh(got["stl"])
             self.assertEqual(written.CountFacets, tex.Mesh.CountFacets)
-            self.assertIn("as it is", r["mesh"])
+            self.assertTrue(r["mesh"])
             self.assertTrue(r["setup"].endswith(f"({a['added']['id']})"), r["setup"])
             # A mesh of its own: no setup until one is added for it, then sliced in its placement.
             with self.assertRaises(Exception) as no:

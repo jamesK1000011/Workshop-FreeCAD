@@ -67,7 +67,7 @@ def tools(session):
 
     reply = ("The answer holds: generator, values, parts [{ name, volume mm³, min, max, size }], bodies [labels], sound { label: true|false }, printerFit, movedBy, step, kind and measured. "
              "values: every parameter as used, with the defaults filled in. "
-             "printerFit: the calibration that the holes took. "
+             "printerFit: calibrated (the calibration kept with the document) or none (none kept: holes are assumed to print 0.2 mm small). "
              "movedBy: when it was put beside what is already there. "
              "kind: the generator in words. "
              "measured: the size of the first piece in words (\"83.5 x 41.5 x 32.4 mm\"), and a lid when there is one. "
@@ -88,8 +88,8 @@ def tools(session):
                  "It has no feature history to edit: make it again with other params instead. "
                  "It takes a second or two; bins of many cells with dividers take a little longer. "
                  "magnets: true leaves four 6 x 2 mm holes under each cell, open to the bed. "
-                 "Press the magnets in after printing, or drop them in at the pause. "
-                 "encased { what, pauseAt mm, note } gives the height. "
+                 "The magnet holes open onto the bed: press the magnets in after printing, or drop them in at the pause and print over them. "
+                 "encased { what, count, pauseAt mm } gives the height. "
                  "hw_pauses lists it once the bin is in a print setup, and slice writes the pause. "
                  + reply + ". It also holds encased." + health)
     part_desc = (
@@ -104,6 +104,7 @@ def tools(session):
         "name: the label of the body (the lid gets \" lid\" after it). "
         "Holes take the fit calibration of the printer, kept with the document (fit calibrate). "
         "Without one, they are made 0.2 mm big, and printerFit says so. "
+        "An opening that runs open at the rim holds openAtRim: true. "
         "measure: true builds it and answers the sizes without adding anything (made: false). "
         "The parts go at the origin in an empty document. "
         "Else they go 10 mm clear beside (+X of) what is there (movedBy). "

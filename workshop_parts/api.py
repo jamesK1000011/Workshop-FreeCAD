@@ -36,14 +36,15 @@ def calibration(doc):
     return {"hole": 0.2, "shaft": 0.0}, NO_CALIBRATION
 
 
-# What printerFit says with no calibration kept: a clause that reads in a
-# sentence ("Printer calibration: none, so …").
-NO_CALIBRATION = "none, so holes are assumed to print 0.2 mm small"
+# What printerFit says with no calibration kept: "none". The clause below
+# is for the Report view and the panel, not the answer.
+NO_CALIBRATION = "none"
+NONE_CLAUSE = "none, so holes are assumed to print 0.2 mm small"
 
 
 def calibration_said(said):
     """printerFit as a person reads it after "Printer calibration: "."""
-    return "the one kept with this document" if said == "calibrated" else str(said)
+    return "the one kept with this document" if said == "calibrated" else NONE_CLAUSE if said == NO_CALIBRATION else str(said)
 
 
 def report_line(out):

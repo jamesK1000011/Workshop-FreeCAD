@@ -192,17 +192,17 @@ def _default_material():
 
 def give(obj, key, display=None):
     """Set obj's ShapeMaterial to the FreeCAD card for filament key. Answers
-    the card's name, or why not (None, reason)."""
+    the card's name, or why not (None, {reason, …})."""
     if not hasattr(obj, "ShapeMaterial"):
-        return None, "this FreeCAD has no material on a part (ShapeMaterial, FreeCAD 1.0 on)"
+        return None, {"reason": "noShapeMaterial"}
     lib = cards()
     name = filament_card(key, display, lib)
     if name is None:
-        return None, f"FreeCAD's library has no card for {display or key}: make one in its Material editor (Material_Edit) named \"{display or key}\" and give it again; Make weighs the part with its own figures meanwhile"
+        return None, {"reason": "noCard", "card": display or key}
     try:
         obj.ShapeMaterial = lib[name]
     except Exception as e:  # noqa: BLE001
-        return None, f"FreeCAD would not take the material ({e})"
+        return None, {"reason": "refused", "error": str(e)}
     return name, None
 
 

@@ -214,7 +214,7 @@ def restore(session, ref):
             session.tx -= 1
         d.recompute()
         session.snapshot("history_restore")
-        return {"done": "restore", "checkpoint": cp["id"], "how": "undo", "steps": names, "redo": "history_redo takes them back"}
+        return {"done": "restore", "checkpoint": cp["id"], "how": "undo", "steps": names}
     if not os.path.isfile(cp.get("file", "")):
         raise Refused("not_found", f"{cp['id']}'s saved copy is gone ({cp.get('file')}).")
     before, _ = take(session, f"before restore {cp['id']}", auto=True)
@@ -224,8 +224,7 @@ def restore(session, ref):
     st = session.family_state.setdefault("safetynet", {}).setdefault("checkpoints", {})
     st.setdefault(session.doc.Name, {}).update(old)
     session.snapshot("history_restore")
-    return {"done": "restore", "checkpoint": cp["id"], "how": "file", **out, "before": before["id"],
-            "note": f"Reopened from its saved copy (past the undo stack's reach). history_restore {{ checkpoint: {before['id']} }} goes back to how it was."}
+    return {"done": "restore", "checkpoint": cp["id"], "how": "file", **out, "before": before["id"]}
 
 
 class Service:

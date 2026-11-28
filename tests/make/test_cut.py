@@ -133,7 +133,7 @@ class CutTools(unittest.TestCase):
         err, r = self.call("cut_check", {"body": "Plate", "machine": "plasma"})
         holes = [f for f in r["findings"] if f["rule"] == "small-hole" and f["severity"] == "error"]
         self.assertTrue(holes, r["findings"])
-        self.assertIn("thickness", holes[0]["says"])
+        self.assertEqual("plasma", r["machine"])
 
     def test_4_not_a_sheet(self):
         err, r = self.call("cut_check", {"body": "Chamfered"})

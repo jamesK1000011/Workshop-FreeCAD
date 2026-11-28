@@ -90,7 +90,7 @@ def hole_after(a, out, session):
     try:
         out.update(api.hole_screw(session.doc, a, out, spec))
     except fs.Missing as e:
-        out["screwNote"] = e.message
+        out["screwNote"] = {"reason": "missing", "error": e.message}
     return out
 
 

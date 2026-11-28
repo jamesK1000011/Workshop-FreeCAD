@@ -253,7 +253,7 @@ class Electronics(unittest.TestCase):
         with zipfile.ZipFile(o["gerberZip"]) as z:
             self.assertEqual(len(z.namelist()), 4)
         if not shutil.which("kicad-cli"):
-            self.assertIn("not run", o["drc"])
+            self.assertFalse(o["drc"]["run"])
         err, o2 = self.call("pcb_order_package", {"files": paths[3:], "size": [10, 10]})
         self.assertTrue(err)
 

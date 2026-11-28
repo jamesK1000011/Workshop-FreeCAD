@@ -147,7 +147,7 @@ class Thread(unittest.TestCase):
             err, r = self.call("thread_identify", {"scan": {"axis": {"radius": 3}}})
             self.assertFalse(err, r)
             self.assertEqual(r["from"], "scan")
-            self.assertIn('"M6x1"', r["next"])
+            self.assertEqual("M6x1", r["threadSize"])
         finally:
             thread.SCAN_READERS[:] = saved
 

@@ -43,7 +43,7 @@ def calibration(doc):
     c = store.read(doc, "fit", None) if doc is not None else None
     if c:
         return {"hole": float(c.get("hole", 0.2)), "shaft": float(c.get("shaft", 0.0))}, "calibrated"
-    return {"hole": 0.2, "shaft": 0.0}, "none, so holes are assumed to print 0.2 mm small"
+    return {"hole": 0.2, "shaft": 0.0}, "none"
 
 
 def add_bodies(session, made, base_name=None, placement=None):
@@ -148,9 +148,9 @@ def kicad_import(s, a):
         "step": len(s.steps),
     }
     if unknown:
-        out["noHeight"] = {"count": len(unknown), "refs": unknown[:20], "note": "No height for these: no STEP model here, no Height property. heights { ref: mm } gives them."}
+        out["noHeight"] = {"count": len(unknown), "refs": unknown[:20]}
     if b["outline"]["open"]:
-        out["openOutline"] = f"{b['outline']['open']} piece(s) of Edge.Cuts join nothing and were left out."
+        out["openOutline"] = b["outline"]["open"]
     if a.get("centre", True):
         out["moved"] = [round(off[0], 3), round(off[1], 3)]
     return out
@@ -223,7 +223,7 @@ def board_enclosure(s, a):
         "step": len(s.steps),
     }
     if guessed:
-        out["openingHeightGuessed"] = {"refs": guessed, "mm": B.GUESS_H, "note": "No height known for these connectors: give it as heights in kicad_import, or openings by hand."}
+        out["openingHeightGuessed"] = {"refs": guessed, "mm": B.GUESS_H}
     return out
 
 
@@ -250,7 +250,7 @@ def pcb_order_package(s, a):
     warnings = []
     outline = [p for p in sorted_["gerbers"] if pcb.is_outline(p)]
     if not outline:
-        warnings.append("No board outline Gerber (Edge_Cuts, .gko, .gm1): the board house cannot cut the board without it.")
+        warnings.append("noOutlineGerber")
     if not board["size"] and outline:
         with open(outline[0], encoding="ascii", errors="replace") as f:
             bx = pcb.gerber_box(f.read())
@@ -259,10 +259,10 @@ def pcb_order_package(s, a):
     if not board["layers"]:
         board["layers"] = sum(1 for p in sorted_["gerbers"] if pcb.is_copper(p)) or None
     if not sorted_["drill"]:
-        warnings.append("No drill file (.drl): a board with holes needs it.")
+        warnings.append("noDrillFile")
     if (sorted_["bom"] or sorted_["cpl"]) and not (sorted_["bom"] and sorted_["cpl"]):
-        warnings.append("Assembly needs both a BOM and a placement (CPL) file; one is here.")
-    drc, drc_out = None, None
+        warnings.append("assemblyNeedsBomAndCpl")
+    drc, drc_out, drc_fail = None, None, None
     pcb_file = a.get("kicadPcb") or ((boards(s).get(ref) or {}).get("path") if ref else None)
     if a.get("kicadPcb"):
         pcb_file = read_ok(s, "pcb_order_package", os.path.expanduser(pcb_file), "kicadPcb", IN_FILE, lambda c, m: Refused(m, c))
@@ -280,6 +280,7 @@ def pcb_order_package(s, a):
             drc = f"kicad-cli DRC: {len(errs)} error(s), {len(warns)} warning(s), {unc} unconnected." + (" Fix the errors before ordering." if errs or unc else "")
         except (OSError, ValueError, subprocess.SubprocessError) as e:
             drc = f"kicad-cli DRC did not run through: {e}. Run it in KiCad before ordering."
+            drc_fail = {"run": False, "reason": "failed", "error": str(e)}
     name = re.sub(r"[^A-Za-z0-9._-]+", "_", board["name"] or "board")
     gz = os.path.join(s.out_dir, f"{name}_gerbers.zip")
     pcb.write_zip(gz, [(os.path.basename(p), p) for p in sorted_["gerbers"] + sorted_["drill"]])
@@ -298,8 +299,7 @@ def pcb_order_package(s, a):
         "vendor": pcb.vendors()[vendor]["name"],
         "board": {k: board[k] for k in ("size", "layers", "thickness")},
         "files": {k: len(v) for k, v in sorted_.items()},
-        "drc": drc_out if drc_out else ("not run: kicad-cli is not on this computer's PATH" if not cli else ("not run: kicadPcb (the .kicad_pcb) not given" if not pcb_file else drc)),
-        "note": "Uploading and paying are the person's to do.",
+        "drc": drc_out if drc_out else ({"run": False, "reason": "noKicadCli"} if not cli else ({"run": False, "reason": "noKicadPcb"} if not pcb_file else (drc_fail or {"run": False, "reason": "noFile"}))),
     }
     if warnings:
         out["warnings"] = warnings
@@ -429,9 +429,9 @@ def printed_channel(s, a):
         rho = a.get("resistivity") or B.RESISTIVITY.get(mat)
         if rho:
             ohm = float(rho) * (length / 10.0) / (area_mm2 / 100.0)
-            cond = {"fill": fill, "resistivityOhmCm": rho, "ohms": round(ohm, 3 if ohm < 10 else 1), "note": "R = ρ·L/A on the channel's section; printed traces read higher across layers (several times, up the Z axis). Typical figures; the filament's sheet is the authority."}
+            cond = {"fill": fill, "resistivityOhmCm": rho, "ohms": round(ohm, 3 if ohm < 10 else 1)}
         else:
-            cond = {"fill": fill, "ohms": None, "note": f"resistivity (Ω·cm) not known for {mat!r}: give resistivity, or material: {', '.join(B.RESISTIVITY)}."}
+            cond = {"fill": fill, "ohms": None, "reason": "noResistivity", "material": mat, "materials": list(B.RESISTIVITY)}
     awg = a.get("awg")
     if fill == "wire" or awg:
         n = int(awg or 22)
@@ -440,7 +440,7 @@ def printed_channel(s, a):
         dw = B.awg_mm(n)
         ohm = B.CU * (length / 10.0) / (math.pi * (dw / 20.0) ** 2)
         need = dw + 0.4 + cal["hole"]
-        cond["wire"] = {"awg": n, "diameter": round(dw, 3), "ohms": round(ohm, 5), "channelAtLeast": round(need, 2), "fits": size >= need, "note": "Solid copper at 20 °C; insulation adds to the diameter — check the wire's own."}
+        cond["wire"] = {"awg": n, "diameter": round(dw, 3), "ohms": round(ohm, 5), "channelAtLeast": round(need, 2), "fits": size >= need}
     out["conductor"] = cond
     out["printerFit"] = said
     return out

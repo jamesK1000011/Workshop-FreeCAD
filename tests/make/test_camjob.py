@@ -84,7 +84,7 @@ OUT["fail"] = C.make_job(D([part]), part, [24, 14, 7], 3.0)[1]
 ''')
         self.assertEqual(out["active"], ["Bracket_doc"])
         self.assertEqual(out["job"], ["Bracket mill", [24, 14, 7], [-2.0, -2.0, -1.0], 3.0, ["Stock000"], None])
-        self.assertIn("no CAM here", out["fail"])
+        self.assertIn("no CAM here", out["fail"]["error"])
         self.assertEqual(out["labels"], ["TC: 3 mm End Mill", "3 mm End Mill"])
 
     def test_the_tool_bits_new_body_is_recomputed(self):

@@ -124,7 +124,7 @@ def fea_frame(s, a):
         y = y_own.get(row["member"]) or y_all or (c.get("yield") if c else None)
         if y:
             row["yieldMPa"] = y
-            row["yieldFrom"] = "the member's yieldMPa" if row["member"] in y_own else ("the call's yieldMPa" if y_all else "the material card")
+            row["yieldFrom"] = "member" if row["member"] in y_own else ("call" if y_all else "card")
         elif c:
             no_yield.append(c.get("name") or row["member"])
         if y and row.get("vonMisesMPa"):
@@ -132,8 +132,7 @@ def fea_frame(s, a):
         if limit and row.get("spanOverDeflection"):
             row["deflectionOk"] = row["spanOverDeflection"] >= limit
     worst = min((r for r in res["members"] if r.get("safety")), key=lambda r: r["safety"], default=None)
-    out = {**res, "members": res["members"], "elements": "B32 beams, expanded to solids by CalculiX", "worst": worst["member"] if worst else None,
-           "note": "Joints between members are rigid; pinned and roller supports are held about the member's own axis. A frame model is a sizing look, not the connection design."}
+    out = {**res, "members": res["members"], "elements": "B32", "worst": worst["member"] if worst else None}
     # For the window's words and selection (Agent Link's echo: PHRASES,
     # SELECTS): the load as one number, the verdict, the bodies it was made of.
     tot = out.get("loadTotalN")
@@ -141,8 +140,7 @@ def fea_frame(s, a):
         out["loadN"] = round(sum(float(x) ** 2 for x in tot) ** 0.5, 1)
     out["verdict"] = frame_verdict(res["members"])
     if no_yield:
-        out["yieldNote"] = (f"No yield on the card of {', '.join(sorted(set(no_yield))[:5])}: no safety for those members. "
-                            "yieldMPa: the yield in MPa (the supplier's figure) judges them.")
+        out["noYield"] = sorted(set(no_yield))[:5]
     if a.get("bodies"):
         out["bodies"] = [m["name"] for m in members[len(a.get("members") or []):]]
     sag = [r["deflectionMm"] for r in res["members"] if isinstance(r.get("deflectionMm"), (int, float))]

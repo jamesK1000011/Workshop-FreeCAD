@@ -109,7 +109,7 @@ def make_view(doc, asm, moves, by_label, name="Exploded View"):
                 doc.removeObject(o.Name)
             except Exception:  # noqa: BLE001
                 pass
-        return None, f"FreeCAD's Exploded View could not be made here ({e})"
+        return None, {"reason": "notMade", "error": str(e)}
 
 
 def exploded_shape(view):

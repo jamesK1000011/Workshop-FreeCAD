@@ -256,7 +256,7 @@ def hw_embed(s, a):
         "sides": round(sides, 3), "printerFit": said, "step": len(s.steps),
     }
     if sides < rules["minWall"]:
-        out["warning"] = f"The wall beside or under the pocket is {sides:.2f} mm, under {rules['minWall']} mm: it may break through — move the pocket in."
+        out["thinSides"] = True
     return out
 
 
@@ -265,7 +265,7 @@ def hw_embed_list(s, a):
     recs, gone = live(s, o)
     out = {"body": o.Label, "embeds": [{k: r[k] for k in ("id", "what", "pocket", "floor", "top", "layer", "roof", "note")} for r in recs]}
     if gone:
-        out["dropped"] = {"ids": gone, "why": "their pockets are filled now (undone)"}
+        out["dropped"] = {"ids": gone}
     return out
 
 
@@ -279,7 +279,7 @@ def hw_unembed(s, a):
     rest = [x for x in recs if x is not r]
     if a.get("keepPocket"):
         keep(s, o.Label, rest)
-        return {"body": o.Label, "removed": rid, "pocket": "left open: it is a hole now, the part pressed in after printing"}
+        return {"body": o.Label, "removed": rid, "pocket": "open"}
     _plain(o, "the filled pocket")
     x, y, z0 = r["at"]
     bed = o.Shape.BoundBox.ZMin
@@ -308,10 +308,6 @@ def hw_pauses(s, a):
     out = {"body": o.Label, "layerHeight": lh, "firstLayer": first, "pauses": ps, "count": len(ps)}
     if gone:
         out["dropped"] = gone
-    if not ps:
-        out["note"] = "No part is encased in this body: no pause."
-    else:
-        out["note"] = "Each pause comes after its layer: the print stops with the pocket open, the part goes in, the next layer closes over it. slice_with writes them in."
     return out
 
 

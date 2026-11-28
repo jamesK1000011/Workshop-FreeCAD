@@ -56,7 +56,7 @@ HEALTH_MAX = 12  # records looked at per call: the check has a time budget
 def health_reading(session, tool, changed):
     """Make's own reading after a changing call, for Agent Link's shared
     health check (health.register(owner, fn): fn(session, tool, changed) ->
-    [{ line, red, todo }]). Only reads, and only Make's records against
+    [{ line, red }]). Only reads, and only Make's records against
     the document as it now stands:
 
     - a setup that names a body no longer in the document (deleted, or
@@ -81,8 +81,7 @@ def health_reading(session, tool, changed):
     for st in records.setups(doc)[:HEALTH_MAX]:
         gone = [b for b in st.get("bodies") or [] if b not in labels]
         if gone:
-            out.append({"line": f"setup {st.get('name')} ({st.get('id')}) names {', '.join(gone[:3])}, not in the document now (deleted or renamed: setups go by label)",
-                        "red": False, "todo": f"setup set {{ id: \"{st.get('id')}\", remove: [\"{gone[0]}\"] }} — and add: [its new name] if it was renamed"})
+            out.append({"line": f"setup {st.get('name')} ({st.get('id')}) names {', '.join(gone[:3])}, not in the document", "red": False})
     embeds = records.read(doc, "embeds", {}) or {}
     if embeds:
         looked = 0
@@ -99,8 +98,7 @@ def health_reading(session, tool, changed):
                 continue
             looked += len(recs)
             if filled:
-                out.append({"line": f"{o.Label}: the pocket of encased part {', '.join(filled[:4])} is solid again; its pause is still recorded",
-                            "red": False, "todo": f"hw_embed_list {{ body: \"{o.Label}\" }} drops the dead record (or history_undo if the change filled it by mistake)"})
+                out.append({"line": f"{o.Label}: the pocket of encased part {', '.join(filled[:4])} is solid again", "red": False})
             if looked >= HEALTH_MAX:
                 break
     return out

@@ -69,7 +69,7 @@ def hole_tool(kind, size, at, d, depth, fit, cal):
     m = M[size]
     if kind == "insert":
         hd, hdep = m["insert"][0] + add, m["insert"][1] + 0.5
-        return Part.makeCylinder(hd / 2, hdep + 0.05, back, d), {"hole": round(hd, 3), "depth": round(hdep, 3), "note": "Typical insert figures; check the insert's sheet."}
+        return Part.makeCylinder(hd / 2, hdep + 0.05, back, d), {"hole": round(hd, 3), "depth": round(hdep, 3)}
     clear = m["clear"][FIT_INDEX.get(fit, 1)] + add
     shaft = Part.makeCylinder(clear / 2, depth + 0.05, back, d)
     sizes = {"clearance": round(clear, 3), "depth": round(depth, 3)}

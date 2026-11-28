@@ -219,7 +219,7 @@ OUT["removed"] = len(removed)
 """)
         self.assertEqual(out["ok"], [102, ["Vertex0", "Vertex1"]])
         self.assertEqual(out["v"], 47)
-        self.assertIn("not 49", out["bad"]["why"])  # a wrong size is left off, said
+        self.assertEqual((out["bad"]["why"], out["bad"]["wanted"]), ("measuredOther", 49))  # a wrong size is left off, said
         self.assertEqual(out["removed"], 1)
 
     def test_circle_found_in_whichever_frame_the_view_uses(self):

@@ -14,6 +14,8 @@ HTML additions are pure Python (tested without FreeCAD)."""
 
 import html
 
+from workshop_make import finding_words as fw
+
 
 def _clone_base(o):
     for name in ("Objects", "Base"):
@@ -94,7 +96,7 @@ def make_job(doc, body, stock, tool, label=None):
                 doc.removeObject(n)
             except Exception:  # noqa: BLE001
                 pass
-        return None, f"FreeCAD's CAM could not make a Job here ({e})"
+        return None, {"reason": "jobFailed", "error": str(e)}
 
 
 def settle_new(doc, had):
@@ -157,7 +159,7 @@ def sanity_report(job, path):
             del sanity
             gc.collect()
     except Exception as e:  # noqa: BLE001
-        return None, f"FreeCAD's CAM Sanity report could not be made here ({e})"
+        return None, {"reason": "sanityFailed", "error": str(e)}
 
 
 # CAM's Sanity report hides the document to take its pictures: with the
@@ -234,11 +236,11 @@ def extras(report_html, check, material, step):
     if check.get("directions"):
         rows.append(f"<p>Tool directions: {html.escape(', '.join(str(d) for d in check['directions']))}.</p>")
     f = check.get("findings") or []
-    rows.append("<ul>" + ("".join(_li(f"{x.get('severity')}: {x.get('rule')}: {x.get('says')}") for x in f) if f else _li("No findings.")) + "</ul>")
+    rows.append("<ul>" + ("".join(_li(f"{x.get('severity')}: {x.get('rule')}: {fw.says(x, check)}") for x in f) if f else _li("No findings.")) + "</ul>")
     if material and material.lower() not in report_html.lower():
         rows.append(f"<p>Stock material: {html.escape(str(material))}.</p>")
     if check.get("assumed"):
-        rows.append("<p>Assumed:</p><ul>" + "".join(_li(f"{k}: {v}") for k, v in check["assumed"].items()) + "</ul>")
+        rows.append("<p>Assumed:</p><ul>" + "".join(_li(f"{k}: {fw.assumed_says(k, v)}") for k, v in check["assumed"].items()) + "</ul>")
     rows.append(f"<p>STEP: {html.escape(str(step))}</p>")
     section = '<section id="workshop-make"><h2>Workshop Make: mill check</h2>' + "".join(rows) + "</section>"
     low = report_html.lower()

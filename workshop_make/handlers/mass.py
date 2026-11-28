@@ -99,7 +99,7 @@ def body_mass(shape, rho, setup):
     rho_mm = rho / 1000.0
     vol, c_v, I_v = _solid_parts(shape)
     if not setup:
-        return vol * rho_mm, c_v, _scale(I_v, rho_mm), "solid", vol
+        return vol * rho_mm, c_v, _scale(I_v, rho_mm), {"basis": "solid"}, vol
     walls = int(setup.get("walls", 2))
     infill = float(setup.get("infill", 15)) / 100.0
     # The same estimate as part_review: the solid share as a slicer lays it
@@ -116,7 +116,7 @@ def body_mass(shape, rho, setup):
     k_core = m_core / vol if vol > 0 else 0.0
     parts = [(m_shell, c_a, _scale(I_a, m_shell / area if area else 0.0)), (m_core, c_v, _scale(I_v, k_core))]
     m, c, I = _combine(parts)
-    return m, c, I, f"printed: {walls} walls, {setup.get('topLayers', 5)} top and {setup.get('bottomLayers', 4)} bottom layers, {infill * 100:.0f}% infill (an estimate; the shells' mass on the surface)", vol
+    return m, c, I, {"basis": "printed", "walls": walls, "topLayers": setup.get("topLayers", 5), "bottomLayers": setup.get("bottomLayers", 4), "infillPct": round(infill * 100)}, vol
 
 
 def _disc_size(what):
@@ -162,7 +162,7 @@ def properties(session, o, rho=None, shape=None, meta=None, calibrated=True):
         # A weighed print of this setup: every reading scaled to match it.
         k = float(cal["scale"])
         m_b, I_b = m_b * k, _scale(I_b, k)
-        how += f"; calibrated ×{k:.3f} to a weighed print of {cal.get('body')} ({cal.get('grams')} g)"
+        how = {**how, "calibratedScale": round(k, 3), "weighedBody": cal.get("body"), "weighedGrams": cal.get("grams")}
     estimate = None
     if setup and calibrated and not (cal and cal.get("scale")) and shape is None:
         # A slice of this body as it is now: the slicer's figure, not the estimate.
@@ -174,7 +174,7 @@ def properties(session, o, rho=None, shape=None, meta=None, calibrated=True):
             estimate = m_b
             k = got / m_b
             m_b, I_b = got, _scale(I_b, k)
-            how = printmass.slice_words(rec) + f"; the estimate from walls and infill was {estimate:.1f} g"
+            how = {"basis": "sliced", **printmass.slice_fields(rec), "estimateGrams": round(estimate, 1)}
     enc = encased_parts(session.meta.get(o.Label) if meta is None else meta)
     m, com, I = _combine([(m_b, c_b, I_b)] + [(e[0], e[1], e[2]) for e in enc])
     return {
@@ -215,13 +215,14 @@ def report(o, p):
         "volume": _r(p["volume"], 1),
         # The material by its display name, in a person's words; its id
         # for agents.
-        "material": _shown(p["material"]["id"], p["material"]) + ("" if p["materialSet"] else " (assumed; set the material to change it)"),
+        "material": _shown(p["material"]["id"], p["material"]),
+        **({} if p["materialSet"] else {"materialAssumed": True}),
         "materialId": p["material"]["id"],
         "density": p["material"]["density"],
         "as": p["as"],
         "inertia": {"aboutCom": [[_r(x, 1) for x in row] for row in p["I"]], "units": "g·mm²"},
     }
-    if p.get("printed") and p.get("estimate") is None and str(p["as"]).startswith("printed"):
+    if p.get("printed") and p.get("estimate") is None and isinstance(p["as"], dict) and p["as"].get("basis") == "printed":
         out["massBand"] = printmass.band(p["bodyMass"])
     elif p.get("estimate") is not None:
         out["massEstimate"] = _r(p["estimate"], 2)
@@ -318,12 +319,8 @@ def mass_properties(s, a):
     res = {"bodies": out, "units": "mm, g, g·mm²"}
     if hw:
         res["hardware"] = _hardware_rows(hw)
-        res["hardwareNote"] = "Bought hardware from Fasteners Workbench, in steel (7.85 g/cm³; it keeps no material), listed apart from the parts made."
-    if any("assumed" in b["material"] for b in out):
-        res["note"] = "A body with no material is taken as PLA: set its material to change that."
-    if any(b["as"].startswith("printed") for b in out):
-        res["printedNote"] = (f"As printed is an estimate from walls and infill, a lower guide: the slicer's figure can be {printmass.BAND[0]} to {printmass.BAND[1]} times it "
-                              "(massBand). Slice the body alone (slice or slice_with) and this tool uses the slicer's figure instead.")
+    if any(isinstance(b["as"], dict) and b["as"].get("basis") == "printed" for b in out):
+        res["bandFactor"] = list(printmass.BAND)
     return res
 
 
@@ -355,14 +352,14 @@ def mass_target(s, a):
             if Ct is not None:
                 q = Ct + (Ct - C) * (M / m_add)
                 inside = o.Shape.isInside(q, 0.01, True)
-                out["ballast"] = {"mass": _r(m_add, 2), "centre": _vl(q), "insideBody": inside, "note": "One ballast of that mass with its centre there meets both" + ("" if inside else "; the centre is outside the body — the targets cannot both be met by adding mass") + ". mass_ballast lays out pockets."}
+                out["ballast"] = {"mass": _r(m_add, 2), "centre": _vl(q), "insideBody": inside}
             else:
-                out["ballast"] = {"mass": _r(m_add, 2), "note": "mass_ballast lays out pockets for it."}
+                out["ballast"] = {"mass": _r(m_add, 2)}
         elif Mt is not None and Mt < M - 1e-9:
-            out["remove"] = {"mass": _r(M - Mt, 2), "note": "Heavier than the target: take material away (thinner walls, less infill, pockets left empty) — ballast only adds."}
+            out["remove"] = {"mass": _r(M - Mt, 2)}
         elif Ct is not None:
             mom = (Ct - C) * M
-            out["moment"] = {"needed": _vl(mom), "units": "g·mm", "note": "A ballast of m grams moves the centre by this ÷ (mass + m) toward where it sits; mass_ballast { com } finds the pockets."}
+            out["moment"] = {"needed": _vl(mom), "units": "g·mm"}
     return out
 
 
@@ -499,14 +496,14 @@ def mass_ballast(s, a):
         "minWall": wall,
     }
     if holed:
-        out["leftOut"] = {"places": holed, "why": "a hole or pocket of the part runs through the pocket or its wall there"}
+        out["leftOut"] = {"places": holed}
     if Mt is not None:
         out["massOff"] = _r(p1["mass"] - Mt, 2)
     if Ct is not None:
         dv = p1["com"] - Ct
         out["comOff"] = _r(math.sqrt(sum(((dv.x, dv.y, dv.z)[i]) ** 2 for i in range(3) if mask[i])), 2)
     top = max(pk["lo"] + pk["h"] for pk in chosen)
-    out["printing"] = {"pauseAt": _r(top, 2), "note": "Closed pockets: pause at the layer that reaches pauseAt, fill them, and print over. Weigh the fill for each pocket."}
+    out["printing"] = {"pauseAt": _r(top, 2)}
     if a.get("cut"):
         why = geo.rebuilt(o, "the pockets")
         if why:
@@ -519,7 +516,6 @@ def mass_ballast(s, a):
         out.update({"cut": True, "sound": sound["ok"], "step": len(s.steps)})
     else:
         out["cut"] = False
-        out["next"] = "cut: true cuts these pockets (one undo step)."
     return out
 
 
@@ -532,7 +528,7 @@ def mass_calibrate(s, a):
     if a.get("reset"):
         gone = cals.pop(key, None)
         store.write(s.doc, CALIBRATION, cals)
-        return {"reset": key, "was": gone, "note": "Readings go back to the material's own figures."}
+        return {"reset": key, "was": gone}
     g = a.get("grams")
     if not isinstance(g, (int, float)) or g <= 0:
         raise ToolError("invalid_input", "grams: what the print weighed on the scales (with anything encased in it).")
@@ -547,8 +543,7 @@ def mass_calibrate(s, a):
     cals[key] = {"scale": round(k, 4), "grams": g, "body": o.Label, "expected": round(p["mass"], 2), "encased": round(enc, 2)}
     store.write(s.doc, CALIBRATION, cals)
     return {"calibrated": key, "scale": round(k, 4), "expected": round(p["mass"], 2), "weighed": g, "encased": round(enc, 2),
-            "for": f"print setup {setup['name']} ({setup['id']})" if setup else f"solid {c.get('id')}",
-            "note": "Every mass reading of bodies in this setup (mass_properties, part_review, ballast) now matches the scales; reset: true undoes it."}
+            "for": {"printSetup": f"{setup['name']} ({setup['id']})"} if setup else {"solid": c.get("id")}}
 
 
 HANDLERS = {

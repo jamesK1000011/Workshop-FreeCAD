@@ -114,8 +114,7 @@ class Http(unittest.TestCase):
             with mock.patch.object(P, "status") as st:
                 r = H.printer_add(s, {"name": "far", "kind": "octoprint", "url": "http://example.com", "key": "K"})
             st.assert_not_called()  # not tried at once off the network
-            self.assertIn("not on this network", r["warning"])
-            self.assertIn("clear text", r["warning"])
+            self.assertEqual([w["reason"] for w in r["warnings"]], ["notOnLan", "plainHttp"])
             self.assertTrue(r["kept"].endswith("printers.json"))
 
 
@@ -212,11 +211,11 @@ class GcodeChecks(unittest.TestCase):
         self.assertTrue(sha.startswith("sha256:"))
         self.assertEqual(issues, [])
         _, issues = self.scan("M104 S450 ; hot\nM109 R301\nM190 S150\nSET_HEATER_TEMPERATURE HEATER=heater_bed TARGET=130\nM997\nM81\nM84\nG1 X5\n")
-        whys = " | ".join(x["why"] for x in issues)
+        whys = " | ".join(G.issue_says(x) for x in issues)
         for w in ("M104", "M109", "M190", "SET_HEATER_TEMPERATURE", "M997", "M81", "motors off"):
             self.assertIn(w, whys)
         _, issues = self.scan("", "x.bgcode")
-        self.assertIn("binary", issues[0]["why"])
+        self.assertEqual("binaryGcode", issues[0]["reason"])
 
     def test_scan_text_is_clean(self):
         _, issues = self.scan("M997 ​\U000e0041hidden‮\n")

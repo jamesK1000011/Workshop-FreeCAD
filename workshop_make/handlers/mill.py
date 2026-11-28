@@ -14,6 +14,7 @@ import FreeCAD
 import Part
 
 from workshop_make import camjob, geo
+from workshop_make import finding_words as fw
 from workshop_make import records as store
 
 
@@ -78,8 +79,8 @@ def check(shape, dirs, tool, reach, wall, stock):
     bb = shape.BoundBox
     findings = []
 
-    def find(rule, severity, says, value=None, limit=None, at=None, faces=None):
-        findings.append({"rule": rule, "severity": severity, **({"value": round(value, 3)} if value is not None else {}), **({"limit": limit} if limit is not None else {}), **({"at": [round(x, 2) for x in at]} if at else {}), **({"faces": faces} if faces else {}), "says": says})
+    def find(rule, severity, value=None, limit=None, at=None, faces=None, **more):
+        findings.append({"rule": rule, "severity": severity, **({"value": round(value, 3)} if value is not None else {}), **({"limit": limit} if limit is not None else {}), **({"at": [round(x, 2) for x in at]} if at else {}), **({"faces": faces} if faces else {}), **more})
 
     def on_stock(f):
         if type(f.Surface).__name__ != "Plane":
@@ -122,10 +123,10 @@ def check(shape, dirs, tool, reach, wall, stock):
             continue
         (far if st["deep"] else under).append((i, st))
     if under:
-        find("undercut", "error", f"{len(under)} face{'s' if len(under) > 1 else ''} no tool direction reaches ({', '.join(dirs)}): an undercut — add a direction (setup axes \"3+2\"), a second setup, or change the shape.", faces=[f"Face{i + 1}" for i, _ in under[:12]], at=list(under[0][1]["at"]))
+        find("undercut", "error", count=len(under), faces=[f"Face{i + 1}" for i, _ in under[:12]], at=list(under[0][1]["at"]))
     for i, st in far[:4]:
         dep, name = st["deep"]
-        find("reach", "error", f"Face{i + 1} is {dep:.1f} mm in from {name}, past the tool's {reach:g} mm reach: a longer tool, or come at it from another side.", dep, reach, list(st["at"]), [f"Face{i + 1}"])
+        find("reach", "error", dep, reach, list(st["at"]), [f"Face{i + 1}"], direction=name)
 
     # Inside corners along each direction, and holes along it.
     r_tool = tool / 2
@@ -175,18 +176,18 @@ def check(shape, dirs, tool, reach, wall, stock):
         done.add(key)
         if len(done) > 6:
             break
-        find("inside-corner", "warning", f"An inside corner of radius {rad:.2f} mm along {name}, tighter than the least tool's {r_tool:.2f} mm: round it to {r_tool * 1.1:.2f} mm or more (a little over the tool's), or EDM it.", rad, round(r_tool, 3), [p.x, p.y, p.z])
+        find("inside-corner", "warning", rad, round(r_tool, 3), [p.x, p.y, p.z], direction=name)
     seen_h = set()
     for dia, length, p, name, i in holes:
         if i in seen_h:
             continue
         seen_h.add(i)
         if dia < tool - 1e-6:
-            find("small-hole", "warning", f"A hole Ø{dia:.2f} mm, under the least end mill's Ø{tool:g}: drill or ream it.", dia, tool, [p.x, p.y, p.z], [f"Face{i + 1}"])
+            find("small-hole", "warning", dia, tool, [p.x, p.y, p.z], [f"Face{i + 1}"])
         if length > reach + 1e-6:
-            find("deep-hole", "error", f"A hole Ø{dia:.2f} mm {length:.1f} mm deep, past the tool's {reach:g} mm reach: drill it from both sides, or a longer drill.", length, reach, [p.x, p.y, p.z], [f"Face{i + 1}"])
+            find("deep-hole", "error", length, reach, [p.x, p.y, p.z], [f"Face{i + 1}"], diameter=round(dia, 3))
         elif length > DEEP * dia:
-            find("deep-hole", "warning", f"A hole Ø{dia:.2f} mm {length:.1f} mm deep, over {DEEP:g} times its width: a long, thin tool chatters and breaks — drill it, or make it shallower or wider.", length / dia, DEEP, [p.x, p.y, p.z], [f"Face{i + 1}"])
+            find("deep-hole", "warning", length / dia, DEEP, [p.x, p.y, p.z], [f"Face{i + 1}"], diameter=round(dia, 3), length=round(length, 3))
 
     # Pockets: floors facing a direction, below the stock's top that way, walled round.
     for name, d in dirs.items():
@@ -212,15 +213,15 @@ def check(shape, dirs, tool, reach, wall, stock):
                 continue  # open to a side: a step, not a pocket
             width = min(hits[0] + hits[1], hits[2] + hits[3])
             if depth > reach + 1e-6:
-                find("deep-pocket", "error", f"A pocket {depth:.1f} mm deep from {name}, past the tool's {reach:g} mm reach: a longer tool, or make it shallower.", depth, reach, [p.x, p.y, p.z], [f"Face{i + 1}"])
+                find("deep-pocket", "error", depth, reach, [p.x, p.y, p.z], [f"Face{i + 1}"], direction=name)
             elif depth > DEEP * width:
-                find("deep-pocket", "warning", f"A pocket {width:.1f} mm wide and {depth:.1f} mm deep, over {DEEP:g} times its width: the tool that fits is too long to cut well — widen it or make it shallower.", depth / width, DEEP, [p.x, p.y, p.z], [f"Face{i + 1}"])
+                find("deep-pocket", "warning", depth / width, DEEP, [p.x, p.y, p.z], [f"Face{i + 1}"], width=round(width, 3), depth=round(depth, 3))
 
     # Thin walls.
     w = geo.least_wall(shape)
     if w.get("least") is not None:
         for run in geo.thin_runs(w["readings"], wall, 2.5 * w["spacing"])[:3]:
-            find("thin-wall", "warning" if run["least"] >= wall / 2 else "error", f"A wall {run['least']:.2f} mm thick, under {wall:g} mm for the material: it chatters and bends under the tool — thicken it.", run["least"], wall, run["at"])
+            find("thin-wall", "warning" if run["least"] >= wall / 2 else "error", run["least"], wall, run["at"])
 
     # Stock.
     size = sorted([bb.XLength, bb.YLength, bb.ZLength])
@@ -228,7 +229,7 @@ def check(shape, dirs, tool, reach, wall, stock):
         sx, sy, sz = (float(v) for v in stock)
         if not (bb.XLength <= sx + 1e-6 and bb.YLength <= sy + 1e-6 and bb.ZLength <= sz + 1e-6):
             fits_turned = all(p <= q + 1e-6 for p, q in zip(size, sorted([sx, sy, sz])))
-            find("stock", "error" if not fits_turned else "warning", f"{bb.XLength:.1f} x {bb.YLength:.1f} x {bb.ZLength:.1f} mm does not fit the {sx:g} x {sy:g} x {sz:g} mm stock as it stands" + (": it fits turned — turn the stock or the part." if fits_turned else ": bigger stock."), max(size), max(sx, sy, sz))
+            find("stock", "error" if not fits_turned else "warning", max(size), max(sx, sy, sz), size=[round(bb.XLength, 2), round(bb.YLength, 2), round(bb.ZLength, 2)], stock=[sx, sy, sz], fitsTurned=fits_turned)
     order = {"error": 0, "warning": 1}
     findings.sort(key=lambda f: order[f["severity"]])
     return findings, w.get("least")
@@ -251,27 +252,27 @@ def gather(s, a, o, setup):
     else:
         axes = str(setup.get("axes") or "3")
         if not setup.get("axes"):
-            assumed["axes"] = "3 (the setup does not say): the tool from +z only"
+            assumed["axes"] = "3"
         names = ["+z"] if axes == "3" else list(DIRS)
     tool = float(a.get("tool") or setup.get("minTool") or 0) or None
     if tool is None:
         tool = 3.0
-        assumed["tool"] = "Ø3 mm end mill (the setup's minTool is not set)"
+        assumed["tool"] = tool
     reach = a.get("reach")
     if reach is None:
         reach = max(5 * tool, 20.0)
-        assumed["reach"] = f"{reach:g} mm, five times the tool or 20 mm (a standard length)"
+        assumed["reach"] = reach
     mat = (a.get("material") or "").lower()
     if not mat:
         mat = "aluminium"
-        assumed["material"] = "aluminium (not said)"
+        assumed["material"] = mat
     if mat not in WALL:
         raise ToolError("invalid_input", f"material: one of {', '.join(WALL)}.")
     stock = a.get("stock")
     bb = o.Shape.BoundBox
     if not stock:
         stock = [round(bb.XLength + 4, 1), round(bb.YLength + 4, 1), round(bb.ZLength + 2, 1)]
-        assumed["stock"] = f"{stock[0]:g} x {stock[1]:g} x {stock[2]:g} mm: the part's box and 2 mm a side, 1 mm top and bottom"
+        assumed["stock"] = stock
     return {n: DIRS[n] for n in names}, tool, float(reach), mat, stock, assumed
 
 
@@ -331,18 +332,16 @@ def mill_export(s, a):
             if rep is not None:
                 with open(sheet, "w", encoding="utf-8") as f:
                     f.write(camjob.extras(rep, r, r["material"], os.path.basename(step)))
-                out.update({"setupSheet": {"path": sheet, "bytes": os.path.getsize(sheet), "by": "FreeCAD CAM's Sanity report, Make's mill check added"},
+                out.update({"setupSheet": {"path": sheet, "bytes": os.path.getsize(sheet), "by": "FreeCAD CAM Sanity report"},
                             "camJob": {"label": job.Label, "reused": reused}})
-                if not reused:
-                    out["camJob"]["note"] = "A new CAM Job with the stock and least tool used here; add its operations in CAM."
                 if back:
                     out["camJob"]["shownAgain"] = len(back)
                 s.snapshot("mill_export")
                 return out
             out["camJob"] = {"label": job.Label, "reused": reused}
-        out["camNote"] = f"{why}: the setup sheet is Make's own."
+        out["camNote"] = why
     sheet = _own_sheet(o, setup, r, base, step)
-    out["setupSheet"] = {"path": sheet, "bytes": os.path.getsize(sheet), "by": "Workshop Make (FreeCAD's CAM not used)"}
+    out["setupSheet"] = {"path": sheet, "bytes": os.path.getsize(sheet), "by": "Workshop Make"}
     return out
 
 
@@ -365,11 +364,11 @@ def _own_sheet(o, setup, r, base, step):
     ]
     if r["findings"]:
         for f in r["findings"]:
-            lines.append(f"- **{f['severity']}** {f['rule']}: {f['says']}" + (f" ({', '.join(f['faces'])})" if f.get("faces") else ""))
+            lines.append(f"- **{f['severity']}** {f['rule']}: {fw.says(f, r)}" + (f" ({', '.join(f['faces'])})" if f.get("faces") else ""))
     else:
         lines.append("- None.")
     if r.get("assumed"):
-        lines += ["", "## Assumed", ""] + [f"- {k}: {v}" for k, v in r["assumed"].items()]
+        lines += ["", "## Assumed", ""] + [f"- {k}: {fw.assumed_says(k, v)}" for k, v in r["assumed"].items()]
     lines += ["", f"STEP: {os.path.basename(step)}", ""]
     sheet = base + "-setup.md"
     with open(sheet, "w", encoding="utf-8") as f:

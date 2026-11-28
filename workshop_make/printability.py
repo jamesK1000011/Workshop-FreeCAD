@@ -124,8 +124,8 @@ def check(shape, rules, waived=(), min_area=1.0, carried=()):
     bb = shape.BoundBox
     z0 = bb.ZMin
 
-    def add(rule, severity, value, limit, unit, at, says, area=None):
-        findings.append({"rule": rule, "severity": severity, "value": round(value, 2), "limit": limit, "unit": unit, "at": [round(x, 2) for x in at], **({"areaMm2": round(area, 1)} if area else {}), "says": says})
+    def add(rule, severity, value, limit, unit, at, area=None, **more):
+        findings.append({"rule": rule, "severity": severity, "value": round(value, 2), "limit": limit, "unit": unit, "at": [round(x, 2) for x in at], **({"areaMm2": round(area, 1)} if area else {}), **more})
 
     # Thin walls, from the rays: under one line an error, under the minimum
     # a warning — it prints as a single line.
@@ -134,7 +134,7 @@ def check(shape, rules, waived=(), min_area=1.0, carried=()):
         for run in geo.thin_runs(w["readings"], rules["minWall"], 2.5 * w["spacing"]):
             sev = "error" if run["least"] < rules["line"] else "warning"
             lim = rules["line"] if sev == "error" else rules["minWall"]
-            add("thin-wall", sev, run["least"], lim, "mm", run["at"], f"a wall {run['least']:.2f} mm thick over {run['count']} readings — " + ("thinner than one line, it can't be printed: thicken it" if sev == "error" else f"under {rules['minWall']} mm it prints as a single line: thicken it if it must be strong"))
+            add("thin-wall", sev, run["least"], lim, "mm", run["at"], readings=run["count"])
             findings[-1]["points"] = run["points"]
 
     # Overhangs past the angle (from vertical), and flat ceilings: a
@@ -149,7 +149,7 @@ def check(shape, rules, waived=(), min_area=1.0, carried=()):
 
     for r in _regions(shape, overhang):
         if r["area"] >= min_area:
-            add("overhang", "warning", r["worst"], maxd, "°", r["at"], f"{r['area']:.0f} mm² facing down at {r['worst']:.0f}° from vertical, past {maxd:.0f}°: support it, chamfer it to 45°, or turn the part", r["area"])
+            add("overhang", "warning", r["worst"], maxd, "°", r["at"], r["area"])
 
     def ceiling(n, c):
         return 90.0 if n.z <= -math.cos(math.radians(1.0)) and c.z > z0 + 0.05 else None
@@ -158,10 +158,9 @@ def check(shape, rules, waived=(), min_area=1.0, carried=()):
         if r["area"] >= min_area and r["span"] > rules["maxBridge"]:
             by = carried_by(r, carried)
             if by is not None:
-                notes.append({"rule": "bridge", "value": round(r["span"], 2), "at": [round(x, 2) for x in r["at"]], "areaMm2": round(r["area"], 1), "by": by["id"],
-                              "says": f"carried by {by['id']} after the pause: {by['what']} is in the pocket when the layers close over it, so this ceiling is no bridge"})
+                notes.append({"rule": "bridge", "value": round(r["span"], 2), "at": [round(x, 2) for x in r["at"]], "areaMm2": round(r["area"], 1), "by": by["id"], "what": by["what"]})
                 continue
-            add("bridge", "warning", r["span"], rules["maxBridge"], "mm", r["at"], f"a flat ceiling about {r['span']:.1f} mm across, {r['area']:.0f} mm²: past the {rules['maxBridge']:.0f} mm bridge limit — support it, add a rib, or arch it", r["area"])
+            add("bridge", "warning", r["span"], rules["maxBridge"], "mm", r["at"], r["area"])
 
     # Upright holes too small to print open: a cylinder about +z, the
     # material outside it (its normal points in to the axis).
@@ -178,27 +177,27 @@ def check(shape, rules, waived=(), min_area=1.0, carried=()):
             continue  # a boss, not a hole
         d = 2 * s.Radius
         if d < rules["minHole"]:
-            add("small-hole", "warning", d, rules["minHole"], "mm", [p.x, p.y, p.z], f"an upright hole Ø{d:.2f} mm, under {rules['minHole']} mm: it may print closed — drill it after, or make it bigger")
+            add("small-hole", "warning", d, rules["minHole"], "mm", [p.x, p.y, p.z])
 
     # On the bed: the flat faces at the bottom against the footprint.
     bed = sum(f.Area for f in shape.Faces if type(f.Surface).__name__ == "Plane" and abs(f.BoundBox.ZMax - z0) < 1e-3 and abs(f.BoundBox.ZMin - z0) < 1e-3)
     foot = bb.XLength * bb.YLength or 1.0
     if bed / foot < rules["minBedShare"]:
-        add("bed-contact", "warning", bed / foot, rules["minBedShare"], "share", [bb.Center.x, bb.Center.y, z0], f"{bed:.0f} mm² on the bed, {100 * bed / foot:.0f}% of its footprint: add a brim, or stand it on a flatter face")
+        add("bed-contact", "warning", bed / foot, rules["minBedShare"], "share", [bb.Center.x, bb.Center.y, z0], bedMm2=round(bed))
     ratio = bb.ZLength / max(1e-6, min(bb.XLength, bb.YLength))
     if ratio > rules["maxRatio"]:
-        add("tall-thin", "warning", ratio, rules["maxRatio"], "ratio", [bb.Center.x, bb.Center.y, bb.ZMax], f"{ratio:.1f} times as tall as its base is narrow: it may wobble or snap — widen the base or lay it down")
+        add("tall-thin", "warning", ratio, rules["maxRatio"], "ratio", [bb.Center.x, bb.Center.y, bb.ZMax])
     vx, vy, vz = rules["volume"]
     fits = (bb.XLength <= vx and bb.YLength <= vy) or (bb.XLength <= vy and bb.YLength <= vx)
     if not fits or bb.ZLength > vz:
-        add("build-volume", "error", max(bb.XLength, bb.YLength, bb.ZLength), max(rules["volume"]), "mm", [bb.Center.x, bb.Center.y, bb.Center.z], f"{bb.XLength:.0f} × {bb.YLength:.0f} × {bb.ZLength:.0f} mm does not fit the {rules['printer']} ({vx} × {vy} × {vz} mm): split it or turn it")
+        add("build-volume", "error", max(bb.XLength, bb.YLength, bb.ZLength), max(rules["volume"]), "mm", [bb.Center.x, bb.Center.y, bb.Center.z],
+            size=[round(bb.XLength, 2), round(bb.YLength, 2), round(bb.ZLength, 2)], printer=rules["printer"], volume=[vx, vy, vz])
 
     # Sound first: FreeCAD's own Check Geometry (Part_CheckGeometry's
     # check), not a copy of it; the print checks above are Make's.
     found = geo.freecad_check(shape)
     if found:
-        add("check-geometry", "error", len(found), 0, "findings", [bb.Center.x, bb.Center.y, bb.Center.z],
-            "FreeCAD's Check Geometry finds the shape broken (" + "; ".join(found[:3]) + "): a slicer reads it wrongly — rebuild the last step")
+        add("check-geometry", "error", len(found), 0, "findings", [bb.Center.x, bb.Center.y, bb.Center.z], problems=found[:3])
 
     order = {"error": 0, "warning": 1, "info": 2}
     findings.sort(key=lambda f: (order[f["severity"]], f["rule"]))

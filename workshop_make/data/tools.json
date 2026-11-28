@@ -5,7 +5,129 @@
  "entries": {
   "fit": {
    "group": "fits",
-   "description": "Give sizes for parts that fit together, and keep the fit calibration of the printer. action: size when left out. size { nominal mm (the size of the bought or mating part), of: hole|shaft (hole when left out), kind: press|snug|slide|free (all four when left out), body } gives the diameter to MODEL. A hole is nominal + the gap of the fit + what this printer prints a hole small. A shaft is nominal − what it prints a peg big. The gap of the fit is always put on the hole. calibrate { hole, shaft } keeps with the document how much this printer prints a hole small and a peg big. The values are diametral mm, each −1 to 1; hole 0.2 and shaft 0 when left out. Every later size, hw_hole and hw_embed takes it. stack { items: [{ name, nominal (signed mm), tol (± mm) }], target: [lo, hi] } adds a tolerance stack. Gotchas: with no calibration kept, the hole allowance is 0.2 mm, and printerFit says so. The fit of the print setup of a body wins over the fit of the document (body picks the setup). calibrate writes a record, though the tool is listed as a read. That record is not an undo step. The answer holds: size { of, nominal, model { kind: mm }, printerFit }; calibrate { calibration { hole, shaft }, note }; stack { nominal, worstCase [lo, hi], rss [lo, hi], worstCaseOk, rssOk (with target) }.",
+   "card": {
+    "does": "Gives sizes for parts that fit together, and keeps the fit calibration of the printer.",
+    "inputNotes": {
+     "action": {
+      "means": "size (default), calibrate or stack",
+      "values": [
+       "size",
+       "calibrate",
+       "stack"
+      ],
+      "default": "size"
+     },
+     "nominal": {
+      "means": "The size of the bought or mating part",
+      "unit": "mm"
+     },
+     "of": {
+      "means": "hole or shaft (hole when left out)",
+      "values": [
+       "hole",
+       "shaft"
+      ],
+      "default": "hole"
+     },
+     "kind": {
+      "means": "The fit: press|snug|slide|free (all four when left out)",
+      "values": [
+       "press",
+       "snug",
+       "slide",
+       "free"
+      ]
+     },
+     "body": {
+      "means": "A body's name; may be left out when there is one"
+     },
+     "hole": {
+      "means": "calibrate: how much this printer prints a hole small, diametral",
+      "unit": "mm",
+      "min": -1,
+      "max": 1,
+      "default": 0.2
+     },
+     "shaft": {
+      "means": "calibrate: how much this printer prints a peg big, diametral",
+      "unit": "mm",
+      "min": -1,
+      "max": 1,
+      "default": 0
+     },
+     "items": {
+      "means": "stack: [{ name, nominal (signed mm), tol (± mm) }]"
+     },
+     "target": {
+      "means": "stack: [lo, hi]"
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "action",
+       "nominal"
+      ],
+      "rel": "needs",
+      "line": "size takes nominal",
+      "when": "action size"
+     },
+     {
+      "inputs": [
+       "action",
+       "hole"
+      ],
+      "rel": "with",
+      "line": "calibrate takes hole and shaft",
+      "when": "action calibrate"
+     },
+     {
+      "inputs": [
+       "action",
+       "items"
+      ],
+      "rel": "with",
+      "line": "stack takes items and target",
+      "when": "action stack"
+     },
+     {
+      "inputs": [
+       "body",
+       "kind"
+      ],
+      "rel": "with",
+      "line": "The fit of the print setup of a body wins over the fit of the document (body picks the setup)"
+     }
+    ],
+    "effects": [
+     "size gives the diameter to MODEL",
+     "A hole is nominal + the gap of the fit + what this printer prints a hole small",
+     "A shaft is nominal − what it prints a peg big",
+     "The gap of the fit is always put on the hole",
+     "calibrate keeps with the document how much this printer prints a hole small and a peg big",
+     "Every later size, hw_hole and hw_embed takes the calibration",
+     "stack adds a tolerance stack",
+     "With no calibration kept, the hole allowance is 0.2 mm, and printerFit says so",
+     "The fit of the print setup of a body wins over the fit of the document",
+     "calibrate writes a record, though the tool is listed as a read",
+     "That record is not an undo step",
+     "calibration none means no printer fit is on."
+    ],
+    "returns": {
+     "size": {
+      "means": "of, nominal, model { kind: mm }, printerFit"
+     },
+     "calibrate": {
+      "means": "calibration { hole, shaft }, note"
+     },
+     "stack": {
+      "means": "nominal, worstCase [lo, hi], rss [lo, hi], worstCaseOk, rssOk (with target)"
+     },
+     "printerFit": {
+      "means": "calibrated: the calibration kept with the document; none: no calibration kept, holes assumed to print 0.2 mm small"
+     }
+    }
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -31,8 +153,7 @@
       "type": "string"
      },
      "body": {
-      "type": "string",
-      "description": "A body's name; may be left out when there is one."
+      "type": "string"
      },
      "hole": {
       "type": "number"
@@ -67,13 +188,218 @@
   },
   "hw_hole": {
    "group": "fits",
-   "description": "Make a hole for hardware in a body. kind: clearance | counterbore | countersink | nut_trap, insert (heat-set) or magnet. size: M2, M2.5, M3, M4, M5, M6 or M8; M3 when left out; insert takes the same sizes. fit: close|normal|loose is ISO 273 fine|medium|coarse. magnet size: \"6x2\", diameter x thickness mm. at [x, y, z] in document coordinates is where the hole ENTERS, on a flat face. dir runs INTO the material (\"-z\" when left out; \"+x\", \"-y\" … or [x, y, z]). depth: mm or \"through\" (the default). Insert and magnet pockets take their own depth. The head side (screw head, counterbore, countersink, nut trap) is always on the face that at is on. headSide says which (\"countersink on the face at x=0, facing -x\"). For a wall bracket, enter from the face away from the wall. In a PartDesign Body, it is FreeCAD's own PartDesign Hole on a new sketch on that face. The Hole is editable in its panel. features lists them: HoleSketch, Hole, and for a nut trap NutTrapSketch + NutTrap, a Pocket. face: the entry face, instead of finding it from at and dir. face is \"Face6\" (on the tip of the Body) or \"Pocket.Face4\" (of a feature). Face numbers change after any edit, so pick the face again (shape_query); do not reuse one. sketch: a sketch in the Body whose circle centres are the holes (at not needed; not for nut_trap). Printer allowance: the fit calibration of the print setup or the document (fit calibrate) is added to the diameters. When none is kept, the allowance is 0.2 mm. With an allowance, the Hole is FreeCAD's plain hole (ThreadType None) at the ISO 273 size + allowance. That is because FreeCAD sets the Diameter of a sized hole again from size and fit on every reopen. The size it stands for is in the Label2 of the Hole, and allowanceOn names the properties. A size picked later in the own panel of the Hole loses the allowance: run hw_hole again instead. Other bodies: a plain Part solid (Part::Feature) is cut as a shape (route \"Part solid\", not editable). A parametric Part object (a Part::Box, a boolean, an extrusion) is refused. FreeCAD would rebuild it and lose the hole. The refusal names the plain copy (part_transform copy) or pd_clone to use. The Body is recomputed first; a broken last feature is refused by name. Each call is one hole, or the holes of one sketch. The answer holds { body, kind, size, sizes, printerFit, allowance, depth, through, removed, route, features, headSide (+ face, facing), note, sound (+ problems), step }. through: mm of material passed. removed: mm³. route: \"PartDesign Hole\" | \"Part solid\". sizes holds those that apply: freecadSize, fit, clearance, clearanceBeforeAllowance, cut, cutDiameter, cutDepth, nutAcrossFlats, nutDepth, hole, depth. The answer of a changing call can also hold health { ok, verdict, todo } from the shared check. More: guide_read { topic: \"hole\" }.",
+   "card": {
+    "does": "Makes a hole for hardware in a body.",
+    "inputNotes": {
+     "body": {
+      "means": "A body's name; may be left out when there is one"
+     },
+     "kind": {
+      "means": "The hole kind: insert is heat-set",
+      "values": [
+       "clearance",
+       "counterbore",
+       "countersink",
+       "nut_trap",
+       "insert",
+       "magnet"
+      ]
+     },
+     "size": {
+      "means": "M2, M2.5, M3, M4, M5, M6 or M8 (insert takes the same sizes); magnet size: \"6x2\", diameter x thickness",
+      "unit": "mm",
+      "default": "M3",
+      "values": [
+       "M2",
+       "M2.5",
+       "M3",
+       "M4",
+       "M5",
+       "M6",
+       "M8"
+      ],
+      "forms": [
+       "M3",
+       "6x2"
+      ]
+     },
+     "at": {
+      "means": "Where the hole ENTERS, on a flat face, [x, y, z] in document coordinates"
+     },
+     "dir": {
+      "means": "The direction INTO the material (\"-z\" when left out): \"+x\", \"-y\" ... or [x, y, z]",
+      "default": "-z",
+      "forms": [
+       "\"+x\"",
+       "\"-y\"",
+       "[x, y, z]"
+      ]
+     },
+     "depth": {
+      "means": "mm or \"through\" (the default)",
+      "default": "through",
+      "forms": [
+       "a number in mm",
+       "\"through\""
+      ]
+     },
+     "fit": {
+      "means": "close|normal|loose is ISO 273 fine|medium|coarse",
+      "values": [
+       "close",
+       "normal",
+       "loose"
+      ]
+     },
+     "face": {
+      "means": "The entry face on the Body's tip (\"Face6\") or of a feature (\"Pocket.Face4\"), instead of finding it from at and dir; PartDesign Body only",
+      "forms": [
+       "Face6",
+       "Pocket.Face4"
+      ]
+     },
+     "sketch": {
+      "means": "A sketch in the Body whose circle centres are the holes; PartDesign Body only; at not needed; not for nut_trap"
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "face",
+       "at"
+      ],
+      "rel": "overrides",
+      "line": "face is the entry face instead of finding it from at and dir"
+     },
+     {
+      "inputs": [
+       "sketch",
+       "at"
+      ],
+      "rel": "excludes",
+      "line": "With sketch, at is not needed"
+     },
+     {
+      "inputs": [
+       "kind",
+       "sketch"
+      ],
+      "rel": "excludes",
+      "line": "sketch is not for nut_trap",
+      "when": "kind nut_trap"
+     },
+     {
+      "inputs": [
+       "kind",
+       "depth"
+      ],
+      "rel": "overrides",
+      "line": "Insert and magnet pockets take their own depth",
+      "when": "kind insert or magnet"
+     }
+    ],
+    "effects": [
+     "The head side (screw head, counterbore, countersink, nut trap) is always on the face that at is on",
+     "headSide says which (\"countersink on the face at x=0, facing -x\")",
+     "In a PartDesign Body, it is FreeCAD's own PartDesign Hole on a new sketch on that face",
+     "The Hole is editable in its panel",
+     "features lists them: HoleSketch, Hole, and for a nut trap NutTrapSketch + NutTrap, a Pocket",
+     "Printer allowance: the fit calibration of the print setup or the document (fit calibrate) is added to the diameters",
+     "When none is kept, the allowance is 0.2 mm",
+     "With an allowance, the Hole is FreeCAD's plain hole (ThreadType None) at the ISO 273 size + allowance",
+     "That is because FreeCAD sets the Diameter of a sized hole again from size and fit on every reopen",
+     "The size it stands for is in the Label2 of the Hole, and allowanceOn names the properties",
+     "A size picked later in the own panel of the Hole loses the allowance",
+     "A plain Part solid (Part::Feature) is cut as a shape (route \"Part solid\", not editable)",
+     "FreeCAD would rebuild a parametric Part object and lose the hole",
+     "The Body is recomputed first",
+     "Each call is one hole, or the holes of one sketch",
+     "The answer of a changing call can also hold health from the shared check",
+     "A screw added with screw needs at: one hole at a known point, not a sketch's circles. A nut trap's screw comes from the far side and needs a through hole.",
+     "The figures of an insert hole are typical; check the insert's sheet.",
+     "FreeCAD's own Hole (double-click it to edit) when made in a Body; printer allowance added is in sizes.allowanceOn {props, addMm}. A cut as a shape is a plain Part solid, not a PartDesign Body, so FreeCAD's Hole cannot go on it (put it in a Body for an editable Hole). Typical insert figures; check the insert's sheet."
+    ],
+    "returns": {
+     "body": {
+      "means": "The body"
+     },
+     "kind": {
+      "means": "The kind"
+     },
+     "size": {
+      "means": "The size"
+     },
+     "sizes": {
+      "means": "Those that apply: freecadSize, fit, clearance, clearanceBeforeAllowance, cut, cutDiameter, cutDepth, nutAcrossFlats, nutDepth, hole, depth"
+     },
+     "printerFit": {
+      "means": "calibrated: the calibration kept with the document; none: no calibration kept, holes assumed to print 0.2 mm small"
+     },
+     "allowance": {
+      "means": "The allowance"
+     },
+     "depth": {
+      "means": "The depth"
+     },
+     "through": {
+      "means": "Material passed",
+      "unit": "mm"
+     },
+     "removed": {
+      "means": "Volume removed",
+      "unit": "mm³"
+     },
+     "route": {
+      "means": "\"PartDesign Hole\" | \"Part solid\""
+     },
+     "features": {
+      "means": "The features made"
+     },
+     "headSide": {
+      "means": "Which face has the head side (with face, facing)"
+     },
+     "note": {
+      "means": "A note"
+     },
+     "sound": {
+      "means": "Whether the body is sound (with problems)"
+     },
+     "step": {
+      "means": "The step"
+     },
+     "health": {
+      "means": "the shared health check after the call: { recompute, fault, shapes, sketches, measured, window, addons }, or \"nothing new\""
+     },
+     "screwNote": {
+      "means": "why no screw was added: { reason, kind | type, size | at | error }; reasons: noScrewForKind, needsAt, noSize, needsThrough, noEdge, missing, bridgeNotLoaded, notInstalled (Fasteners Workbench is not installed: the Addon Manager has it), error"
+     },
+     "lengthIs": {
+      "means": "insertDepth: the screw length is the insert's depth"
+     },
+     "from": {
+      "means": "farSide: the screw goes from the far side, into the nut in the trap"
+     }
+    },
+    "refusalNotes": [
+     "A parametric Part object (a Part::Box, a boolean, an extrusion) is refused",
+     "The refusal names the plain copy (part_transform copy) or pd_clone to use",
+     "A broken last feature of the Body is refused by name"
+    ],
+    "hints": [
+     "For a wall bracket, enter from the face away from the wall",
+     "Face numbers change after any edit, so pick the face again (shape_query); do not reuse one",
+     "Run hw_hole again instead of picking a size in the Hole's own panel",
+     "More: guide_read { topic: \"hole\" }",
+     "For an insert, add the thickness of what it clamps to the length (fastener_set { length }).",
+     "After a noEdge screwNote, fastener_add { edges: [{ body, near: [x, y, z] }] } puts a screw on an edge you pick.",
+     "After a noSize screwNote, give screw.type one that has the size (fastener_types { type } lists sizes)."
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
      "body": {
-      "type": "string",
-      "description": "A body's name; may be left out when there is one."
+      "type": "string"
      },
      "kind": {
       "type": "string",
@@ -106,12 +432,10 @@
       ]
      },
      "face": {
-      "type": "string",
-      "description": "The entry face on the Body's tip, e.g. Face6 (PartDesign Body only)."
+      "type": "string"
      },
      "sketch": {
-      "type": "string",
-      "description": "A sketch in the Body whose circles are the holes' centres (PartDesign Body only; at not needed)."
+      "type": "string"
      }
     },
     "required": [
@@ -132,7 +456,91 @@
   },
   "thread_lookup": {
    "group": "thread",
-   "description": "Read thread sizes in mm from FreeCAD's own PartDesign Hole tables (ISO metric coarse and fine, UNC, UNF). It reads the tables once a session. size: \"M6\", \"M10x1.25\", \"1/4-20\", \"#10-32\"; a bare \"1/4\" is the coarse one. With size, the answer holds thread { size, series, major, pitch, pitchDia, minorInt, minorExt, tapDrill, freecad, source, insert { hole, depth, source }, tpi, tapDrillName }. freecad: the name that FreeCAD's Hole lists it by. insert: where there are heat-set insert figures. tpi and tapDrillName: for Unified sizes. Without size: a table for series metric | metric-fine | unc | unf | all (all when left out). near: a diameter in mm; it keeps the six sizes whose major is nearest. The answer then holds threads [{ size, major, pitch, minorInt, tapDrill }], columns, source. Gotchas: pitch diameter and minors are worked out from the ISO 68-1 basic profile, not read from FreeCAD. FreeCAD gives no Unified pitch. So a Unified size that FreeCAD lists, but that Workshop has no threads-per-inch for, has pitch null. A size that is not listed is refused not_found. Your own sizes go in ~/.config/workshop_make/threads.json. Changes nothing.",
+   "card": {
+    "does": "Reads thread sizes in mm from FreeCAD's own PartDesign Hole tables (ISO metric coarse and fine, UNC, UNF).",
+    "inputNotes": {
+     "size": {
+      "means": "\"M6\", \"M10x1.25\", \"1/4-20\", \"#10-32\"; a bare \"1/4\" is the coarse one",
+      "forms": [
+       "M6",
+       "M10x1.25",
+       "1/4-20",
+       "#10-32"
+      ]
+     },
+     "series": {
+      "means": "A table for series metric | metric-fine | unc | unf | all (all when left out)",
+      "values": [
+       "metric",
+       "metric-fine",
+       "unc",
+       "unf",
+       "all"
+      ],
+      "default": "all"
+     },
+     "near": {
+      "means": "A diameter in mm; it keeps the six sizes whose major is nearest",
+      "unit": "mm"
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "size",
+       "series"
+      ],
+      "rel": "excludes",
+      "line": "Without size: a table for series"
+     }
+    ],
+    "effects": [
+     "It reads the tables once a session",
+     "With size, the answer holds the thread",
+     "Without size, the answer holds threads, columns, source",
+     "Pitch diameter and minors are worked out from the ISO 68-1 basic profile, not read from FreeCAD",
+     "FreeCAD gives no Unified pitch",
+     "A Unified size that FreeCAD lists, but that Workshop has no threads-per-inch for, has pitch null",
+     "Your own sizes go in ~/.config/workshop_make/threads.json",
+     "Changes nothing",
+     "The tapping hole is at the thread's tapping size; a modelled thread under M5 rarely prints cleanly: print the tapping hole and tap it, or use a heat-set insert."
+    ],
+    "returns": {
+     "thread": {
+      "means": "With size: size, series, major, pitch, pitchDia, minorInt, minorExt, tapDrill, freecad, source, insert { hole, depth, source }, tpi, tapDrillName"
+     },
+     "freecad": {
+      "means": "The name that FreeCAD's Hole lists the thread by"
+     },
+     "insert": {
+      "means": "hole, depth, source: where there are heat-set insert figures"
+     },
+     "tpi": {
+      "means": "Threads per inch, for Unified sizes"
+     },
+     "tapDrillName": {
+      "means": "The tap drill name, for Unified sizes"
+     },
+     "threads": {
+      "means": "Without size: [{ size, major, pitch, minorInt, tapDrill }]"
+     },
+     "columns": {
+      "means": "The columns"
+     },
+     "source": {
+      "means": "The source"
+     },
+     "threadSize": {
+      "means": "the size the thread is"
+     },
+     "modelledUnderM5": {
+      "means": "warning code: a modelled thread under M5"
+     }
+    },
+    "refusalNotes": [
+     "A size that is not listed is refused not_found"
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -159,7 +567,106 @@
   },
   "thread_identify": {
    "group": "thread",
-   "description": "Find what thread a hole or shaft is. faces: the cylindrical wall, by query. Give { near: [x, y, z] }: a point on or beside it; only cylindrical faces are looked at. Or give { faces: [\"Face7\"] }: face numbers change after any edit. body: when there is more than one. The answer holds: body, face, diameter, kind (hole | shaft), length, axis, nearest [{ size, series, pitch, as, standard, off (mm from it) }], best, alsoPicked. as: a hole is read as tapDrill, minor or major; a shaft as major. When sizes tie but for pitch (M10, M10x1.25, M10x1), the answer has needs: \"pitch\" and ask instead of best. Then ask the person or measure, and call again with pitch mm. A note says when the nearest is over 0.3 mm off. That is a clearance hole or a press fit, not a thread. scan: { axis: { element } | { origin, direction, radius }, band, length, pitchFloor } reads a scanned thread instead. scan finds pitch, starts, hand, flank and the standard it matches; families narrows them. scan works only with ScanRuler-FreeCAD installed (its scan_thread); else it is refused unavailable. Changes nothing; thread_cut threads the hole.",
+   "card": {
+    "does": "Finds what thread a hole or shaft is.",
+    "inputNotes": {
+     "body": {
+      "means": "The body, when there is more than one"
+     },
+     "faces": {
+      "means": "The cylindrical wall, by query: { near: [x, y, z] } (a point on or beside it; cylindrical faces only) or { faces: [\"Face7\"] }",
+      "forms": [
+       "{ near: [x, y, z] }",
+       "{ faces: [\"Face7\"] }"
+      ]
+     },
+     "pitch": {
+      "means": "The pitch, to settle a tie",
+      "unit": "mm"
+     },
+     "scan": {
+      "means": "Reads a scanned thread instead: { axis: { element } | { origin, direction, radius }, band, length, pitchFloor }"
+     },
+     "families": {
+      "means": "Narrows the standards that scan matches"
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "scan",
+       "families"
+      ],
+      "rel": "with",
+      "line": "families narrows what scan finds"
+     },
+     {
+      "inputs": [
+       "pitch",
+       "faces"
+      ],
+      "rel": "order",
+      "line": "On a tie, ask the person or measure, and call again with pitch mm"
+     }
+    ],
+    "effects": [
+     "Face numbers change after any edit",
+     "as: a hole is read as tapDrill, minor or major; a shaft as major",
+     "When sizes tie but for pitch (M10, M10x1.25, M10x1), the answer has needs: \"pitch\" and ask instead of best",
+     "A note says when the nearest is over 0.3 mm off",
+     "A nearest over 0.3 mm off is a clearance hole or a press fit, not a thread",
+     "scan finds pitch, starts, hand, flank and the standard it matches",
+     "scan works only with ScanRuler-FreeCAD installed (its scan_thread)",
+     "Changes nothing",
+     "A best match far off the nearest size may not be a thread: a clearance hole, a press fit or a print's shrinkage. With no near size of that pitch, best is absent.",
+     "On a tie, ask the person or measure, and call again with pitch mm"
+    ],
+    "returns": {
+     "body": {
+      "means": "The body"
+     },
+     "face": {
+      "means": "The face"
+     },
+     "diameter": {
+      "means": "The diameter"
+     },
+     "kind": {
+      "means": "hole | shaft"
+     },
+     "length": {
+      "means": "The length"
+     },
+     "axis": {
+      "means": "The axis"
+     },
+     "nearest": {
+      "means": "[{ size, series, pitch, as, standard, off (mm from it) }]"
+     },
+     "best": {
+      "means": "The best match"
+     },
+     "alsoPicked": {
+      "means": "Also picked"
+     },
+     "needs": {
+      "means": "\"pitch\", when sizes tie but for pitch"
+     },
+     "ask": {
+      "means": "The question to ask, when sizes tie but for pitch"
+     },
+     "note": {
+      "means": "A note when the nearest is over 0.3 mm off"
+     }
+    },
+    "refusalNotes": [
+     "scan without ScanRuler-FreeCAD is refused unavailable"
+    ],
+    "hints": [
+     "thread_cut threads the hole",
+     "thread_cut { size } threads the modelled hole or shaft to match."
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -167,15 +674,13 @@
       "type": "string"
      },
      "faces": {
-      "type": "object",
-      "description": "The cylindrical face by query: { near: [x,y,z] } (cylindrical faces only) or { faces: [\"Face7\"] }"
+      "type": "object"
      },
      "pitch": {
       "type": "number"
      },
      "scan": {
-      "type": "object",
-      "description": "As scan_thread takes: { axis: { element } | { origin, direction, radius }, band, length, pitchFloor }."
+      "type": "object"
      },
      "families": {
       "type": "array",
@@ -194,7 +699,116 @@
   },
   "thread_cut": {
    "group": "thread",
-   "description": "Thread an existing hole with FreeCAD's PartDesign Hole. faces (required): the cylindrical wall of the hole, { near: [x, y, z] } or { faces: [\"Face7\"] }. Face numbers change after any edit. size: \"M6\", \"M10x1.25\", \"1/4-20\". Left out, size is the nearest standard size. That is refused when two sizes fit alike, or when none is within 0.3 mm. mode cosmetic (default): the hole is drilled to the tapping size, and the thread is recorded with the document. Tap it after you make the part. mode modelled: the helix is cut into the part. It is slow, a second or more per turn, and it gives many faces. Keep it for coarse threads that will be printed, M5 and up. depth: mm (the length of the hole when left out). from [x, y, z]: which end to start at. Left out, it is the open end, the upper one of two. In a PartDesign Body, the thread is a real feature that stays, editable in the panel of the Hole. The feature is a sketch at the end of the hole (ThreadSketch) and a PartDesign Hole. The Hole has Thread and Threaded, and ModelThread for modelled. route is \"PartDesign Hole\", and features names them. In a plain Part solid (Part::Feature), the Hole is made in a scratch Body. The result is written back as a plain shape (route \"Part solid\"). A parametric Part object (Part::Box, a boolean …) is refused, since FreeCAD would rebuild it and lose the thread. The refusal names the plain copy or pd_clone. A shaft (outside thread) is recorded cosmetic only: FreeCAD threads holes, not shafts. Refused: the hole is already over the major diameter of the thread. Refused: the size is one of your own that FreeCAD's Hole does not list. A modelled thread in a body in a print setup takes the 3D-print clearance of Fasteners Workbench. That is when Fasteners Workbench is installed (printClearance). The answer holds: thread { body, size, series, mode, kind, diameter, depth, at, into, holeDiameter, feature }, removed (mm³), sound (+ problems), route, features, step, note, warning, warning2. warning: modelled under M5 in a print. warning2: the hole was wider than the tap drill. The answer of a changing call can also hold health { ok, verdict, todo } from the shared check.",
+   "card": {
+    "does": "Threads an existing hole with FreeCAD's PartDesign Hole.",
+    "inputNotes": {
+     "faces": {
+      "means": "The cylindrical wall of the hole: { near: [x, y, z] } or { faces: [\"Face7\"] } (cylindrical faces only)",
+      "forms": [
+       "{ near: [x, y, z] }",
+       "{ faces: [\"Face7\"] }"
+      ]
+     },
+     "size": {
+      "means": "\"M6\", \"M10x1.25\", \"1/4-20\"; left out, the nearest standard size",
+      "forms": [
+       "M6",
+       "M10x1.25",
+       "1/4-20"
+      ]
+     },
+     "mode": {
+      "means": "cosmetic (default): the hole is drilled to the tapping size, and the thread is recorded with the document. modelled: the helix is cut into the part",
+      "values": [
+       "cosmetic",
+       "modelled"
+      ],
+      "default": "cosmetic"
+     },
+     "depth": {
+      "means": "The length of the hole when left out",
+      "unit": "mm"
+     },
+     "from": {
+      "means": "Which end to start at [x, y, z]; left out, the open end, the upper one of two"
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "mode",
+       "size"
+      ],
+      "rel": "with",
+      "line": "A modelled thread under M5 in a print gives warning",
+      "when": "mode modelled"
+     }
+    ],
+    "effects": [
+     "Face numbers change after any edit",
+     "size left out is refused when two sizes fit alike, or when none is within 0.3 mm",
+     "mode modelled is slow, a second or more per turn, and it gives many faces",
+     "In a PartDesign Body, the thread is a real feature that stays, editable in the panel of the Hole",
+     "The feature is a sketch at the end of the hole (ThreadSketch) and a PartDesign Hole",
+     "The Hole has Thread and Threaded, and ModelThread for modelled; route is \"PartDesign Hole\", and features names them",
+     "In a plain Part solid (Part::Feature), the Hole is made in a scratch Body",
+     "The result is written back as a plain shape (route \"Part solid\")",
+     "A shaft (outside thread) is recorded cosmetic only: FreeCAD threads holes, not shafts",
+     "A modelled thread in a body in a print setup takes the 3D-print clearance of Fasteners Workbench",
+     "That is when Fasteners Workbench is installed (printClearance)",
+     "The answer of a changing call can also hold health from the shared check",
+     "The hole is at the thread's tapping size and the thread is recorded with the document; tap it after making."
+    ],
+    "returns": {
+     "thread": {
+      "means": "body, size, series, mode, kind, diameter, depth, at, into, holeDiameter, feature"
+     },
+     "removed": {
+      "means": "Volume removed",
+      "unit": "mm³"
+     },
+     "sound": {
+      "means": "Whether the body is sound (with problems)"
+     },
+     "route": {
+      "means": "\"PartDesign Hole\" | \"Part solid\""
+     },
+     "features": {
+      "means": "The features made"
+     },
+     "step": {
+      "means": "The step"
+     },
+     "note": {
+      "means": "A note"
+     },
+     "warning": {
+      "means": "modelled under M5 in a print"
+     },
+     "warning2": {
+      "means": "The hole was wider than the tap drill"
+     },
+     "health": {
+      "means": "the shared health check after the call: { recompute, fault, shapes, sketches, measured, window, addons }, or \"nothing new\""
+     },
+     "recordedOnly": {
+      "means": "true: the thread is recorded and the shaft is left at its diameter"
+     },
+     "holeOverDrill": {
+      "means": "{hole, drills}: the hole against the drills that fit"
+     }
+    },
+    "refusalNotes": [
+     "A parametric Part object (Part::Box, a boolean ...) is refused, since FreeCAD would rebuild it and lose the thread",
+     "The refusal names the plain copy or pd_clone",
+     "Refused: the hole is already over the major diameter of the thread",
+     "Refused: the size is one of your own that FreeCAD's Hole does not list"
+    ],
+    "hints": [
+     "Tap it after you make the part",
+     "Keep modelled for coarse threads that will be printed, M5 and up"
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -202,8 +816,7 @@
       "type": "string"
      },
      "faces": {
-      "type": "object",
-      "description": "The cylindrical face by query: { near: [x,y,z] } (cylindrical faces only) or { faces: [\"Face7\"] }"
+      "type": "object"
      },
      "size": {
       "type": "string"
@@ -240,13 +853,132 @@
   },
   "hw_embed": {
    "group": "embed",
-   "description": "Encase a bought part mid-print. It cuts a closed pocket for the part inside a body that is in a print setup. It records the pause to drop the part in. kind nut: size M2, M2.5, M3, M4, M5, M6, M8. kind magnet: \"6x2\", diameter x thickness. kind bearing: 623, 624, 625, 626, 608, 688, 6000, 6001, MR105, MR85, or \"22x7\" (outer diameter x width). kind insert: M2…M8. kind weight: size \"20x8\" round or \"30x20x6\" box, or dims. kind box: dims [w, d, h]. kind cylinder: dims [diameter, h]. at [x, y, z] (required, document coordinates): the centre of the FLOOR of the pocket, inside the material. The part stands upright (+z); turn is ° about z. fit: press|snug|slide|free (slide: drops in by hand), with the fit calibration of the printer. headroom: mm over the part (0.2). The top of the pocket is rounded up to the layer grid of the setup. The pause comes after that layer. Refused: no print setup (setup add first). Refused: the pocket would come out of the part. Refused: no material over it (use hw_hole for a pocket pressed in after). Refused: the roof is under 2 layers or minRoof mm. The pocket is written into the body as a plain shape. So the body must be a plain Part solid (Part::Feature): gen_make's, an import, a part_transform copy. A PartDesign Body or a parametric Part object is refused, naming the plain copy to make. FreeCAD would rebuild it and lose the pocket. Trap: the part goes in from above, so nothing may overhang the pocket at the pause. +z is the print direction. The answer holds: body, id (E1 …), what, pocket { shape, size, depth, floor, top (mm from the bed) }, pause { afterLayer, z, note }, roof, least { roof, wall }, sides, printerFit, step, warning. sides: the least wall beside or under it. warning: when sides is under the least wall. The answer of a changing call can also hold health { ok, verdict, todo } from the shared check. More: guide_read { topic: \"embed\" }.",
+   "card": {
+    "does": "Encases a bought part mid-print.",
+    "inputNotes": {
+     "body": {
+      "means": "A body's name; may be left out when there is one; a plain Part solid (Part::Feature)"
+     },
+     "kind": {
+      "means": "The part kind",
+      "values": [
+       "nut",
+       "magnet",
+       "bearing",
+       "insert",
+       "weight",
+       "box",
+       "cylinder"
+      ]
+     },
+     "size": {
+      "means": "nut: M2, M2.5, M3, M4, M5, M6, M8. magnet: \"6x2\", diameter x thickness. bearing: 623, 624, 625, 626, 608, 688, 6000, 6001, MR105, MR85, or \"22x7\" (outer diameter x width). insert: M2...M8. weight: \"20x8\" round or \"30x20x6\" box",
+      "forms": [
+       "M3",
+       "6x2",
+       "608",
+       "22x7",
+       "20x8",
+       "30x20x6"
+      ]
+     },
+     "dims": {
+      "means": "box: [w, d, h]. cylinder: [diameter, h]. weight: dims"
+     },
+     "at": {
+      "means": "The centre of the FLOOR of the pocket, [x, y, z] in document coordinates, inside the material"
+     },
+     "turn": {
+      "means": "Degrees about z",
+      "unit": "deg"
+     },
+     "fit": {
+      "means": "press|snug|slide|free (slide: drops in by hand), with the fit calibration of the printer",
+      "values": [
+       "press",
+       "snug",
+       "slide",
+       "free"
+      ]
+     },
+     "headroom": {
+      "means": "Over the part",
+      "unit": "mm",
+      "default": 0.2
+     },
+     "minRoof": {
+      "means": "The least roof over the pocket: the roof is refused under 2 layers or minRoof",
+      "unit": "mm"
+     }
+    },
+    "effects": [
+     "It cuts a closed pocket for the part inside a body that is in a print setup",
+     "It records the pause to drop the part in",
+     "The part stands upright (+z)",
+     "The top of the pocket is rounded up to the layer grid of the setup",
+     "The pause comes after that layer",
+     "The pocket is written into the body as a plain shape",
+     "FreeCAD would rebuild a PartDesign Body or a parametric Part object and lose the pocket",
+     "The part goes in from above, so nothing may overhang the pocket at the pause",
+     "+z is the print direction",
+     "A plain Part solid is for example gen_make's, an import, a part_transform copy",
+     "The answer of a changing call can also hold health from the shared check",
+     "The wall beside or under the pocket is thin when thinSides is true: it may break through, so move the pocket in. No part encased in a body means no pause."
+    ],
+    "returns": {
+     "body": {
+      "means": "The body"
+     },
+     "id": {
+      "means": "E1 ..."
+     },
+     "what": {
+      "means": "What was embedded"
+     },
+     "pocket": {
+      "means": "shape, size, depth, floor, top (mm from the bed)"
+     },
+     "pause": {
+      "means": "afterLayer, z, note"
+     },
+     "roof": {
+      "means": "The roof"
+     },
+     "least": {
+      "means": "roof, wall"
+     },
+     "sides": {
+      "means": "The least wall beside or under it"
+     },
+     "printerFit": {
+      "means": "calibrated: the calibration kept with the document; none: no calibration kept, holes assumed to print 0.2 mm small"
+     },
+     "step": {
+      "means": "The step"
+     },
+     "warning": {
+      "means": "When sides is under the least wall"
+     },
+     "health": {
+      "means": "the shared health check after the call: { recompute, fault, shapes, sketches, measured, window, addons }, or \"nothing new\""
+     }
+    },
+    "refusalNotes": [
+     "Refused: no print setup (setup add first)",
+     "Refused: the pocket would come out of the part",
+     "Refused: no material over it (use hw_hole for a pocket pressed in after)",
+     "Refused: the roof is under 2 layers or minRoof mm",
+     "A PartDesign Body or a parametric Part object is refused, naming the plain copy to make"
+    ],
+    "hints": [
+     "More: guide_read { topic: \"embed\" }"
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
      "body": {
-      "type": "string",
-      "description": "A body's name; may be left out when there is one."
+      "type": "string"
      },
      "kind": {
       "type": "string",
@@ -313,13 +1045,31 @@
   },
   "hw_embed_list": {
    "group": "embed",
-   "description": "List the parts encased in a body (the records of hw_embed). The answer holds: embeds [{ id, what, pocket (its sizes mm), floor and top (mm from the bed), layer (the pause comes after it), roof (mm of material over it), note }]. A record whose pocket is solid again (an undo, or a later edit filled it) is dropped from the list. It is named under dropped { ids, why }. body: you can leave it out when there is one. Reads; only the dropping of dead records is written.",
+   "card": {
+    "does": "Lists the parts encased in a body (the records of hw_embed).",
+    "inputNotes": {
+     "body": {
+      "means": "A body's name; you can leave it out when there is one"
+     }
+    },
+    "effects": [
+     "A record whose pocket is solid again (an undo, or a later edit filled it) is dropped from the list",
+     "Reads; only the dropping of dead records is written"
+    ],
+    "returns": {
+     "embeds": {
+      "means": "[{ id, what, pocket (its sizes mm), floor and top (mm from the bed), layer (the pause comes after it), roof (mm of material over it), note }]"
+     },
+     "dropped": {
+      "means": "ids, why: dropped records"
+     }
+    }
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
      "body": {
-      "type": "string",
-      "description": "A body's name; may be left out when there is one."
+      "type": "string"
      }
     },
     "required": [],
@@ -332,13 +1082,57 @@
   },
   "hw_unembed": {
    "group": "embed",
-   "description": "Take an encased part out again, by its id (hw_embed_list gives them). The pocket is filled back to solid, and its pause is dropped. keepPocket: true leaves the pocket as an open hole (the part pressed in after printing) and drops only the pause. Filling writes a plain shape, so as with hw_embed, the body must be a plain Part solid. An id that is not there is refused, with a list of those that are. The answer holds: body, removed (the id), pocket (\"filled\" | \"left open …\"), solids, step. The answer of a changing call can also hold health { ok, verdict, todo } from the shared check.",
+   "card": {
+    "does": "Takes an encased part out again, by its id (hw_embed_list gives them).",
+    "inputNotes": {
+     "body": {
+      "means": "A body's name; may be left out when there is one"
+     },
+     "id": {
+      "means": "The id of the embed (hw_embed_list gives them)"
+     },
+     "keepPocket": {
+      "means": "true leaves the pocket as an open hole (the part pressed in after printing) and drops only the pause",
+      "values": [
+       true
+      ]
+     }
+    },
+    "effects": [
+     "The pocket is filled back to solid, and its pause is dropped",
+     "Filling writes a plain shape, so as with hw_embed, the body must be a plain Part solid",
+     "The answer of a changing call can also hold health from the shared check",
+     "dropped lists pockets that were filled now (undone), by id."
+    ],
+    "returns": {
+     "body": {
+      "means": "The body"
+     },
+     "removed": {
+      "means": "The id"
+     },
+     "pocket": {
+      "means": "\"filled\" | \"left open ...\""
+     },
+     "solids": {
+      "means": "The solids"
+     },
+     "step": {
+      "means": "The step"
+     },
+     "health": {
+      "means": "the shared health check after the call: { recompute, fault, shapes, sketches, measured, window, addons }, or \"nothing new\""
+     }
+    },
+    "refusalNotes": [
+     "An id that is not there is refused, with a list of those that are"
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
      "body": {
-      "type": "string",
-      "description": "A body's name; may be left out when there is one."
+      "type": "string"
      },
      "id": {
       "type": "string"
@@ -359,13 +1153,46 @@
   },
   "hw_pauses": {
    "group": "embed",
-   "description": "List every pause that the print of a body needs, on the layer grid of its print setup. The answer holds: pauses [{ afterLayer (1 is the first layer), z (mm from the bed: the top of that layer), ids, note (what goes in), merged (two on one layer made one) }], count, layerHeight, firstLayer. It counts the pockets of hw_embed and the magnets of gen_make (id gen_make). The pockets of mass_ballast are not in this list; its own answer gives pauseAt. Refused: the body is in no print setup. slice and slice_with write these pauses into the G-code. Changes nothing, but it drops records whose pocket is gone (dropped).",
+   "card": {
+    "does": "Lists every pause that the print of a body needs, on the layer grid of its print setup.",
+    "inputNotes": {
+     "body": {
+      "means": "A body's name; may be left out when there is one"
+     }
+    },
+    "effects": [
+     "It counts the pockets of hw_embed and the magnets of gen_make (id gen_make)",
+     "The pockets of mass_ballast are not in this list; its own answer gives pauseAt",
+     "slice and slice_with write these pauses into the G-code",
+     "Changes nothing, but it drops records whose pocket is gone (dropped)",
+     "Each pause comes after its layer: the print stops with the pocket open, the part goes in, the next layer closes over it. slice_with writes them in."
+    ],
+    "returns": {
+     "pauses": {
+      "means": "[{ afterLayer (1 is the first layer), z (mm from the bed: the top of that layer), ids, note (what goes in), merged (two on one layer made one) }]"
+     },
+     "count": {
+      "means": "How many pauses"
+     },
+     "layerHeight": {
+      "means": "The layer height"
+     },
+     "firstLayer": {
+      "means": "The first layer"
+     },
+     "dropped": {
+      "means": "Records whose pocket is gone"
+     }
+    },
+    "refusalNotes": [
+     "Refused: the body is in no print setup"
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
      "body": {
-      "type": "string",
-      "description": "A body's name; may be left out when there is one."
+      "type": "string"
      }
     },
     "required": [],
@@ -381,7 +1208,141 @@
   },
   "setup": {
    "group": "make",
-   "description": "Record how each part is made, with the document. The records are a hidden object, saved in the .FCStd and undone with the rest. action: list when left out. list → setups [{ id (S1 …), type, name, bodies, its settings }] and types (the settings of each type, explained). of { body } → the setup of that body, or none. add { type: print|cut|mill, bodies: [names], settings, name } → added. bodies can name a mesh too, for slice_with. set { id (or the name of the setup), bodies (replaces the list) | add: [names] | remove: [names], settings, name } → setup. In set, a settings value of null drops that setting. remove { id } → removed. Print settings: printer (generic, bed-slinger, corexy, h2d), nozzle mm, layerHeight, firstLayer, walls, infill %, topLayers, bottomLayers. For print, up is +z only; slicer_presets use sets slicerPresets. Cut settings: machine (laser, waterjet, plasma, router), thickness, kerf, material, sheet [w, h]. The setup keeps a common machine name as its machine (fiber laser and CO2 laser are laser). It refuses a machine or a sheet material that cut_check does not take, and gives the list. Mill settings: axes \"3\" | \"3+2\", minTool, grade (IT 5–14), directions, material, stock [x, y, z], reach. Gotchas: a body is in at most one setup of a type. add refuses it, naming the setup set { remove } to run first. Bodies are recorded by Label, so a body renamed afterwards drops out of its setup; set { add } it again. An unknown setting is refused with the list. A body in no setup has no process, and nothing here guesses one. Ask the person, then add. dfm_check, slice, hw_embed, cut_check and mill_check read the setup. The answer of a changing call can also hold health { ok, verdict, todo } from the shared check.",
+   "card": {
+    "does": "Records how each part is made, with the document.",
+    "inputNotes": {
+     "action": {
+      "means": "What to do; list when left out",
+      "values": [
+       "list",
+       "of",
+       "add",
+       "set",
+       "remove"
+      ],
+      "default": "list"
+     },
+     "type": {
+      "means": "The kind of setup",
+      "values": [
+       "print",
+       "cut",
+       "mill"
+      ]
+     },
+     "id": {
+      "means": "The setup id (S1 ...); for set, the id or the name of the setup"
+     },
+     "name": {
+      "means": "The name of the setup"
+     },
+     "body": {
+      "means": "A body's name; may be left out when there is one; of { body } gives the setup of that body"
+     },
+     "bodies": {
+      "means": "Names of bodies in the setup; can name a mesh too, for slice_with; in set it replaces the list"
+     },
+     "add": {
+      "means": "set: names to add to the bodies"
+     },
+     "remove": {
+      "means": "set: names to remove from the bodies"
+     },
+     "settings": {
+      "means": "The settings of the setup; in set, a value of null drops that setting",
+      "forms": [
+       "print: printer (generic, bed-slinger, corexy, h2d), nozzle mm, layerHeight, firstLayer, walls, infill %, topLayers, bottomLayers",
+       "cut: machine (laser, waterjet, plasma, router), thickness, kerf, material, sheet [w, h]",
+       "mill: axes \"3\" | \"3+2\", minTool, grade (IT 5–14), directions, material, stock [x, y, z], reach"
+      ]
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "action",
+       "type"
+      ],
+      "rel": "needs",
+      "line": "add takes type, bodies, settings and name",
+      "when": "action add"
+     },
+     {
+      "inputs": [
+       "action",
+       "id"
+      ],
+      "rel": "needs",
+      "line": "set and remove take id"
+     },
+     {
+      "inputs": [
+       "action",
+       "body"
+      ],
+      "rel": "needs",
+      "line": "of takes body",
+      "when": "action of"
+     },
+     {
+      "inputs": [
+       "bodies",
+       "add"
+      ],
+      "rel": "excludes",
+      "line": "In set: bodies replaces the list; add and remove change it"
+     }
+    ],
+    "effects": [
+     "The records are a hidden object, saved in the .FCStd and undone with the rest",
+     "list gives setups [{ id (S1 ...), type, name, bodies, its settings }] and types (the settings of each type, explained)",
+     "of { body } gives the setup of that body, or none",
+     "For print, up is +z only; slicer_presets use sets slicerPresets",
+     "The setup keeps a common machine name as its machine (fiber laser and CO2 laser are laser)",
+     "A body is in at most one setup of a type",
+     "Bodies are recorded by Label, so a body renamed afterwards drops out of its setup",
+     "A body in no setup has no process, and nothing here guesses one",
+     "dfm_check, slice, hw_embed, cut_check and mill_check read the setup",
+     "The answer of a changing call can also hold health from the shared check",
+     "Every hole and fit sized from now on takes the printer fit calibration; a print setup's own fit wins for its parts.",
+     "A body with no material is taken as PLA: set its material to change that.",
+     "Ask the person, then add"
+    ],
+    "returns": {
+     "setups": {
+      "means": "[{ id (S1 ...), type, name, bodies, its settings }]"
+     },
+     "types": {
+      "means": "The settings of each type, explained"
+     },
+     "added": {
+      "means": "The setup added"
+     },
+     "setup": {
+      "means": "The setup after set"
+     },
+     "removed": {
+      "means": "The setup removed"
+     },
+     "health": {
+      "means": "the shared health check after the call: { recompute, fault, shapes, sketches, measured, window, addons }, or \"nothing new\""
+     },
+     "as": {
+      "means": "how the body is taken: {material, ...}"
+     },
+     "materialAssumed": {
+      "means": "true: the material is the PLA default"
+     }
+    },
+    "refusalNotes": [
+     "It refuses a machine or a sheet material that cut_check does not take, and gives the list",
+     "add refuses a body that is already in a setup of that type, naming the setup set { remove } to run first",
+     "An unknown setting is refused with the list"
+    ],
+    "hints": [
+     "Set { add } a renamed body again"
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -406,8 +1367,7 @@
       "type": "string"
      },
      "body": {
-      "type": "string",
-      "description": "A body's name; may be left out when there is one."
+      "type": "string"
      },
      "bodies": {
       "type": "array",
@@ -452,7 +1412,77 @@
   },
   "part_spec": {
    "group": "make",
-   "description": "Keep with the document the limits that every part of it must meet, and what parts are made of. spec { minWall mm, massMin g, massMax g, minSafety, minClearance mm }. minSafety is a safety factor, judged against the last fea_solve. Each given key is set, null drops it, and clear: true starts from none. Anything else is refused. Called with nothing, it answers what is kept. material: a printing filament id (pla, petg, abs, asa, pa6-cf, tpu-95a) for bodies [names]. bodies is the one body when left out; material \"\" forgets theirs. It also puts FreeCAD's own material card on the body, where one matches (freecadMaterial). For any other material (metals, woods, FreeCAD's library), use material_set. Gotchas: the spec is one for the whole document, not per body. Materials are kept by body Label. The answer holds: spec, materials { label: id }, freecadMaterial { label: { card } | { note } }. part_review judges a body against the spec. The answer of a changing call can also hold health { ok, verdict, todo } from the shared check.",
+   "card": {
+    "does": "Keeps with the document the limits that every part of it must meet, and what parts are made of.",
+    "inputNotes": {
+     "spec": {
+      "means": "{ minWall mm, massMin g, massMax g, minSafety, minClearance mm }; each given key is set, null drops it",
+      "forms": [
+       "{ minWall, massMin, massMax, minSafety, minClearance }"
+      ]
+     },
+     "clear": {
+      "means": "true starts from none",
+      "values": [
+       true
+      ]
+     },
+     "material": {
+      "means": "A printing filament id (pla, petg, abs, asa, pa6-cf, tpu-95a) for bodies; \"\" forgets theirs",
+      "values": [
+       "pla",
+       "petg",
+       "abs",
+       "asa",
+       "pa6-cf",
+       "tpu-95a",
+       ""
+      ]
+     },
+     "bodies": {
+      "means": "Names of the bodies; the one body when left out"
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "material",
+       "bodies"
+      ],
+      "rel": "with",
+      "line": "material is for bodies [names]"
+     }
+    ],
+    "effects": [
+     "minSafety is a safety factor, judged against the last fea_solve",
+     "Called with nothing, it answers what is kept",
+     "It also puts FreeCAD's own material card on the body, where one matches (freecadMaterial)",
+     "The spec is one for the whole document, not per body",
+     "Materials are kept by body Label",
+     "part_review judges a body against the spec",
+     "The answer of a changing call can also hold health from the shared check"
+    ],
+    "returns": {
+     "spec": {
+      "means": "The spec kept"
+     },
+     "materials": {
+      "means": "{ label: id }"
+     },
+     "freecadMaterial": {
+      "means": "{ label: { card } | { note } }"
+     },
+     "health": {
+      "means": "the shared health check after the call: { recompute, fault, shapes, sketches, measured, window, addons }, or \"nothing new\""
+     }
+    },
+    "refusalNotes": [
+     "Anything else in spec is refused"
+    ],
+    "hints": [
+     "For any other material (metals, woods, FreeCAD's library), use material_set"
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -485,13 +1515,76 @@
   },
   "dfm_check": {
    "group": "make",
-   "description": "Check if a body is printable as it stands, +z up, with the nozzle and printer of its print setup. It reads the body in its own frame, +z of the body up, as modelled. A Placement, such as the pose of an assembly, is left out; frame in the answer says so. Bed contact and tall-thin use that frame. In no setup, it uses a 0.4 mm nozzle on a generic printer. It checks thin walls: under one line is an error; under two lines or 0.8 mm is a warning. It checks overhangs past 50° from vertical, and flat ceilings over 10 mm (bridges). A ceiling over a pocket of hw_embed is no bridge: after the pause the part in it carries the layers. It comes back under carried, as \"carried by E1 after the pause\". It checks upright holes too small to print open, and too little bed contact. It checks tall and thin parts (over 8:1), the build volume, and FreeCAD's Check Geometry. The answer holds: body, setup, frame, verdict, findings, carried, wall { least mm, at, read (how many rays), by }, rules (the limits used). findings [{ id (F1 …, worst first), rule (thin-wall, overhang, bridge, small-hole, bed-contact, tall-thin, build-volume, check-geometry), severity, value, limit, unit, at [x, y, z], areaMm2, says (what to do), waived }]. waive { id, reason } accepts on purpose one finding of the LAST dfm_check of that body. Run the check first: ids are per check. The waiver is kept with the document, and that rule at that place comes back waived from then on. Heavy on detailed bodies (rays against every face): it runs as a job when long. An answer with a job id is finished with job_status. Walls are sampled by rays, so a thin spot between samples can be missed. view_render can draw the wall map (view_maps lists the maps). Listed as a read: waive writes its record without an undo step. part_review folds this check into one verdict. verdict: the check in a few words, from the findings not waived (\"printable\", \"printable, 2 warnings\", \"not printable: 1 problem, 1 warning\"). Agent Link's Activity tab and caption show these words for the call.",
+   "card": {
+    "does": "Checks if a body is printable as it stands, +z up, with the nozzle and printer of its print setup.",
+    "inputNotes": {
+     "body": {
+      "means": "A body's name; may be left out when there is one"
+     },
+     "waive": {
+      "means": "{ id, reason }: accepts on purpose one finding of the LAST dfm_check of that body",
+      "forms": [
+       "{ id, reason }"
+      ]
+     }
+    },
+    "effects": [
+     "It reads the body in its own frame, +z of the body up, as modelled",
+     "A Placement, such as the pose of an assembly, is left out; frame in the answer says so",
+     "Bed contact and tall-thin use that frame",
+     "In no setup, it uses a 0.4 mm nozzle on a generic printer",
+     "It checks thin walls: under one line is an error; under two lines or 0.8 mm is a warning",
+     "It checks overhangs past 50° from vertical, and flat ceilings over 10 mm (bridges)",
+     "A ceiling over a pocket of hw_embed is no bridge: after the pause the part in it carries the layers",
+     "It comes back under carried, as \"carried by E1 after the pause\"",
+     "It checks upright holes too small to print open, and too little bed contact",
+     "It checks tall and thin parts (over 8:1), the build volume, and FreeCAD's Check Geometry",
+     "The waiver is kept with the document, and that rule at that place comes back waived from then on",
+     "Heavy on detailed bodies (rays against every face): it runs as a job when long",
+     "An answer with a job id is finished with job_status",
+     "Walls are sampled by rays, so a thin spot between samples can be missed",
+     "view_render can draw the wall map (view_maps lists the maps)",
+     "Listed as a read: waive writes its record without an undo step",
+     "part_review folds this check into one verdict",
+     "Agent Link's Activity tab and caption show the verdict words for the call",
+     "Rules for a process, machine, material and thickness are rules of thumb; the shop's own figures win. Each finding carries rule, severity, value, limit, unit, at and the facts of the rule."
+    ],
+    "returns": {
+     "body": {
+      "means": "The body"
+     },
+     "setup": {
+      "means": "The setup"
+     },
+     "frame": {
+      "means": "The frame"
+     },
+     "verdict": {
+      "means": "The check in a few words, from the findings not waived (\"printable\", \"printable, 2 warnings\", \"not printable: 1 problem, 1 warning\")"
+     },
+     "findings": {
+      "means": "[{ id (F1 ..., worst first), rule (thin-wall, overhang, bridge, small-hole, bed-contact, tall-thin, build-volume, check-geometry), severity, value, limit, unit, at [x, y, z], areaMm2, says (what to do), waived }]"
+     },
+     "carried": {
+      "means": "Ceilings carried by an embedded part"
+     },
+     "wall": {
+      "means": "least mm, at, read (how many rays), by"
+     },
+     "rules": {
+      "means": "The limits used"
+     }
+    },
+    "hints": [
+     "Run the check first: ids are per check",
+     "Small hole: make it bigger or drill it. Overhang past the limit: support it, chamfer it to 45 degrees, or turn the part. Bridge past the limit: support it, add a rib, or arch it. Little bed contact: add a brim, or stand it on a flatter face. Tall and thin: widen the base or lay it down."
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
      "body": {
-      "type": "string",
-      "description": "A body's name; may be left out when there is one."
+      "type": "string"
      },
      "waive": {
       "type": "object",
@@ -524,13 +1617,104 @@
   },
   "part_review": {
    "group": "make",
-   "description": "Give one verdict on a part: pass, fix or unknown. Run it after every change. It checks soundness (one valid closed solid), then what its setup decides. In a print setup, the findings of the printability check count. That check reads the body in its own frame, as dfm_check does (frame). In no setup, they come under ifPrinted, for information. In a cut or mill setup, they are skipped; cut_check and mill_check judge those. It judges the least wall and the mass against the spec that part_spec keeps. Or give spec { minWall, massMin, massMax } here, for this review only. In a print setup, the mass is as printed: walls, skins and infill, an estimate. Encased magnets, ballast and embeds are counted. minSafety is judged against the last fea_solve of this body, if it is not stale. material: an id for this review only (the body's own, else PLA). waive: [{ rule, at [x, y, z], reason }] accepts a place on purpose; it is kept, and written without an undo step. The answer holds: body, process (printed | cut | mill | unknown), processFrom, verdict, findings [{ source, severity, says, at }], figures { volume, mass, material, as, encasedMass, safety, wall }, frame, carried, checks, spec, ifPrinted, unjudged, printing { pauses }. findings: the first 8, errors first. checks: what ran or was skipped, and why. unjudged: limits that could not be judged; these make the verdict unknown. Heavy on detailed bodies: it runs as a job when long (job_status finishes it). unknown is not pass: read unjudged and supply what is missing.",
+   "card": {
+    "does": "Gives one verdict on a part: pass, fix or unknown.",
+    "inputNotes": {
+     "body": {
+      "means": "A body's name; may be left out when there is one"
+     },
+     "spec": {
+      "means": "{ minWall, massMin, massMax } for this review only",
+      "forms": [
+       "{ minWall, massMin, massMax }"
+      ]
+     },
+     "material": {
+      "means": "A filament id for this review only (the body's own, else PLA)",
+      "values": [
+       "pla",
+       "petg",
+       "abs",
+       "asa",
+       "pa6-cf",
+       "tpu-95a"
+      ],
+      "default": "pla"
+     },
+     "waive": {
+      "means": "[{ rule, at [x, y, z], reason }]: accepts a place on purpose"
+     }
+    },
+    "effects": [
+     "It checks soundness (one valid closed solid), then what its setup decides",
+     "In a print setup, the findings of the printability check count",
+     "That check reads the body in its own frame, as dfm_check does (frame)",
+     "In no setup, the printability findings come under ifPrinted, for information",
+     "In a cut or mill setup, the printability findings are skipped; cut_check and mill_check judge those",
+     "It judges the least wall and the mass against the spec that part_spec keeps",
+     "In a print setup, the mass is as printed: walls, skins and infill, an estimate",
+     "Encased magnets, ballast and embeds are counted",
+     "minSafety is judged against the last fea_solve of this body, if it is not stale",
+     "A waiver is kept, and written without an undo step",
+     "findings: the first 8, errors first",
+     "checks: what ran or was skipped, and why",
+     "unjudged: limits that could not be judged; these make the verdict unknown",
+     "Heavy on detailed bodies: it runs as a job when long (job_status finishes it)",
+     "unknown is not pass",
+     "Findings are records {source, severity, rule, ...}; a rule's own advice is on dfm_check, cut_check and mill_check. unsound lists problems as codes: checkGeometry, notClosed, solids, narrowFaces."
+    ],
+    "returns": {
+     "body": {
+      "means": "The body"
+     },
+     "process": {
+      "means": "printed | cut | mill | unknown"
+     },
+     "processFrom": {
+      "means": "Where the process comes from"
+     },
+     "verdict": {
+      "means": "pass, fix or unknown"
+     },
+     "findings": {
+      "means": "[{ source, severity, says, at }]: the first 8, errors first"
+     },
+     "figures": {
+      "means": "volume, mass, material, as, encasedMass, safety, wall"
+     },
+     "frame": {
+      "means": "The frame"
+     },
+     "carried": {
+      "means": "Carried ceilings"
+     },
+     "checks": {
+      "means": "What ran or was skipped, and why"
+     },
+     "spec": {
+      "means": "The spec used"
+     },
+     "ifPrinted": {
+      "means": "Printability findings, for information"
+     },
+     "unjudged": {
+      "means": "Limits that could not be judged"
+     },
+     "printing": {
+      "means": "pauses"
+     }
+    },
+    "hints": [
+     "Run it after every change",
+     "Read unjudged and supply what is missing",
+     "A body with no material is taken as PLA; give it one to change the review."
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
      "body": {
-      "type": "string",
-      "description": "A body's name; may be left out when there is one."
+      "type": "string"
      },
      "spec": {
       "type": "object",
@@ -548,8 +1732,7 @@
       "additionalProperties": false
      },
      "material": {
-      "type": "string",
-      "description": "pla (default), petg, abs, asa, pa6-cf, tpu-95a"
+      "type": "string"
      },
      "waive": {
       "type": "array",
@@ -572,13 +1755,123 @@
   },
   "slice": {
    "group": "make",
-   "description": "Slice a body that is in a print setup with the slicer on this computer. It writes G-code to the folder of the session. With the presets of the person on the setup (slicer_presets use), their slicer slices it (as slice_with). Otherwise PrusaSlicer's command line slices it, with the layer height, nozzle, walls and infill of the setup. AGENTLINK_SLICER names another binary. When PrusaSlicer is absent, it uses OrcaSlicer or Bambu Studio, whichever is here; note says so. It needs Agent Link for OrcaSlicer installed, which holds the command lines of the slicers. When that is not installed, it is refused unavailable, saying how to get it. settings { … } overrides the settings of the setup for this slice. name: the base name of the file (the label of the body when left out). pauseCommand (M601) is written before the first layer over each encased part (hw_embed, the magnets of gen_make). pauseCommand: only M601, M600, M0, M1 or PAUSE, one command, no new lines. Other text is refused. material: a filament id (pla, petg, abs, asa, pa6-cf, tpu-95a) for this slice only, not recorded. Left out, material is the body's own. Refused: the body is in no print setup; the refusal gives the setup add call. Refused: its material is not a printing filament (a metal, a wood); the refusal names material_set and the one-off material. The body is meshed at 0.01 mm deviation first. That takes seconds for a simple part, and a minute or more and a large STL for a detailed one. It runs as a job when long (job_status). The answer holds { body, slicer, gcode, bytes, time, filament, layers, verdict, setup, pauses, material, note }. gcode: the path. filament (g, mm) and layers: as the slicer reports them. material: when given. verdict: a few words with its time and filament (\"12m 3s, 3.21 g\"), else \"G-code written\". Starting a print is the call of the person (printer_send).",
+   "card": {
+    "does": "Slices a body that is in a print setup with the slicer on this computer.",
+    "inputNotes": {
+     "body": {
+      "means": "A body's name; may be left out when there is one"
+     },
+     "settings": {
+      "means": "Overrides the settings of the setup for this slice"
+     },
+     "name": {
+      "means": "The base name of the file (the label of the body when left out)"
+     },
+     "pauseCommand": {
+      "means": "Written before the first layer over each encased part (hw_embed, the magnets of gen_make): only M601, M600, M0, M1 or PAUSE, one command, no new lines",
+      "values": [
+       "M601",
+       "M600",
+       "M0",
+       "M1",
+       "PAUSE"
+      ],
+      "default": "M601"
+     },
+     "material": {
+      "means": "A filament id (pla, petg, abs, asa, pa6-cf, tpu-95a, or one of the person's own filaments) for this slice only, not recorded; left out, the body's own material",
+      "values": [
+       "pla",
+       "petg",
+       "abs",
+       "asa",
+       "pa6-cf",
+       "tpu-95a"
+      ]
+     }
+    },
+    "effects": [
+     "It writes G-code to the folder of the session",
+     "With the presets of the person on the setup (slicer_presets use), their slicer slices it (as slice_with)",
+     "Otherwise PrusaSlicer's command line slices it, with the layer height, nozzle, walls and infill of the setup",
+     "AGENTLINK_SLICER names another binary",
+     "When PrusaSlicer is absent, it uses OrcaSlicer or Bambu Studio, whichever is here; note says so",
+     "It needs Agent Link for OrcaSlicer installed, which holds the command lines of the slicers",
+     "The body is meshed at 0.01 mm deviation first",
+     "That takes seconds for a simple part, and a minute or more and a large STL for a detailed one",
+     "It runs as a job when long (job_status)",
+     "Starting a print is the call of the person (printer_send)",
+     "Sliced with the slicer's own defaults for anything the setup leaves unset; the printer's profile in the slicer is the authority. Starting the print is the person's.",
+     "The person's own presets (slicer_presets use) are the authority; profiles written from the print setup are the slicer's defaults for the rest."
+    ],
+    "returns": {
+     "body": {
+      "means": "The body"
+     },
+     "slicer": {
+      "means": "The slicer"
+     },
+     "gcode": {
+      "means": "The path"
+     },
+     "bytes": {
+      "means": "Size"
+     },
+     "time": {
+      "means": "Print time"
+     },
+     "filament": {
+      "means": "g, mm: as the slicer reports them"
+     },
+     "layers": {
+      "means": "As the slicer reports them"
+     },
+     "verdict": {
+      "means": "A few words with its time and filament (\"12m 3s, 3.21 g\"), else \"G-code written\""
+     },
+     "setup": {
+      "means": "The setup"
+     },
+     "pauses": {
+      "means": "The pauses"
+     },
+     "material": {
+      "means": "The material, when given"
+     },
+     "note": {
+      "means": "A note"
+     },
+     "slicedWith": {
+      "means": "the slicer that sliced"
+     },
+     "notOnComputer": {
+      "means": "the slicer asked for is not on this computer"
+     },
+     "pausesNotWritten": {
+      "means": "count of pauses the G-code has no layer above"
+     },
+     "pausesDropped": {
+      "means": "{reason: severalBodies | orient, bodies}"
+     },
+     "materialThisSliceOnly": {
+      "means": "true: the material applies to this slice only"
+     }
+    },
+    "refusalNotes": [
+     "When Agent Link for OrcaSlicer is not installed, it is refused unavailable, saying how to get it",
+     "Other text in pauseCommand is refused",
+     "Refused: the body is in no print setup; the refusal gives the setup add call",
+     "Refused: its material is not a printing filament (a metal, a wood); the refusal names material_set and the one-off material"
+    ],
+    "hints": [
+     "Check the part's height and the layer marks when pausesNotWritten is above 0."
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
      "body": {
-      "type": "string",
-      "description": "A body's name; may be left out when there is one."
+      "type": "string"
      },
      "settings": {
       "type": "object"
@@ -590,8 +1883,7 @@
       "type": "string"
      },
      "material": {
-      "type": "string",
-      "description": "A filament id (pla, petg, abs, asa, pa6-cf, tpu-95a, or one of the person's own filaments) for this slice only (not recorded); left out, the body's own material."
+      "type": "string"
      }
     },
     "required": [],
@@ -608,7 +1900,71 @@
   },
   "mass_calibrate": {
    "group": "mass",
-   "description": "Calibrate mass to a weighed print. grams: what the finished print weighed, with anything encased in it, for a body. Every later mass reading is then scaled to match (mass_properties, mass_target, mass_ballast). This applies to bodies in the same print setup. For a body in no print setup, it applies to bodies of the same material. Kept with the document; reset: true drops it. Refused: grams is missing, or under what is encased. Refused: the weight is under 0.3 or over 3 times the estimate. Then it is not the same part and settings: check the body, its setup and its material. The answer holds: calibrated (the key: setup:S1 or solid:<material>), scale, expected (g, before), weighed, encased, for, note. reset answers reset and was. The answer of a changing call can also hold health { ok, verdict, todo } from the shared check.",
+   "card": {
+    "does": "Calibrates mass to a weighed print.",
+    "inputNotes": {
+     "grams": {
+      "means": "What the finished print weighed, with anything encased in it, for a body",
+      "unit": "g"
+     },
+     "reset": {
+      "means": "true drops the calibration",
+      "values": [
+       true
+      ]
+     }
+    },
+    "effects": [
+     "Every later mass reading is then scaled to match (mass_properties, mass_target, mass_ballast)",
+     "This applies to bodies in the same print setup",
+     "For a body in no print setup, it applies to bodies of the same material",
+     "The calibration is kept with the document",
+     "reset answers reset and was",
+     "The answer of a changing call can also hold health from the shared check",
+     "Every mass reading of bodies in this setup (mass_properties, part_review, ballast) matches the scales once set; reset: true puts the readings back to the material's own figures."
+    ],
+    "returns": {
+     "calibrated": {
+      "means": "The key: setup:S1 or solid:<material>"
+     },
+     "scale": {
+      "means": "The scale"
+     },
+     "expected": {
+      "means": "What was expected before",
+      "unit": "g"
+     },
+     "weighed": {
+      "means": "The weight given"
+     },
+     "encased": {
+      "means": "The encased mass"
+     },
+     "for": {
+      "means": "{printSetup} or {solid}: what the scales reading is for"
+     },
+     "note": {
+      "means": "A note"
+     },
+     "reset": {
+      "means": "With reset"
+     },
+     "was": {
+      "means": "With reset: what it was"
+     },
+     "health": {
+      "means": "the shared health check after the call: { recompute, fault, shapes, sketches, measured, window, addons }, or \"nothing new\""
+     }
+    },
+    "refusalNotes": [
+     "Refused: grams is missing, or under what is encased",
+     "Refused: the weight is under 0.3 or over 3 times the estimate",
+     "A refused weight is not the same part and settings"
+    ],
+    "hints": [
+     "Check the body, its setup and its material"
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -632,7 +1988,51 @@
   },
   "mass_properties": {
    "group": "mass",
-   "description": "Read the mass, centre of mass and inertia of each body in its material. body: one body; every body shown when left out. In a print setup, the mass is as printed: walls, top and bottom skins and infill. That is an estimate; the figure of the slicer from slice is closer. Else the body is weighed solid. Encased parts are counted: the magnets of gen_make and ballast cut by mass_ballast. A calibration from mass_calibrate is applied. A body with no material is taken as PLA and says so. material_set or part_spec { material } gives it one. The answer holds: bodies [{ body, mass g, com [x, y, z] mm, volume mm³, material, materialId, density g/cm³, as (how it was weighed), inertia { aboutCom 3x3 g·mm², principal }, encased [{ what, count, mass }], bodyMass }], units, hardware, note, printedNote. hardware: Fasteners Workbench screws, listed apart, in steel. Coordinates are the document's. Changes nothing.",
+   "card": {
+    "does": "Reads the mass, centre of mass and inertia of each body in its material.",
+    "inputNotes": {
+     "body": {
+      "means": "One body; every body shown when left out"
+     }
+    },
+    "effects": [
+     "In a print setup, the mass is as printed: walls, top and bottom skins and infill",
+     "That is an estimate; the figure of the slicer from slice is closer",
+     "Else the body is weighed solid",
+     "Encased parts are counted: the magnets of gen_make and ballast cut by mass_ballast",
+     "A calibration from mass_calibrate is applied",
+     "A body with no material is taken as PLA and says so",
+     "Coordinates are the document's",
+     "Changes nothing",
+     "Hardware inside the body adds its own mass; a body with no material is taken as PLA. bandFactor is the printed part's knock-down of the solid mass."
+    ],
+    "returns": {
+     "bodies": {
+      "means": "[{ body, mass g, com [x, y, z] mm, volume mm³, material, materialId, density g/cm³, as (how it was weighed), inertia { aboutCom 3x3 g·mm², principal }, encased [{ what, count, mass }], bodyMass }]"
+     },
+     "units": {
+      "means": "The units"
+     },
+     "hardware": {
+      "means": "Fasteners Workbench screws, listed apart, in steel"
+     },
+     "note": {
+      "means": "A note"
+     },
+     "printedNote": {
+      "means": "A note on the printed mass"
+     },
+     "bandFactor": {
+      "means": "factor of printed mass against the solid"
+     },
+     "hardwareNote": {
+      "means": "removed: hardware counted is in the hardware field"
+     }
+    },
+    "hints": [
+     "material_set or part_spec { material } gives a body a material"
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -653,7 +2053,87 @@
   },
   "mass_target": {
    "group": "mass",
-   "description": "Read how far a body is from a target. mass: g (over 0). com: [x, y, z] mm, with null for an axis that does not matter (for example [null, null, 10]). At least one is needed. massTol g and comTol mm (0.5 each) decide met. The answer holds: body, now { mass, com }, mass { target, off, offPct }, com { target, off, distance }, met, and what would get there. Too light: ballast { mass, centre, insideBody, note }. centre is where the centre of one ballast must sit to meet both targets. Too heavy: remove { mass }; ballast only adds. Only the centre off: moment { needed g·mm }. Mass is as mass_properties weighs it (as printed in a print setup). Changes nothing; mass_ballast lays the pockets out.",
+   "card": {
+    "does": "Reads how far a body is from a target.",
+    "inputNotes": {
+     "mass": {
+      "means": "Target mass, over 0",
+      "unit": "g"
+     },
+     "com": {
+      "means": "[x, y, z] with null for an axis that does not matter (for example [null, null, 10])",
+      "unit": "mm"
+     },
+     "massTol": {
+      "means": "Tolerance that decides met",
+      "unit": "g",
+      "default": 0.5
+     },
+     "comTol": {
+      "means": "Tolerance that decides met",
+      "unit": "mm",
+      "default": 0.5
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "mass",
+       "com"
+      ],
+      "rel": "with",
+      "line": "At least one is needed"
+     },
+     {
+      "inputs": [
+       "massTol",
+       "comTol"
+      ],
+      "rel": "with",
+      "line": "massTol and comTol decide met"
+     }
+    ],
+    "effects": [
+     "Mass is as mass_properties weighs it (as printed in a print setup)",
+     "Changes nothing",
+     "Too light: ballast { mass, centre, insideBody, note }; centre is where the centre of one ballast must sit to meet both targets",
+     "Too heavy: remove { mass }; ballast only adds",
+     "Only the centre off: moment { needed g·mm }",
+     "One ballast of the mass given with its centre there meets both targets; when insideBody is false the centre is outside the body and the targets cannot both be met by adding mass. A heavier body than the target needs material taken away (thinner walls, less infill, pockets left empty): ballast only adds."
+    ],
+    "returns": {
+     "body": {
+      "means": "The body"
+     },
+     "now": {
+      "means": "mass, com"
+     },
+     "mass": {
+      "means": "target, off, offPct"
+     },
+     "com": {
+      "means": "target, off, distance"
+     },
+     "met": {
+      "means": "Whether the target is met"
+     },
+     "ballast": {
+      "means": "When too light: mass, centre, insideBody, note"
+     },
+     "remove": {
+      "means": "the mass to take away when the body is heavier than the target",
+      "unit": "g"
+     },
+     "moment": {
+      "means": "the moment needed: a ballast of m grams moves the centre by this divided by (mass + m)",
+      "unit": "g·mm"
+     }
+    },
+    "hints": [
+     "mass_ballast lays the pockets out",
+     "mass_ballast lays out pockets for the mass or the moment."
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -670,8 +2150,7 @@
         "number",
         "null"
        ]
-      },
-      "description": "[x, y, z] mm; null for an axis that does not matter"
+      }
      },
      "massTol": {
       "type": "number"
@@ -690,7 +2169,143 @@
   },
   "mass_ballast": {
    "group": "mass",
-   "description": "Lay out closed, upright (+z), round ballast pockets inside a body. They reach a target mass g and/or move the centre of mass (com [x, y, z], null for a free axis). At least one is needed. fill: steel-bb (7.85), lead (11.3), tungsten (18), or a density in g/cm³. packing: the share of a pocket that the fill takes, 0.1–1 (0.6 loose shot, 1 a cast slug). diameter: mm (8, at least 2). minWall: mm kept clear of every surface (the minWall of the spec, else 1.2; at least 0.4). maxPockets: 12. Without cut, it only plans (cut: false in the answer, and nothing changed). Read the plan, then call again with cut: true to cut them in one undo step. mass_properties then counts the fill. cut writes a plain shape, so the body must be a plain Part solid (Part::Feature). A PartDesign Body or a parametric Part object is refused, naming the plain copy to make. Refused: the body already weighs the target or more. Refused: the fill is no denser than the part as made. Refused: no room for a pocket (use a smaller diameter or wall). Refused: over 600 places to try (use a larger diameter). Cost: every candidate place is probed up the height of the body, then checked whole against the body. That takes a few seconds on a detailed body. cut: true took 26 s on a plate with ten pockets; it weighs the cut body as printed. The pockets are searched greedily, so it is not always exact. massOff and comOff say how close it got. The answer holds: body, fill { what, density, packing, pocketDensity }, pockets [{ at (the floor's centre), diameter, depth, fill g }], before and after { mass, com }, fillMass, minWall, leftOut { places, why }, massOff, comOff, printing { pauseAt mm, note }, cut, sound, step, next. leftOut: places not used, because a hole or pocket of the part runs through the pocket or its wall there. Each pocket and its wall are checked to be all material. printing: pause there, fill, and print over; hw_pauses does not list it. The answer of a changing call can also hold health { ok, verdict, todo } from the shared check.",
+   "card": {
+    "does": "Lays out closed, upright (+z), round ballast pockets inside a body.",
+    "inputNotes": {
+     "mass": {
+      "means": "Target mass",
+      "unit": "g"
+     },
+     "com": {
+      "means": "[x, y, z] mm; null for a free axis",
+      "unit": "mm"
+     },
+     "fill": {
+      "means": "steel-bb (7.85), lead (11.3), tungsten (18), or a density in g/cm³",
+      "values": [
+       "steel-bb",
+       "lead",
+       "tungsten"
+      ],
+      "forms": [
+       "a density in g/cm³"
+      ]
+     },
+     "packing": {
+      "means": "The share of a pocket that the fill takes (0.6 loose shot, 1 a cast slug)",
+      "min": 0.1,
+      "max": 1
+     },
+     "diameter": {
+      "means": "Pocket diameter",
+      "unit": "mm",
+      "default": 8,
+      "min": 2
+     },
+     "minWall": {
+      "means": "Kept clear of every surface (the minWall of the spec, else 1.2; at least 0.4)",
+      "unit": "mm",
+      "default": 1.2,
+      "min": 0.4
+     },
+     "maxPockets": {
+      "means": "The most pockets",
+      "default": 12
+     },
+     "cut": {
+      "means": "Without cut, it only plans; true cuts them in one undo step",
+      "values": [
+       true
+      ]
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "mass",
+       "com"
+      ],
+      "rel": "with",
+      "line": "At least one is needed"
+     }
+    ],
+    "effects": [
+     "They reach a target mass g and/or move the centre of mass",
+     "Without cut, it only plans (cut: false in the answer, and nothing changed)",
+     "With cut: true, mass_properties then counts the fill",
+     "cut writes a plain shape, so the body must be a plain Part solid (Part::Feature)",
+     "Cost: every candidate place is probed up the height of the body, then checked whole against the body",
+     "That takes a few seconds on a detailed body",
+     "cut: true took 26 s on a plate with ten pockets; it weighs the cut body as printed",
+     "The pockets are searched greedily, so it is not always exact",
+     "massOff and comOff say how close it got",
+     "Each pocket and its wall are checked to be all material",
+     "printing: pause there, fill, and print over; hw_pauses does not list it",
+     "The answer of a changing call can also hold health from the shared check",
+     "Closed pockets: pause at the layer that reaches pauseAt, fill them, and print over. Weigh the fill for each pocket. leftOut lists places a hole or pocket of the part runs through."
+    ],
+    "returns": {
+     "body": {
+      "means": "The body"
+     },
+     "fill": {
+      "means": "what, density, packing, pocketDensity"
+     },
+     "pockets": {
+      "means": "[{ at (the floor's centre), diameter, depth, fill g }]"
+     },
+     "before": {
+      "means": "mass, com"
+     },
+     "after": {
+      "means": "mass, com"
+     },
+     "fillMass": {
+      "means": "The fill mass"
+     },
+     "minWall": {
+      "means": "The wall kept"
+     },
+     "leftOut": {
+      "means": "places, why: places not used, because a hole or pocket of the part runs through the pocket or its wall there"
+     },
+     "massOff": {
+      "means": "How far the mass is off"
+     },
+     "comOff": {
+      "means": "How far the centre is off"
+     },
+     "printing": {
+      "means": "pauseAt mm, note"
+     },
+     "cut": {
+      "means": "Whether the pockets were cut"
+     },
+     "sound": {
+      "means": "Whether the body is sound"
+     },
+     "step": {
+      "means": "The step"
+     },
+     "next": {
+      "means": "The next step"
+     },
+     "health": {
+      "means": "the shared health check after the call: { recompute, fault, shapes, sketches, measured, window, addons }, or \"nothing new\""
+     }
+    },
+    "refusalNotes": [
+     "A PartDesign Body or a parametric Part object is refused, naming the plain copy to make",
+     "Refused: the body already weighs the target or more",
+     "Refused: the fill is no denser than the part as made",
+     "Refused: no room for a pocket (use a smaller diameter or wall)",
+     "Refused: over 600 places to try (use a larger diameter)"
+    ],
+    "hints": [
+     "Read the plan, then call again with cut: true",
+     "cut: true cuts these pockets (one undo step)."
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -707,8 +2322,7 @@
         "number",
         "null"
        ]
-      },
-      "description": "[x, y, z] mm; null for an axis that does not matter"
+      }
      },
      "fill": {},
      "packing": {
@@ -737,7 +2351,196 @@
   },
   "slicer_presets": {
    "group": "slice",
-   "description": "Read and use the slicer presets of the person, as data. slicer: bambustudio (default) | orcaslicer. action: list when left out. list { slicer, kind: machine|process|filament, query, limit } → the presets on this computer by kind, and saved bundles. Each kind holds { count, own, presets, more }. count: all of that kind that match. own: how many are the person's own. presets: the person's own first, each { name, own: true }, then the names of the others, limit of them. limit is 10 when neither kind nor query is given, else 50. limit 0 gives the counts and the person's own only. more: how many are not shown. kind, query or a higher limit (up to 500) shows them; nothing is out of reach. from (the preset folders read) and next come on the first list of each slicer in a session. They come again when the folders change; else saidBefore names them. fetch { slicer: \"orcaslicer\", vendors: [\"BBL\", \"Prusa\" …], version } downloads OrcaSlicer's system presets of the same version as JSON. version: only three numbers, such as 2.3.1. Other text is refused. fetch needs the network; OrcaSlicer packs its own where they cannot be read. use { body, machine, process, filament } (names from list) or { body, bundle } puts them on the print setup of the body. The layer height, walls, infill and shells of the setup then come from the presets (settingsFromPresets), and slice uses them. use writes the setup. export { machine, process, filament | bundle | body, path, name } writes one flattened JSON bundle and keeps it. import { path, name } keeps a bundle from a file. It needs Agent Link for OrcaSlicer installed. PrusaSlicer has no presets here: give slice_with profiles { config: an .ini }. Refused: no presets of that slicer on this computer. Refused: a name that is not found. Refused: use on a body in no print setup. Nothing of any printer is in the code: the presets are the authority. The answer by action: list { slicer, from, the presets by kind { count, own, presets, more }, saved, next, note, saidBefore }. use { setup, presets, slicer, settingsFromPresets, note }; export { exported (path), name, presets }; import { imported, kept, presets, next }.",
+   "card": {
+    "does": "Reads and uses the slicer presets of the person, as data.",
+    "inputNotes": {
+     "action": {
+      "means": "What to do; list when left out",
+      "values": [
+       "list",
+       "use",
+       "export",
+       "import",
+       "fetch"
+      ],
+      "default": "list"
+     },
+     "vendors": {
+      "means": "fetch: vendor names, for example [\"BBL\", \"Prusa\" ...]"
+     },
+     "version": {
+      "means": "fetch: only three numbers, such as 2.3.1"
+     },
+     "slicer": {
+      "means": "bambustudio (default) | orcaslicer",
+      "values": [
+       "bambustudio",
+       "orcaslicer"
+      ],
+      "default": "bambustudio"
+     },
+     "kind": {
+      "means": "list: machine|process|filament",
+      "values": [
+       "machine",
+       "process",
+       "filament"
+      ]
+     },
+     "query": {
+      "means": "list: words to match the presets"
+     },
+     "limit": {
+      "means": "list: how many names of the others each kind shows; 10 when neither kind nor query is given, else 50; 0 gives the counts and the person's own only",
+      "max": 500
+     },
+     "body": {
+      "means": "use, export: the body whose print setup is used or exported"
+     },
+     "machine": {
+      "means": "A machine preset name (from list)"
+     },
+     "process": {
+      "means": "A process preset name (from list)"
+     },
+     "filament": {
+      "means": "A filament preset name (from list)"
+     },
+     "bundle": {
+      "means": "A saved bundle: use { body, bundle }; export machine, process, filament | bundle | body"
+     },
+     "path": {
+      "means": "export, import: the file path of a bundle"
+     },
+     "name": {
+      "means": "export, import: the name of the bundle"
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "action",
+       "slicer"
+      ],
+      "rel": "with",
+      "line": "list { slicer, kind, query, limit }",
+      "when": "action list"
+     },
+     {
+      "inputs": [
+       "body",
+       "machine",
+       "process",
+       "filament"
+      ],
+      "rel": "with",
+      "line": "use { body, machine, process, filament } puts the presets on the print setup of the body",
+      "when": "action use"
+     },
+     {
+      "inputs": [
+       "body",
+       "bundle"
+      ],
+      "rel": "with",
+      "line": "use { body, bundle } puts a bundle on the print setup of the body",
+      "when": "action use"
+     },
+     {
+      "inputs": [
+       "kind",
+       "limit"
+      ],
+      "rel": "overrides",
+      "line": "limit is 10 when neither kind nor query is given, else 50"
+     },
+     {
+      "inputs": [
+       "action",
+       "vendors",
+       "version"
+      ],
+      "rel": "with",
+      "line": "fetch { slicer: \"orcaslicer\", vendors, version } downloads OrcaSlicer's system presets of the same version as JSON",
+      "when": "action fetch"
+     }
+    ],
+    "effects": [
+     "list gives the presets on this computer by kind, and saved bundles",
+     "Each kind holds { count, own, presets, more }",
+     "The person's own presets come first in presets, each { name, own: true }, then the names of the others, limit of them",
+     "kind, query or a higher limit shows the presets that more counts; nothing is out of reach",
+     "from and next come on the first list of each slicer in a session",
+     "They come again when the folders change; else saidBefore names them",
+     "fetch needs the network",
+     "OrcaSlicer packs its own presets where they cannot be read",
+     "After use, the layer height, walls, infill and shells of the setup come from the presets (settingsFromPresets), and slice uses them",
+     "use writes the setup",
+     "export writes one flattened JSON bundle and keeps it",
+     "import keeps a bundle from a file",
+     "It needs Agent Link for OrcaSlicer installed",
+     "PrusaSlicer has no presets here",
+     "Nothing of any printer is in the code: the presets are the authority",
+     "This OrcaSlicer packs its system presets (.opc), which cannot be read here; fetch { vendors } brings the same version's as JSON. The person's own presets are read either way. use sets the setup's layer height, walls, infill and shells from the presets, so the printability check and the mass estimate read the print as the slicer will lay it. export writes one file, the presets flattened: import it on another computer, or give it to someone without this slicer's presets."
+    ],
+    "returns": {
+     "slicer": {
+      "means": "The slicer"
+     },
+     "from": {
+      "means": "The preset folders read"
+     },
+     "saved": {
+      "means": "Saved bundles"
+     },
+     "next": {
+      "means": "The next step"
+     },
+     "note": {
+      "means": "A note"
+     },
+     "saidBefore": {
+      "means": "fields the list answer left out because the call said them before"
+     },
+     "count": {
+      "means": "All presets of that kind that match"
+     },
+     "own": {
+      "means": "How many are the person's own"
+     },
+     "presets": {
+      "means": "the preset names used or imported, per kind"
+     },
+     "more": {
+      "means": "How many are not shown"
+     },
+     "setup": {
+      "means": "use: the setup"
+     },
+     "settingsFromPresets": {
+      "means": "use: the settings taken from the presets"
+     },
+     "exported": {
+      "means": "export: the path"
+     },
+     "imported": {
+      "means": "import: the bundle imported"
+     },
+     "kept": {
+      "means": "import: the bundle kept"
+     }
+    },
+    "refusalNotes": [
+     "Other text in version is refused",
+     "Refused: no presets of that slicer on this computer",
+     "Refused: a name that is not found",
+     "Refused: use on a body in no print setup"
+    ],
+    "hints": [
+     "For PrusaSlicer, give slice_with profiles { config: an .ini }",
+     "After list, use { machine, process, filament } (names from the list) or { bundle } (a saved one) for a body's print setup; after fetch, list { slicer: orcaslicer, kind, query } shows them; after import, use { body, bundle: name }."
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -818,7 +2621,191 @@
   },
   "slice_with": {
    "group": "slice",
-   "description": "Slice a body or a mesh in a print setup with a named slicer, by its command line. A mesh goes on the plate as it is, with no new triangles. That is a Mesh::Feature, such as the Textured object of texture_apply. It takes the print setup of its source body when it has none of its own. An object that is neither a solid nor a mesh is refused, by its type. slicer: prusaslicer (default), orcaslicer or bambustudio. profiles: { machine, process, filament } JSON file paths for OrcaSlicer and Bambu Studio, or { config } an .ini for PrusaSlicer. Left out, it uses the presets of the setup (slicer_presets use). Else it writes minimal profiles from the setup, with the defaults of the slicer for the rest. Those are fine for a time and weight estimate, not for a real print. OrcaSlicer and Bambu Studio also take more inputs. bodies [names]: several on one plate, arranged. orient and arrange: the slicer's own. overrides { the slicer's process keys }. project: true writes the sliced plate as a .3mf that its window opens; slice_open shows it. material: a filament id for this slice only, not recorded. A filament profile or the presets of the setup win over material. name: the base name of the files. Pauses for encased parts (hw_embed, the magnets of gen_make) are written after their layer. The pause is M601, Bambu's M400 U1, or pauseCommand. pauseCommand: only M601, M600, M0, M1 or PAUSE, one command, no new lines. There are no pauses with several bodies or orient: the heights are those of one body as modelled. Then warning names each pause dropped, and the call to keep it: slice that body alone, without orient. warning also says when a pause could not be placed. Refused: no print setup. Refused: the presets of the setup belong to another slicer. Refused: a profile path that is not a file. Refused: a profile path in a credentials or settings folder (as Agent Link refuses a read there). Refused: orient, arrange, project, overrides or several bodies with prusaslicer. Refused unavailable: a slicer not on this computer; the refusal names those present. AGENTLINK_ORCASLICER and AGENTLINK_BAMBUSTUDIO set their paths. It needs Agent Link for OrcaSlicer installed. Cost: a body is meshed at 0.01 mm deviation, then the slicer runs, from seconds to minutes. It runs as a job when long (job_status finishes it). The answer holds { body, slicer, exe, profiles, gcode, bytes, time, filament, layers, verdict, setup, bodies, project, pauses, pauseCommand, material, overrides, mesh, warning, note }. It also holds the slicer's warnings and plate statistics. profiles: which were used. gcode: the path. filament and layers: as read from the G-code. verdict: a few words with its time and filament (\"12m 3s, 3.21 g\"), else \"G-code written\". Starting the print is the call of the person.",
+   "card": {
+    "does": "Slices a body or a mesh in a print setup with a named slicer, by its command line.",
+    "inputNotes": {
+     "body": {
+      "means": "The body or mesh to slice"
+     },
+     "bodies": {
+      "means": "Names: several on one plate, arranged (OrcaSlicer and Bambu Studio)"
+     },
+     "slicer": {
+      "means": "The slicer",
+      "values": [
+       "prusaslicer",
+       "orcaslicer",
+       "bambustudio"
+      ],
+      "default": "prusaslicer"
+     },
+     "profiles": {
+      "means": "{ machine, process, filament } JSON file paths for OrcaSlicer and Bambu Studio, or { config } an .ini for PrusaSlicer",
+      "forms": [
+       "{ machine, process, filament }",
+       "{ config: <.ini path> }"
+      ]
+     },
+     "pauseCommand": {
+      "means": "The pause command: only M601, M600, M0, M1 or PAUSE, one command, no new lines",
+      "values": [
+       "M601",
+       "M600",
+       "M0",
+       "M1",
+       "PAUSE"
+      ]
+     },
+     "name": {
+      "means": "The base name of the files"
+     },
+     "orient": {
+      "means": "The slicer's own"
+     },
+     "arrange": {
+      "means": "The slicer's own"
+     },
+     "project": {
+      "means": "true writes the sliced plate as a .3mf that its window opens",
+      "values": [
+       true
+      ]
+     },
+     "overrides": {
+      "means": "The slicer's process keys"
+     },
+     "material": {
+      "means": "A filament id for this slice only, not recorded"
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "profiles",
+       "material"
+      ],
+      "rel": "overrides",
+      "line": "A filament profile or the presets of the setup win over material"
+     },
+     {
+      "inputs": [
+       "slicer",
+       "orient"
+      ],
+      "rel": "excludes",
+      "line": "orient, arrange, project, overrides or several bodies with prusaslicer are refused",
+      "when": "slicer prusaslicer"
+     },
+     {
+      "inputs": [
+       "bodies",
+       "pauseCommand"
+      ],
+      "rel": "excludes",
+      "line": "There are no pauses with several bodies or orient"
+     },
+     {
+      "inputs": [
+       "orient",
+       "pauseCommand"
+      ],
+      "rel": "excludes",
+      "line": "There are no pauses with several bodies or orient"
+     }
+    ],
+    "effects": [
+     "A mesh goes on the plate as it is, with no new triangles",
+     "A mesh is a Mesh::Feature, such as the Textured object of texture_apply",
+     "A mesh takes the print setup of its source body when it has none of its own",
+     "profiles left out: it uses the presets of the setup (slicer_presets use)",
+     "Else it writes minimal profiles from the setup, with the defaults of the slicer for the rest",
+     "Minimal profiles are fine for a time and weight estimate, not for a real print",
+     "OrcaSlicer and Bambu Studio also take more inputs",
+     "slice_open shows the project .3mf",
+     "Pauses for encased parts (hw_embed, the magnets of gen_make) are written after their layer",
+     "The pause is M601, Bambu's M400 U1, or pauseCommand",
+     "With several bodies or orient the heights are those of one body as modelled, so pauses are dropped",
+     "Then warning names each pause dropped, and the call to keep it",
+     "warning also says when a pause could not be placed",
+     "AGENTLINK_ORCASLICER and AGENTLINK_BAMBUSTUDIO set their paths",
+     "It needs Agent Link for OrcaSlicer installed",
+     "Cost: a body is meshed at 0.01 mm deviation, then the slicer runs, from seconds to minutes",
+     "It runs as a job when long (job_status finishes it)",
+     "It also holds the slicer's warnings and plate statistics",
+     "Starting the print is the call of the person",
+     "Pauses are written into the G-code after their layer: the print stops with the pocket open, the part goes in, the next layer closes over it."
+    ],
+    "returns": {
+     "body": {
+      "means": "The body"
+     },
+     "slicer": {
+      "means": "The slicer"
+     },
+     "exe": {
+      "means": "The slicer program"
+     },
+     "profiles": {
+      "means": "Which were used"
+     },
+     "gcode": {
+      "means": "The path"
+     },
+     "bytes": {
+      "means": "Size"
+     },
+     "time": {
+      "means": "Print time"
+     },
+     "filament": {
+      "means": "As read from the G-code"
+     },
+     "layers": {
+      "means": "As read from the G-code"
+     },
+     "verdict": {
+      "means": "A few words with its time and filament (\"12m 3s, 3.21 g\"), else \"G-code written\""
+     },
+     "setup": {
+      "means": "The setup"
+     },
+     "bodies": {
+      "means": "The bodies"
+     },
+     "project": {
+      "means": "The project file"
+     },
+     "pauses": {
+      "means": "The pauses"
+     },
+     "pauseCommand": {
+      "means": "The pause command"
+     },
+     "material": {
+      "means": "The material"
+     },
+     "overrides": {
+      "means": "The overrides"
+     },
+     "mesh": {
+      "means": "The mesh"
+     },
+     "warning": {
+      "means": "The dropped pauses, and pauses that could not be placed"
+     },
+     "note": {
+      "means": "A note"
+     }
+    },
+    "refusalNotes": [
+     "An object that is neither a solid nor a mesh is refused, by its type",
+     "Refused: no print setup",
+     "Refused: the presets of the setup belong to another slicer",
+     "Refused: a profile path that is not a file",
+     "Refused: a profile path in a credentials or settings folder (as Agent Link refuses a read there)",
+     "Refused unavailable: a slicer not on this computer; the refusal names those present"
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -861,8 +2848,7 @@
       "type": "object"
      },
      "material": {
-      "type": "string",
-      "description": "A filament id for this slice only (not recorded)."
+      "type": "string"
      }
     },
     "required": [],
@@ -876,7 +2862,42 @@
   },
   "slice_read": {
    "group": "slice",
-   "description": "Read back an OrcaSlicer or Bambu Studio project (.3mf). It can be one that slice_with wrote (project: true). Or it can be one that the person changed and saved in the slicer's window. path: absolute, or relative to the folder of the session. The answer holds the slicer, the presets it names, and each setting changed from them (project-wide and per filament). It holds the own settings and modifier parts of every object, the plates, and the slicer's warnings. When the project holds a sliced plate, the answer holds its time, weight, cost and features. slice: true first slices the project as it stands (its own settings, headless; seconds to minutes). It then adds slicedNow { gcode, time, filament … }. Refused: no such file. Refused: not a slicer project. Refused: the slicer is not on this computer. Changes nothing in the document. To take a changed setting into the print setup, use slicer_presets or setup set.",
+   "card": {
+    "does": "Reads back an OrcaSlicer or Bambu Studio project (.3mf).",
+    "inputNotes": {
+     "path": {
+      "means": "Absolute, or relative to the folder of the session"
+     },
+     "slice": {
+      "means": "true first slices the project as it stands (its own settings, headless; seconds to minutes)",
+      "values": [
+       true
+      ]
+     }
+    },
+    "effects": [
+     "It can be a project that slice_with wrote (project: true)",
+     "Or one that the person changed and saved in the slicer's window",
+     "The answer holds the slicer, the presets it names, and each setting changed from them (project-wide and per filament)",
+     "It holds the own settings and modifier parts of every object, the plates, and the slicer's warnings",
+     "When the project holds a sliced plate, the answer holds its time, weight, cost and features",
+     "With slice: true it then adds slicedNow",
+     "Changes nothing in the document"
+    ],
+    "returns": {
+     "slicedNow": {
+      "means": "gcode, time, filament ..."
+     }
+    },
+    "refusalNotes": [
+     "Refused: no such file",
+     "Refused: not a slicer project",
+     "Refused: the slicer is not on this computer"
+    ],
+    "hints": [
+     "To take a changed setting into the print setup, use slicer_presets or setup set"
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -899,7 +2920,47 @@
   },
   "slice_open": {
    "group": "slice",
-   "description": "Open a project (.3mf) in the slicer's own window, for the person. path: absolute, or relative to the folder of the session. slicer: orcaslicer (default) or bambustudio. The person changes what they like there and saves; slice_read then brings it back. It only starts the slicer and answers at once. It does not wait for the person or know when they are done: ask them. It needs the FreeCAD window (refused headless) and the slicer on this computer. The answer holds: opened (path), in, next.",
+   "card": {
+    "does": "Opens a project (.3mf) in the slicer's own window, for the person.",
+    "inputNotes": {
+     "path": {
+      "means": "Absolute, or relative to the folder of the session"
+     },
+     "slicer": {
+      "means": "orcaslicer (default) or bambustudio",
+      "values": [
+       "orcaslicer",
+       "bambustudio"
+      ],
+      "default": "orcaslicer"
+     }
+    },
+    "effects": [
+     "The person changes what they like there and saves; slice_read then brings it back",
+     "It only starts the slicer and answers at once",
+     "It does not wait for the person or know when they are done",
+     "It needs the FreeCAD window and the slicer on this computer",
+     "The slicer opens with the file; when the person has saved it there, slice_read brings back what they changed."
+    ],
+    "returns": {
+     "opened": {
+      "means": "The path"
+     },
+     "in": {
+      "means": "The slicer it opened in"
+     },
+     "next": {
+      "means": "The next step"
+     }
+    },
+    "refusalNotes": [
+     "Refused headless"
+    ],
+    "hints": [
+     "Ask the person when they are done",
+     "slice_read { path } brings back what they changed (slice: true slices it as it stands)."
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -926,7 +2987,121 @@
   },
   "printer_add": {
    "group": "printer",
-   "description": "Keep a printer on the network by name (1 to 40 characters). kind octoprint: key (its API key) is required. kind moonraker or klipper: key only if it asks for one. kind prusalink: key, or user and password for its digest login. url: its address (http:// is assumed). It is kept in ~/AgentLink/printers.json (owner only), never in the folder of the session. An old .agentlink-printers.json in the session folder moves there once. No tool ever gives the key and password back. The same name again replaces it. It is tried at once (check: false skips that). An address off this network is not tried unless check is true. That is an address that is not private and not a .local name. warning says so. warning also says when plain http sends the key in clear text. The answer then holds reached true with state, or reached false with why; it is kept either way. Bambu Lab printers are refused. They take jobs only over their own LAN protocol or from Bambu Studio. Use slice_with { slicer: \"bambustudio\" }, then send from there. Never ask the person to paste a key into a chat that they do not trust. A key is theirs to give. The answer holds: added { name, kind, url, how it logs in }, replaced, kept (the file), warning, reached, state | why. Changes nothing in the document.",
+   "card": {
+    "does": "Keeps a printer on the network by name.",
+    "inputNotes": {
+     "name": {
+      "means": "The printer's name, 1 to 40 characters",
+      "min": 1,
+      "max": 40
+     },
+     "kind": {
+      "means": "The printer kind: octoprint, moonraker, klipper or prusalink",
+      "values": [
+       "octoprint",
+       "moonraker",
+       "klipper",
+       "prusalink"
+      ]
+     },
+     "url": {
+      "means": "Its address (http:// is assumed)"
+     },
+     "key": {
+      "means": "An API key: required for octoprint; for moonraker or klipper only if it asks for one; for prusalink, key, or user and password"
+     },
+     "user": {
+      "means": "For prusalink's digest login, with password"
+     },
+     "password": {
+      "means": "For prusalink's digest login, with user"
+     },
+     "check": {
+      "means": "false skips the try at once; true tries an address off this network"
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "kind",
+       "key"
+      ],
+      "rel": "needs",
+      "line": "octoprint needs key",
+      "when": "kind octoprint"
+     },
+     {
+      "inputs": [
+       "kind",
+       "key"
+      ],
+      "rel": "with",
+      "line": "moonraker or klipper: key only if it asks for one",
+      "when": "kind moonraker or klipper"
+     },
+     {
+      "inputs": [
+       "kind",
+       "user",
+       "password"
+      ],
+      "rel": "with",
+      "line": "prusalink: key, or user and password for its digest login",
+      "when": "kind prusalink"
+     },
+     {
+      "inputs": [
+       "url",
+       "check"
+      ],
+      "rel": "with",
+      "line": "An address off this network is not tried unless check is true"
+     }
+    ],
+    "effects": [
+     "It is kept in ~/AgentLink/printers.json (owner only), never in the folder of the session",
+     "An old .agentlink-printers.json in the session folder moves there once",
+     "No tool ever gives the key and password back",
+     "The same name again replaces it",
+     "It is tried at once (check: false skips that)",
+     "An address off this network is one that is not private and not a .local name",
+     "warning says so; warning also says when plain http sends the key in clear text",
+     "The printer is kept either way, reached or not",
+     "They take jobs only over their own LAN protocol or from Bambu Studio",
+     "A key is theirs to give",
+     "Changes nothing in the document",
+     "Never ask the person to paste a key into a chat that they do not trust"
+    ],
+    "returns": {
+     "added": {
+      "means": "name, kind, url, how it logs in"
+     },
+     "replaced": {
+      "means": "The printer replaced, when the same name was kept"
+     },
+     "kept": {
+      "means": "The file"
+     },
+     "warning": {
+      "means": "An address off this network; plain http sends the key in clear text"
+     },
+     "reached": {
+      "means": "true with state, or false with why"
+     },
+     "state": {
+      "means": "The printer's state, when reached"
+     },
+     "why": {
+      "means": "Why it did not answer, when not reached"
+     }
+    },
+    "refusalNotes": [
+     "Bambu Lab printers are refused"
+    ],
+    "hints": [
+     "For a Bambu Lab printer use slice_with { slicer: \"bambustudio\" }, then send from there"
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -966,7 +3141,29 @@
   },
   "printer_list": {
    "group": "printer",
-   "description": "List the printers that printer_add keeps: printers [{ name, kind, url, how it logs in }]. It never gives the keys. remove: a name; it forgets that printer, and the answer adds removed. A name that is not kept is refused, with a list of those that are. Changes nothing in the document.",
+   "card": {
+    "does": "Lists the printers that printer_add keeps.",
+    "inputNotes": {
+     "remove": {
+      "means": "A name: it forgets that printer, and the answer adds removed"
+     }
+    },
+    "effects": [
+     "It never gives the keys",
+     "Changes nothing in the document"
+    ],
+    "returns": {
+     "printers": {
+      "means": "[{ name, kind, url, how it logs in }]"
+     },
+     "removed": {
+      "means": "The printer forgotten, with remove"
+     }
+    },
+    "refusalNotes": [
+     "A name that is not kept is refused, with a list of those that are"
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -984,13 +3181,51 @@
   },
   "printer_status": {
    "group": "printer",
-   "description": "Read the state of a printer now, over the network. printer: its name from printer_add; you can leave it out when one is kept. The answer holds: printer, kind, state, nozzle { now, target } and bed { now, target } °C, job { file, progress % , and time left or printed where the printer gives it }. state is the printer's own word: idle, printing, paused, error …. Refused: no printer is kept. Refused: the name is not kept. Refused: the printer does not answer (its address, key, or it is off). The text from the printer is cleaned (no invisible characters) and capped. A redirect to another host is refused. Changes nothing.",
+   "card": {
+    "does": "Reads the state of a printer now, over the network.",
+    "inputNotes": {
+     "printer": {
+      "means": "The printer's name, as printer_add kept it; may be left out when there is one"
+     }
+    },
+    "effects": [
+     "The text from the printer is cleaned (no invisible characters) and capped",
+     "Changes nothing"
+    ],
+    "returns": {
+     "printer": {
+      "means": "The printer"
+     },
+     "kind": {
+      "means": "The kind"
+     },
+     "state": {
+      "means": "The printer's own word: idle, printing, paused, error ..."
+     },
+     "nozzle": {
+      "means": "now, target",
+      "unit": "°C"
+     },
+     "bed": {
+      "means": "now, target",
+      "unit": "°C"
+     },
+     "job": {
+      "means": "file, progress %, and time left or printed where the printer gives it"
+     }
+    },
+    "refusalNotes": [
+     "Refused: no printer is kept",
+     "Refused: the name is not kept",
+     "Refused: the printer does not answer (its address, key, or it is off)",
+     "A redirect to another host is refused"
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
      "printer": {
-      "type": "string",
-      "description": "The printer's name, as printer_add kept it; may be left out when there is one."
+      "type": "string"
      }
     },
     "required": [],
@@ -1006,13 +3241,117 @@
   },
   "printer_send": {
    "group": "printer",
-   "description": "Upload a G-code file to a printer. file (required): an absolute path or a name in the folder of the session (.gcode, .gco, .g, .bgcode). slice and slice_with write it. A file in a credentials or settings folder is refused. printer: you can leave it out when one is kept. storage: where on the printer. Only local or sdcard for OctoPrint, gcodes for Moonraker, usb or local for PrusaLink (the first when left out). The tool reads the whole file first. It looks for commands that change the printer: firmware, settings, power, endstops. It looks for motors off while the print moves. It looks for heat over the caps (nozzle 300 °C, bed 120 °C). It is uploaded and NOT started. Starting needs start: true and the approval of the person. A file with such commands also needs the approval of the person, with or without start. With Agent Link, the first call answers pending with the approve_file arguments. They name the printer, the action and the file with its sha256. Call approve_file with them, then call this tool again with the same arguments. The person sets approve_file in the client's tool permissions. The tool never approves by itself. A typed confirm is refused with Agent Link. confirm (\"start <printer name>\", or \"send <printer name>\" for a file with such commands) is only for Workshop without Agent Link. Never start a print on your own. With start, it is refused while the printer is printing, paused or busy. The answer holds: uploaded, where, started, printer, bytes, sha256, issues, note. Or pending, approve, next, issues.",
+   "card": {
+    "does": "Uploads a G-code file to a printer.",
+    "inputNotes": {
+     "printer": {
+      "means": "The printer's name, as printer_add kept it; may be left out when there is one"
+     },
+     "file": {
+      "means": "An absolute path or a name in the folder of the session (.gcode, .gco, .g, .bgcode)"
+     },
+     "start": {
+      "means": "true starts the print; needs the approval of the person",
+      "values": [
+       true
+      ]
+     },
+     "confirm": {
+      "means": "\"start <printer name>\", or \"send <printer name>\" for a file with such commands; only for Workshop without Agent Link"
+     },
+     "storage": {
+      "means": "Where on the printer: local or sdcard (OctoPrint), gcodes (Moonraker), usb or local (PrusaLink); the first by default",
+      "values": [
+       "local",
+       "sdcard",
+       "gcodes",
+       "usb"
+      ]
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "start",
+       "file"
+      ],
+      "rel": "needs",
+      "line": "Starting needs start: true and the approval of the person"
+     },
+     {
+      "inputs": [
+       "confirm",
+       "start"
+      ],
+      "rel": "excludes",
+      "line": "A typed confirm is refused with Agent Link"
+     }
+    ],
+    "effects": [
+     "The tool reads the whole file first",
+     "It looks for commands that change the printer: firmware, settings, power, endstops",
+     "It looks for motors off while the print moves",
+     "It looks for heat over the caps (nozzle 300 °C, bed 120 °C)",
+     "It is uploaded and NOT started",
+     "A file with such commands also needs the approval of the person, with or without start",
+     "With Agent Link, the first call answers pending with the approve_file arguments",
+     "The approve_file arguments name the printer, the action and the file with its sha256",
+     "The person sets approve_file in the client's tool permissions",
+     "The tool never approves by itself",
+     "slice and slice_with write the G-code file",
+     "Nothing is sent before the person approves; after approval call again with the same arguments. An upload is not started: starting the print is the person's call (printer_send again with start: true, which the person approves, or start it on the printer).",
+     "Call approve_file with the arguments, then call this tool again with the same arguments",
+     "Never start a print on your own"
+    ],
+    "returns": {
+     "uploaded": {
+      "means": "Whether it was uploaded"
+     },
+     "where": {
+      "means": "Where on the printer"
+     },
+     "started": {
+      "means": "Whether it was started"
+     },
+     "printer": {
+      "means": "The printer"
+     },
+     "bytes": {
+      "means": "Size"
+     },
+     "sha256": {
+      "means": "The file's sha256"
+     },
+     "issues": {
+      "means": "The commands found"
+     },
+     "note": {
+      "means": "A note"
+     },
+     "pending": {
+      "means": "The first call, with Agent Link"
+     },
+     "approve": {
+      "means": "The approve_file arguments"
+     },
+     "next": {
+      "means": "The next step"
+     },
+     "warnings": {
+      "means": "[{reason: notOnLan | plainHttp, url}]"
+     }
+    },
+    "refusalNotes": [
+     "A file in a credentials or settings folder is refused",
+     "A typed confirm is refused with Agent Link",
+     "With start, it is refused while the printer is printing, paused or busy"
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
      "printer": {
-      "type": "string",
-      "description": "The printer's name, as printer_add kept it; may be left out when there is one."
+      "type": "string"
      },
      "file": {
       "type": "string"
@@ -1024,8 +3363,7 @@
       "type": "string"
      },
      "storage": {
-      "type": "string",
-      "description": "Where on the printer: local or sdcard (OctoPrint), gcodes (Moonraker), usb or local (PrusaLink). The first by default."
+      "type": "string"
      }
     },
     "required": [
@@ -1043,13 +3381,61 @@
   },
   "printer_pause": {
    "group": "printer",
-   "description": "Pause the running job of the printer. It needs the approval of the person. With Agent Link, the first call answers pending with the approve_file arguments (the printer and the action). Call approve_file with them, then call this tool again. The person sets approve_file in the client's tool permissions. The tool never approves by itself. A typed confirm is refused with Agent Link. confirm: \"pause <printer name>\", word for word, only for Workshop without Agent Link. That is the call of the person: ask them first. printer: you can leave it out when one is kept. Refused: no approval, or the printer does not answer. The answer holds: printer, and what the printer answered. Or pending, approve, next.",
+   "card": {
+    "does": "Pauses the running job of the printer.",
+    "inputNotes": {
+     "printer": {
+      "means": "The printer's name, as printer_add kept it; may be left out when there is one"
+     },
+     "confirm": {
+      "means": "\"pause <printer name>\", word for word, only for Workshop without Agent Link"
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "confirm",
+       "printer"
+      ],
+      "rel": "excludes",
+      "line": "A typed confirm is refused with Agent Link"
+     }
+    ],
+    "effects": [
+     "It needs the approval of the person",
+     "With Agent Link, the first call answers pending with the approve_file arguments (the printer and the action)",
+     "The person sets approve_file in the client's tool permissions",
+     "The tool never approves by itself",
+     "Call approve_file with the arguments, then call this tool again",
+     "That is the call of the person: ask them first"
+    ],
+    "returns": {
+     "printer": {
+      "means": "The printer"
+     },
+     "answered": {
+      "means": "What the printer answered"
+     },
+     "pending": {
+      "means": "The first call, with Agent Link"
+     },
+     "approve": {
+      "means": "The approve_file arguments"
+     },
+     "next": {
+      "means": "The next step"
+     }
+    },
+    "refusalNotes": [
+     "A typed confirm is refused with Agent Link",
+     "Refused: no approval, or the printer does not answer"
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
      "printer": {
-      "type": "string",
-      "description": "The printer's name, as printer_add kept it; may be left out when there is one."
+      "type": "string"
      },
      "confirm": {
       "type": "string"
@@ -1065,13 +3451,62 @@
   },
   "printer_stop": {
    "group": "printer",
-   "description": "Stop (cancel) the job of the printer. It cannot be resumed, and the print is lost. It needs the approval of the person, every time. With Agent Link, the first call answers pending with the approve_file arguments (the printer and the action). Call approve_file with them, then call this tool again. The person sets approve_file in the client's tool permissions. The tool never approves by itself. A typed confirm is refused with Agent Link. confirm: \"stop <printer name>\", word for word, only for Workshop without Agent Link. That is the call of the person: ask them first, every time. printer: you can leave it out when one is kept. Refused: no approval, or the printer does not answer. The answer holds: printer, and what the printer answered. Or pending, approve, next.",
+   "card": {
+    "does": "Stops (cancels) the job of the printer.",
+    "inputNotes": {
+     "printer": {
+      "means": "The printer's name, as printer_add kept it; may be left out when there is one"
+     },
+     "confirm": {
+      "means": "\"stop <printer name>\", word for word, only for Workshop without Agent Link"
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "confirm",
+       "printer"
+      ],
+      "rel": "excludes",
+      "line": "A typed confirm is refused with Agent Link"
+     }
+    ],
+    "effects": [
+     "It cannot be resumed, and the print is lost",
+     "It needs the approval of the person, every time",
+     "With Agent Link, the first call answers pending with the approve_file arguments (the printer and the action)",
+     "The person sets approve_file in the client's tool permissions",
+     "The tool never approves by itself",
+     "Call approve_file with the arguments, then call this tool again",
+     "That is the call of the person: ask them first, every time"
+    ],
+    "returns": {
+     "printer": {
+      "means": "The printer"
+     },
+     "answered": {
+      "means": "What the printer answered"
+     },
+     "pending": {
+      "means": "The first call, with Agent Link"
+     },
+     "approve": {
+      "means": "The approve_file arguments"
+     },
+     "next": {
+      "means": "The next step"
+     }
+    },
+    "refusalNotes": [
+     "A typed confirm is refused with Agent Link",
+     "Refused: no approval, or the printer does not answer"
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
      "printer": {
-      "type": "string",
-      "description": "The printer's name, as printer_add kept it; may be left out when there is one."
+      "type": "string"
      },
      "confirm": {
       "type": "string"
@@ -1087,13 +3522,133 @@
   },
   "cut_check": {
    "group": "cut",
-   "description": "Check if a body in a cut setup can be cut from sheet. It must be a sheet part: two parallel flat faces a constant thickness apart. Every other face must be square to them. The faces that are not square are named under sheet.notSquare and sheet.steps. Then it checks, for the machine (laser, waterjet, plasma, router), material and thickness. It checks its thickness against the sheet of the setup. It checks holes, webs (material left between cuts) and slots under the least feature. It checks inside corners of a router tighter than its cutter, and plasma holes under the thickness. It checks the part against the sheet [w, h]. machine, material and sheet given here override those of the cut setup for this check. Materials: steel, stainless, aluminium, brass, copper, titanium, acrylic, plywood, wood, mdf, hdpe, polycarbonate, cardboard, rubber, foam, carbon. When neither says, steel is assumed, and plywood on a router. Refused: the body is in no cut setup (setup add { type: \"cut\" } first). Refused: the body has no flat face. The answer holds { body, verdict, machine, material, kerf, sheet { thickness, normal }, profile { size [x, y], holes, edges, leastWeb, leastGap }, least, findings, setup, unjudged, assumed, note }. verdict: fix | pass with warnings | pass. least: the limits used. findings [{ rule (not-sheet, thickness, small-hole, thin-web, narrow-slot, inside-corner, sheet-size), severity, value, limit, at, says }]: the first 10. unjudged: sheet size, when no sheet is given. assumed: what the setup left out (machine laser, material, kerf, thickness). The least features are rules of thumb; the figures of the cutting shop win. Webs are not read on a profile of over 160 edges (assumed says so). Changes nothing.",
+   "card": {
+    "does": "Checks if a body in a cut setup can be cut from sheet.",
+    "inputNotes": {
+     "body": {
+      "means": "A body's name; may be left out when there is one"
+     },
+     "machine": {
+      "means": "The machine; overrides the cut setup for this check; laser when neither says",
+      "values": [
+       "laser",
+       "waterjet",
+       "plasma",
+       "router"
+      ]
+     },
+     "material": {
+      "means": "The material; overrides the cut setup for this check; steel when neither says, and plywood on a router",
+      "values": [
+       "steel",
+       "stainless",
+       "aluminium",
+       "brass",
+       "copper",
+       "titanium",
+       "acrylic",
+       "plywood",
+       "wood",
+       "mdf",
+       "hdpe",
+       "polycarbonate",
+       "cardboard",
+       "rubber",
+       "foam",
+       "carbon"
+      ]
+     },
+     "sheet": {
+      "means": "The sheet [w, h]; overrides the cut setup for this check",
+      "unit": "mm"
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "machine",
+       "material"
+      ],
+      "rel": "with",
+      "line": "machine, material and sheet given here override those of the cut setup for this check"
+     },
+     {
+      "inputs": [
+       "material",
+       "machine"
+      ],
+      "rel": "overrides",
+      "line": "When neither says, steel is assumed, and plywood on a router"
+     }
+    ],
+    "effects": [
+     "The body must be a sheet part: two parallel flat faces a constant thickness apart",
+     "Every other face must be square to them",
+     "The faces that are not square are named under sheet.notSquare and sheet.steps",
+     "It checks, for the machine, material and thickness",
+     "It checks its thickness against the sheet of the setup",
+     "It checks holes, webs (material left between cuts) and slots under the least feature",
+     "It checks inside corners of a router tighter than its cutter, and plasma holes under the thickness",
+     "It checks the part against the sheet [w, h]",
+     "The least features are rules of thumb; the figures of the cutting shop win",
+     "Webs are not read on a profile of over 160 edges (assumed says so)",
+     "Changes nothing",
+     "Least features are rules of thumb for the machine, material and thickness; the shop's own figures win. Profiles offset out by half the kerf (holes in) are cut on the line; profiles as modelled leave the kerf to the cutter's software. Layers are OUTER and HOLES; cut holes first."
+    ],
+    "returns": {
+     "body": {
+      "means": "The body"
+     },
+     "verdict": {
+      "means": "fix | pass with warnings | pass"
+     },
+     "machine": {
+      "means": "The machine"
+     },
+     "material": {
+      "means": "The material"
+     },
+     "kerf": {
+      "means": "The kerf"
+     },
+     "sheet": {
+      "means": "thickness, normal; notSquare and steps for faces that are not square"
+     },
+     "profile": {
+      "means": "size [x, y], holes, edges, leastWeb, leastGap"
+     },
+     "least": {
+      "means": "The limits used"
+     },
+     "findings": {
+      "means": "[{ rule (not-sheet, thickness, small-hole, thin-web, narrow-slot, inside-corner, sheet-size), severity, value, limit, at, says }]: the first 10"
+     },
+     "setup": {
+      "means": "The setup"
+     },
+     "unjudged": {
+      "means": "Sheet size, when no sheet is given"
+     },
+     "assumed": {
+      "means": "What the setup left out (machine laser, material, kerf, thickness)"
+     },
+     "note": {
+      "means": "A note"
+     }
+    },
+    "refusalNotes": [
+     "Refused: the body is in no cut setup (setup add { type: \"cut\" } first)",
+     "Refused: the body has no flat face"
+    ],
+    "hints": [
+     "Small hole: make it bigger or drill it. Thin web: widen it, it can burn through, warp or snap. Narrow slot: widen it, the slug may not drop out clean. Inside corner tighter than the cutter: round it to half the kerf or more, or add a dogbone. left bodies: use a bigger sheet, fewer copies, or another sheet."
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
      "body": {
-      "type": "string",
-      "description": "A body's name; may be left out when there is one."
+      "type": "string"
      },
      "machine": {
       "type": "string",
@@ -1111,8 +3666,7 @@
       "type": "array",
       "items": {
        "type": "number"
-      },
-      "description": "The sheet [w, h], mm."
+      }
      }
     },
     "required": [],
@@ -1125,13 +3679,144 @@
   },
   "cut_export": {
    "group": "cut",
-   "description": "Write the flat profiles of sheet bodies as DXF and SVG in mm, laid out on a sheet. The files go to the folder of the session. body, or bodies [names] (the one body when left out), each in a cut setup. copies: n, or { \"body label\": n } (1 to 500). sheet: [w, h] (the sheet of the cut setup when left out). gap: mm between parts and from the edge (3 mm or two kerfs). formats: [\"dxf\", \"svg\"] (both when left out). name: the base name of the files. With a sheet, FreeCAD's BIM nesting places the parts (the module of Arch_Nest); parts are never turned. nest: false, no sheet, or no BIM lays them in rows instead; layout says which and why. Parts that do not fit are counted under left. compensate: true offsets each outline out and each hole in by half the kerf. Leave it off when the software of the cutter does that. DXF is R12 (LINE, ARC, CIRCLE, POLYLINE) on layers OUTER and HOLES. Each file is read back and counted (readBack, matches). One thickness per file: bodies of another thickness are refused. Refused too: a body is not a sheet part (cut_check says why). Refused too: nothing fits the sheet. Nesting many copies of an intricate outline can take a minute or more: export fewer copies per call. The answer holds: files { dxf { path, bytes, readBack, layers, matches }, svg { path, bytes, readBack } }, placed { body: n }, left, sheet, thickness, kerf, compensated, gap, entities, layout, note. It writes files only; the document is not changed.",
+   "card": {
+    "does": "Writes the flat profiles of sheet bodies as DXF and SVG in mm, laid out on a sheet.",
+    "inputNotes": {
+     "body": {
+      "means": "A body's name; the one body when left out; in a cut setup"
+     },
+     "bodies": {
+      "means": "Names of bodies, each in a cut setup"
+     },
+     "copies": {
+      "means": "n, or { \"body label\": n }",
+      "min": 1,
+      "max": 500,
+      "forms": [
+       "n",
+       "{ \"body label\": n }"
+      ]
+     },
+     "sheet": {
+      "means": "[w, h]; the sheet of the cut setup when left out",
+      "unit": "mm"
+     },
+     "gap": {
+      "means": "Between parts and from the edge (3 mm or two kerfs)",
+      "unit": "mm",
+      "default": "3 mm or two kerfs"
+     },
+     "compensate": {
+      "means": "true offsets each outline out and each hole in by half the kerf",
+      "values": [
+       true
+      ]
+     },
+     "formats": {
+      "means": "[\"dxf\", \"svg\"]; both when left out",
+      "values": [
+       "dxf",
+       "svg"
+      ],
+      "default": [
+       "dxf",
+       "svg"
+      ]
+     },
+     "name": {
+      "means": "The base name of the files"
+     },
+     "nest": {
+      "means": "Lay the parts out with FreeCAD's BIM Nest when a sheet is given (true by default)",
+      "default": true
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "body",
+       "bodies"
+      ],
+      "rel": "with",
+      "line": "body, or bodies [names] (the one body when left out)"
+     },
+     {
+      "inputs": [
+       "nest",
+       "sheet"
+      ],
+      "rel": "with",
+      "line": "nest: false, no sheet, or no BIM lays the parts in rows instead; layout says which and why"
+     },
+     {
+      "inputs": [
+       "compensate",
+       "name"
+      ],
+      "rel": "with",
+      "line": "Leave compensate off when the software of the cutter does that"
+     }
+    ],
+    "effects": [
+     "The files go to the folder of the session",
+     "With a sheet, FreeCAD's BIM nesting places the parts (the module of Arch_Nest); parts are never turned",
+     "Parts that do not fit are counted under left",
+     "DXF is R12 (LINE, ARC, CIRCLE, POLYLINE) on layers OUTER and HOLES",
+     "Each file is read back and counted (readBack, matches)",
+     "It writes files only; the document is not changed",
+     "Nesting many copies of an intricate outline can take a minute or more",
+     "Profiles written from the print setup, offset by half the kerf (holes in) when compensated; layers OUTER and HOLES; cut holes first."
+    ],
+    "returns": {
+     "files": {
+      "means": "dxf { path, bytes, readBack, layers, matches }, svg { path, bytes, readBack }"
+     },
+     "placed": {
+      "means": "{ body: n }"
+     },
+     "left": {
+      "means": "Parts that do not fit"
+     },
+     "sheet": {
+      "means": "The sheet"
+     },
+     "thickness": {
+      "means": "The thickness"
+     },
+     "kerf": {
+      "means": "The kerf"
+     },
+     "compensated": {
+      "means": "Whether the outlines are compensated"
+     },
+     "gap": {
+      "means": "The gap"
+     },
+     "entities": {
+      "means": "The entities"
+     },
+     "layout": {
+      "means": "Which layout was used, and why"
+     },
+     "note": {
+      "means": "A note"
+     }
+    },
+    "refusalNotes": [
+     "One thickness per file: bodies of another thickness are refused",
+     "Refused too: a body is not a sheet part (cut_check says why)",
+     "Refused too: nothing fits the sheet"
+    ],
+    "hints": [
+     "Leave compensate off when the software of the cutter does that",
+     "Export fewer copies per call"
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
      "body": {
-      "type": "string",
-      "description": "A body's name; may be left out when there is one."
+      "type": "string"
      },
      "bodies": {
       "type": "array",
@@ -1149,8 +3834,7 @@
       "type": "array",
       "items": {
        "type": "number"
-      },
-      "description": "The sheet [w, h], mm."
+      }
      },
      "gap": {
       "type": "number"
@@ -1172,8 +3856,7 @@
       "type": "string"
      },
      "nest": {
-      "type": "boolean",
-      "description": "Lay the parts out with FreeCAD's BIM Nest when a sheet is given (true by default)."
+      "type": "boolean"
      }
     },
     "required": [],
@@ -1190,7 +3873,71 @@
   },
   "tube_cutlist": {
    "group": "cut",
-   "description": "Write a cut list for a weldment of round tubes, as markdown and CSV in the output folder. Give members [{ name, from, to, od, wall }] in mm, from and to on the centre line. Or give bodies: straight round tube bodies, modelled node to node. An end meets a tube whose centre line is within its outside radius plus tol (1 mm by default). ends { tube: { from, to } } says it: the name of the tube it meets, or \"square\". Each tube gets od, wall, centreLength and cutLength. cutLength is between the long points of the copes. Each coped end gets meets, includedAngle, notcherAngle (0 for a square joint) and copeDepth. phase is the turn of the to-end cope from the from-end cope about the tube's axis, 0 to 180 degrees. The answer holds: tubes, stock (cut length by od x wall), files { markdown, csv }, warnings, note. Copes are against the receiving tube's outside diameter. The tool does not change the document.",
+   "card": {
+    "does": "Writes a cut list for a weldment of round tubes, as markdown and CSV in the output folder.",
+    "inputNotes": {
+     "members": {
+      "means": "The tubes: [{ name, from: [x, y, z], to: [x, y, z], od, wall, ends? }], from and to on the centre line",
+      "unit": "mm"
+     },
+     "bodies": {
+      "means": "Straight round tube bodies, modelled node to node, by name"
+     },
+     "ends": {
+      "means": "{ tube: { from, to } }: the tube each end meets (by name), or \"square\"",
+      "forms": [
+       "{ tube name: { from, to } }",
+       "\"square\""
+      ]
+     },
+     "tol": {
+      "means": "How far off a tube's outside an end can be and still meet it",
+      "unit": "mm",
+      "default": 1
+     },
+     "name": {
+      "means": "The file name without extension",
+      "default": "tube-cut-list"
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "members",
+       "bodies"
+      ],
+      "rel": "excludes",
+      "line": "Give members, or bodies"
+     }
+    ],
+    "effects": [
+     "An end meets a tube whose centre line is within its outside radius plus tol",
+     "Each tube gets od, wall, centreLength and cutLength",
+     "cutLength is between the long points of the copes",
+     "Each coped end gets meets, includedAngle, notcherAngle (0 for a square joint) and copeDepth",
+     "phase is the turn of the to-end cope from the from-end cope about the tube's axis, 0 to 180 degrees",
+     "Copes are against the receiving tube's outside diameter",
+     "The tool does not change the document",
+     "Lengths in mm on the centre lines given. Cut length is between the long points of the copes; add the saw's kerf and a trim allowance."
+    ],
+    "returns": {
+     "tubes": {
+      "means": "The tubes"
+     },
+     "stock": {
+      "means": "Cut length by od x wall"
+     },
+     "files": {
+      "means": "markdown, csv"
+     },
+     "warnings": {
+      "means": "Warnings"
+     },
+     "note": {
+      "means": "A note"
+     }
+    }
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -1198,27 +3945,22 @@
       "type": "array",
       "items": {
        "type": "object"
-      },
-      "description": "The tubes: [{ name, from: [x, y, z], to: [x, y, z], od, wall, ends? }], mm."
+      }
      },
      "bodies": {
       "type": "array",
       "items": {
        "type": "string"
-      },
-      "description": "Straight round tube bodies, by name."
+      }
      },
      "ends": {
-      "type": "object",
-      "description": "{ tube name: { from, to } }: the tube each end meets, or \"square\"."
+      "type": "object"
      },
      "tol": {
-      "type": "number",
-      "description": "How far off a tube's outside an end can be and still meet it, mm (1)."
+      "type": "number"
      },
      "name": {
-      "type": "string",
-      "description": "The file name without extension (tube-cut-list)."
+      "type": "string"
      },
      "title": {
       "type": "string"
@@ -1234,13 +3976,109 @@
   },
   "mill_check": {
    "group": "mill",
-   "description": "Check if a body in a mill setup can be milled. It finds faces that no tool direction reaches (undercuts, named), and faces past the reach of the tool. It finds inside corners tighter than the least tool can leave. It finds holes and pockets past the reach, or over 4 times as deep as wide. It finds walls too thin for the material, and it checks the stock. directions: the sides the tool comes from (\"+z\", \"-x\" …). Left out, directions are the axes of the setup (\"3\": +z only; \"3+2\": all six). tool: the diameter of the least end mill, mm (the minTool of the setup, else 3). reach: mm (5 x tool or 20). material: aluminium, steel, stainless, brass, copper, titanium, plastic, pom, wood (aluminium when left out). stock: [x, y, z] mm as the part stands. Left out, stock is the box of the part + 2 mm a side and 1 mm top and bottom. Refused: the body is in no mill setup (setup add { type: \"mill\" } first). The answer holds: body, verdict (fix | pass with warnings | pass), directions, tool, reach, material, stock, findings [{ rule, severity, says, faces }] (the first 10), leastWall, setup, grade, assumed. assumed: every value that the setup or the call left out, in words. Trap: a face on the outside of the stock counts as the stock's own. Faces are sampled, so a small undercut between samples can be missed. Face names change after any edit. Changes nothing; heavy on bodies with many faces.",
+   "card": {
+    "does": "Checks if a body in a mill setup can be milled.",
+    "inputNotes": {
+     "body": {
+      "means": "A body's name; may be left out when there is one"
+     },
+     "directions": {
+      "means": "The sides the tool comes from (\"+z\", \"-x\" ...); by default the setup's axes: 3 is +z only, 3+2 all six",
+      "forms": [
+       "+z",
+       "-x"
+      ]
+     },
+     "tool": {
+      "means": "The diameter of the least end mill (the minTool of the setup, else 3)",
+      "unit": "mm"
+     },
+     "reach": {
+      "means": "How deep the tool reaches (5 x tool or 20)",
+      "unit": "mm"
+     },
+     "material": {
+      "means": "The material (aluminium when left out)",
+      "values": [
+       "aluminium",
+       "aluminum",
+       "steel",
+       "stainless",
+       "brass",
+       "copper",
+       "titanium",
+       "plastic",
+       "pom",
+       "wood"
+      ],
+      "default": "aluminium"
+     },
+     "stock": {
+      "means": "[x, y, z] as the part stands; left out, the box of the part + 2 mm a side and 1 mm top and bottom",
+      "unit": "mm"
+     }
+    },
+    "effects": [
+     "It finds faces that no tool direction reaches (undercuts, named), and faces past the reach of the tool",
+     "It finds inside corners tighter than the least tool can leave",
+     "It finds holes and pockets past the reach, or over 4 times as deep as wide",
+     "It finds walls too thin for the material, and it checks the stock",
+     "A face on the outside of the stock counts as the stock's own",
+     "Faces are sampled, so a small undercut between samples can be missed",
+     "Face names change after any edit",
+     "Changes nothing; heavy on bodies with many faces",
+     "Least features are rules of thumb for the machine, material and tools; the shop's own figures win. A new CAM Job with the stock and least tool used here is made when camJob is asked for; add its operations in CAM."
+    ],
+    "returns": {
+     "body": {
+      "means": "The body"
+     },
+     "verdict": {
+      "means": "fix | pass with warnings | pass"
+     },
+     "directions": {
+      "means": "The directions"
+     },
+     "tool": {
+      "means": "The tool"
+     },
+     "reach": {
+      "means": "The reach"
+     },
+     "material": {
+      "means": "The material"
+     },
+     "stock": {
+      "means": "The stock"
+     },
+     "findings": {
+      "means": "[{ rule, severity, says, faces }] (the first 10)"
+     },
+     "leastWall": {
+      "means": "The least wall"
+     },
+     "setup": {
+      "means": "The setup"
+     },
+     "grade": {
+      "means": "The grade"
+     },
+     "assumed": {
+      "means": "Every value that the setup or the call left out, in words"
+     }
+    },
+    "refusalNotes": [
+     "Refused: the body is in no mill setup (setup add { type: \"mill\" } first)"
+    ],
+    "hints": [
+     "Inside corner tighter than the least tool: round it a little over the tool's radius, or EDM it. Small hole: drill or ream it. Deep hole or pocket: drill it, or make it shallower or wider. Thin wall: thicken it. Stock too small: turn the stock or the part when fitsTurned, else bigger stock."
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
      "body": {
-      "type": "string",
-      "description": "A body's name; may be left out when there is one."
+      "type": "string"
      },
      "directions": {
       "type": "array",
@@ -1254,27 +4092,22 @@
         "+z",
         "-z"
        ]
-      },
-      "description": "Sides the tool comes from; by default the setup's axes: 3 is +z, 3+2 all six."
+      }
      },
      "tool": {
-      "type": "number",
-      "description": "The least end mill's diameter, mm (the setup's minTool)."
+      "type": "number"
      },
      "reach": {
-      "type": "number",
-      "description": "How deep the tool reaches, mm."
+      "type": "number"
      },
      "material": {
-      "type": "string",
-      "description": "aluminium, aluminum, steel, stainless, brass, copper, titanium, plastic, pom, wood"
+      "type": "string"
      },
      "stock": {
       "type": "array",
       "items": {
        "type": "number"
-      },
-      "description": "[x, y, z] mm, as the part stands."
+      }
      }
     },
     "required": [],
@@ -1287,13 +4120,135 @@
   },
   "mill_export": {
    "group": "mill",
-   "description": "Write the STEP file of a milled body and its setup sheet to the folder of the session. The STEP file is read back and compared. It takes the inputs of mill_check (directions, tool, reach, material, stock) and runs that check first. name: the base name of the files. cam: true (the default) uses FreeCAD's CAM. A CAM Job that already holds the body is used again as it is. Else a NEW Job is added to the document, with a box stock and the least tool used here. This changes the document: a Job, its stock, model clone and tool controller, in one undo step. CAM's own Sanity report (HTML) is then the setup sheet. Make's mill check is added to it (verdict, findings, least wall, what was assumed). A new Job has no operations: add them with the cam_ tools. The window is left as it was. CAM's Sanity report hides every object to take its pictures, and puts back only part of them. So each object of the document is shown or hidden again as before the call. camJob.shownAgain: how many were put back. The box stock and tool model of a new Job are hidden, as CAM's own Job leaves them. The stock shows with CAM's job tools. cam: false, or a CAM failure, writes Make's own Markdown sheet instead, and camNote says why. Nothing is then added to the document. Refused: the body is in no mill setup. The answer holds: body, verdict, step { path, bytes, volumeDiff, solids }, findings (how many), setupSheet { path, bytes, by }, camJob { label, reused, note, shownAgain }, camNote. volumeDiff: mm³ between the STEP read back and the body. The answer of a changing call can also hold health { ok, verdict, todo } from the shared check.",
+   "card": {
+    "does": "Writes the STEP file of a milled body and its setup sheet to the folder of the session.",
+    "inputNotes": {
+     "body": {
+      "means": "A body's name; may be left out when there is one"
+     },
+     "directions": {
+      "means": "Sides the tool comes from; by default the setup's axes: 3 is +z, 3+2 all six"
+     },
+     "tool": {
+      "means": "The least end mill's diameter (the setup's minTool)",
+      "unit": "mm"
+     },
+     "reach": {
+      "means": "How deep the tool reaches",
+      "unit": "mm"
+     },
+     "material": {
+      "means": "The material: aluminium, aluminum, steel, stainless, brass, copper, titanium, plastic, pom, wood",
+      "values": [
+       "aluminium",
+       "aluminum",
+       "steel",
+       "stainless",
+       "brass",
+       "copper",
+       "titanium",
+       "plastic",
+       "pom",
+       "wood"
+      ]
+     },
+     "stock": {
+      "means": "[x, y, z] as the part stands",
+      "unit": "mm"
+     },
+     "name": {
+      "means": "The base name of the files"
+     },
+     "cam": {
+      "means": "Use FreeCAD's CAM for the Job and setup sheet (true by default)",
+      "default": true
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "directions",
+       "tool",
+       "reach",
+       "material",
+       "stock"
+      ],
+      "rel": "with",
+      "line": "It takes the inputs of mill_check and runs that check first"
+     },
+     {
+      "inputs": [
+       "cam",
+       "name"
+      ],
+      "rel": "with",
+      "line": "cam: false, or a CAM failure, writes Make's own Markdown sheet instead"
+     }
+    ],
+    "effects": [
+     "The STEP file is read back and compared",
+     "It runs the mill_check first",
+     "A CAM Job that already holds the body is used again as it is",
+     "Else a NEW Job is added to the document, with a box stock and the least tool used here",
+     "This changes the document: a Job, its stock, model clone and tool controller, in one undo step",
+     "CAM's own Sanity report (HTML) is then the setup sheet",
+     "Make's mill check is added to the sheet (verdict, findings, least wall, what was assumed)",
+     "A new Job has no operations",
+     "The window is left as it was",
+     "CAM's Sanity report hides every object to take its pictures, and puts back only part of them",
+     "Each object of the document is shown or hidden again as before the call",
+     "The box stock and tool model of a new Job are hidden, as CAM's own Job leaves them",
+     "The stock shows with CAM's job tools",
+     "With cam: false, or a CAM failure, Make's own Markdown sheet is written instead, and camNote says why",
+     "Then nothing is added to the document",
+     "The answer of a changing call can also hold health from the shared check",
+     "Setup sheet reads FreeCAD CAM Sanity report and Workshop Make; the CAM job is the FreeCAD CAM job."
+    ],
+    "returns": {
+     "body": {
+      "means": "The body"
+     },
+     "verdict": {
+      "means": "The mill check verdict"
+     },
+     "step": {
+      "means": "path, bytes, volumeDiff, solids"
+     },
+     "volumeDiff": {
+      "means": "Volume between the STEP read back and the body",
+      "unit": "mm³"
+     },
+     "findings": {
+      "means": "How many"
+     },
+     "setupSheet": {
+      "means": "path, bytes, by"
+     },
+     "camJob": {
+      "means": "label, reused, note, shownAgain"
+     },
+     "shownAgain": {
+      "means": "How many objects were put back"
+     },
+     "camNote": {
+      "means": "Why Make's own sheet was written"
+     },
+     "health": {
+      "means": "the shared health check after the call: { recompute, fault, shapes, sketches, measured, window, addons }, or \"nothing new\""
+     }
+    },
+    "refusalNotes": [
+     "Refused: the body is in no mill setup"
+    ],
+    "hints": [
+     "Add operations to a new Job with the cam_ tools"
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {
      "body": {
-      "type": "string",
-      "description": "A body's name; may be left out when there is one."
+      "type": "string"
      },
      "directions": {
       "type": "array",
@@ -1307,34 +4262,28 @@
         "+z",
         "-z"
        ]
-      },
-      "description": "Sides the tool comes from; by default the setup's axes: 3 is +z, 3+2 all six."
+      }
      },
      "tool": {
-      "type": "number",
-      "description": "The least end mill's diameter, mm (the setup's minTool)."
+      "type": "number"
      },
      "reach": {
-      "type": "number",
-      "description": "How deep the tool reaches, mm."
+      "type": "number"
      },
      "material": {
-      "type": "string",
-      "description": "aluminium, aluminum, steel, stainless, brass, copper, titanium, plastic, pom, wood"
+      "type": "string"
      },
      "stock": {
       "type": "array",
       "items": {
        "type": "number"
-      },
-      "description": "[x, y, z] mm, as the part stands."
+      }
      },
      "name": {
       "type": "string"
      },
      "cam": {
-      "type": "boolean",
-      "description": "Use FreeCAD's CAM for the Job and setup sheet (true by default)."
+      "type": "boolean"
      }
     },
     "required": [],
@@ -1353,7 +4302,174 @@
   },
   "fea_frame": {
    "group": "strength",
-   "description": "Solve a frame of straight members with beam elements (CalculiX B32): beams, rafters, portal frames, trusses, shelving. It is a sizing look, not a sign-off. Joints are rigid, and connections are not designed. members [{ name, from [x, y, z], to [x, y, z] mm, section { kind rect (b, d) | circ (d) | pipe (d, t) | box (b, d, t) } mm (d: the diameter or depth, never a radius), material }]. Or bodies [labels]: box-like members. Their centre line, width and depth are read from their shape (rect sections). For an upright member, the larger of the two cross sizes is taken as depth. material: an id from material_list for all members, or per member. It must have a Young's modulus. supports (required) [{ at [x, y, z] a member's end, kind pinned | fixed | roller }]. at must be within tolerance mm of an end (1, or the largest section size with bodies). loads [{ member, w: N/mm downward (or [wx, wy, wz]) } | { member, kPa, width mm (1000) } | { at [x, y, z] a joint, force [fx, fy, fz] N }]. gravity: true adds own weight (−z). elements: per member (8). deflectionLimit (for example 360) judges span over deflection. timeout: s (300). name: the name of the folder of the study. Refused: CalculiX (ccx) not found; set its path in FEM's preferences or AGENTLINK_CCX. Refused: no members, or no supports. Refused: an unknown section kind or material. Refused: a member end that is not [x, y, z]. It runs as a job: seconds for a small frame; job_status finishes a longer one. Changes nothing in the document: the input deck and results are files in the folder of the session. The answer holds { members, supports [{ at, kind, reactionN }], loadTotalN, loadN, reactionsNote, files, worst, verdict, bodies, elements, note }. loadN: its size, one number. files: the folder of the study. worst: the member with the least safety. members [{ member, length, axialBendingMPa [min, max], vonMisesMPa, stressFrom, sectionForces, solidNodesMPa, safety, deflectionMm, spanOverDeflection, deflectionOk, movesMm }]. safety: yield over von Mises, where the material has a yield. yieldMPa: a yield for all members (or on a member) when the card has none (yieldNote says which). deflectionMm: across the member, from the line between its ends. The stresses come from the section forces of the beams (stressFrom: section forces). The tool solves the beams again for them. sectionForces gives the worst section: atMm from the member's start, axialN, shearN, torqueNmm, momentNmm. axialBendingMPa is N/A ± M/W at the outer fibre. vonMisesMPa adds the torsion shear there, or the shear at the neutral axis, whichever is larger. solidNodesMPa gives the expanded solids' readings for comparison. They are low on a round section, because its nodes are not on the outer fibre. reactionsNote: when CalculiX reads the reactions short of the load. verdict: a few words (\"least safety 2.4, Rafter\", or below 1 \"past yield: safety 0.8, Post\"). Where no material gives a yield, verdict gives the largest stress. bodies: the labels of the bodies it was made from, when given. More: guide_read { topic: \"frame\" }.",
+   "card": {
+    "does": "Solves a frame of straight members with beam elements (CalculiX B32): beams, rafters, portal frames, trusses, shelving.",
+    "inputNotes": {
+     "members": {
+      "means": "[{ name, from [x, y, z], to [x, y, z] mm, section { kind rect (b, d) | circ (d) | pipe (d, t) | box (b, d, t) } mm (d: the diameter or depth, never a radius), material }]",
+      "unit": "mm"
+     },
+     "bodies": {
+      "means": "Labels of box-like bodies; their centre line, width and depth are read from their shape (rect sections)"
+     },
+     "material": {
+      "means": "An id from material_list for all members, or per member; it must have a Young's modulus"
+     },
+     "supports": {
+      "means": "Required: [{ at [x, y, z] a member's end, kind pinned | fixed | roller }]; at must be within tolerance of an end",
+      "forms": [
+       "{ at: [x, y, z], kind: pinned|fixed|roller }"
+      ]
+     },
+     "loads": {
+      "means": "[{ member, w: N/mm downward (or [wx, wy, wz]) } | { member, kPa, width mm (1000) } | { at [x, y, z] a joint, force [fx, fy, fz] N }]",
+      "forms": [
+       "{ member, w }",
+       "{ member, kPa, width }",
+       "{ at, force }"
+      ]
+     },
+     "gravity": {
+      "means": "true adds own weight (−z)",
+      "values": [
+       true
+      ]
+     },
+     "deflectionLimit": {
+      "means": "For example 360: judges span over deflection"
+     },
+     "tolerance": {
+      "means": "How far a support may be from an end (1, or the largest section size with bodies)",
+      "unit": "mm",
+      "default": 1
+     },
+     "elements": {
+      "means": "Per member",
+      "default": 8
+     },
+     "name": {
+      "means": "The name of the folder of the study"
+     },
+     "timeout": {
+      "means": "Seconds the solve may take",
+      "unit": "s",
+      "default": 300
+     },
+     "yieldMPa": {
+      "means": "A yield for all members (or on a member) when the card has none (yieldNote says which)",
+      "unit": "MPa"
+     }
+    },
+    "links": [
+     {
+      "inputs": [
+       "members",
+       "bodies"
+      ],
+      "rel": "excludes",
+      "line": "Give members, or bodies"
+     },
+     {
+      "inputs": [
+       "supports",
+       "tolerance"
+      ],
+      "rel": "with",
+      "line": "at must be within tolerance mm of an end"
+     },
+     {
+      "inputs": [
+       "yieldMPa",
+       "material"
+      ],
+      "rel": "with",
+      "line": "yieldMPa is for when the card of the material has none"
+     }
+    ],
+    "effects": [
+     "It is a sizing look, not a sign-off",
+     "Joints are rigid, and connections are not designed",
+     "For an upright member, the larger of the two cross sizes is taken as depth",
+     "It runs as a job: seconds for a small frame; job_status finishes a longer one",
+     "Changes nothing in the document: the input deck and results are files in the folder of the session",
+     "The stresses come from the section forces of the beams (stressFrom: section forces)",
+     "The tool solves the beams again for the section forces",
+     "axialBendingMPa is N/A ± M/W at the outer fibre",
+     "vonMisesMPa adds the torsion shear there, or the shear at the neutral axis, whichever is larger",
+     "solidNodesMPa gives the expanded solids' readings for comparison",
+     "The solid node readings are low on a round section, because its nodes are not on the outer fibre",
+     "Where no material gives a yield, verdict gives the largest stress",
+     "Joints between members are rigid; pinned and roller supports are held about the member's own axis. A frame model is a sizing look, not the connection design. A member with noYield has no yield figure; yieldFrom says where one came from (member, call, card)."
+    ],
+    "returns": {
+     "members": {
+      "means": "[{ member, length, axialBendingMPa [min, max], vonMisesMPa, stressFrom, sectionForces, solidNodesMPa, safety, deflectionMm, spanOverDeflection, deflectionOk, movesMm }]"
+     },
+     "supports": {
+      "means": "[{ at, kind, reactionN }]"
+     },
+     "loadTotalN": {
+      "means": "Total load",
+      "unit": "N"
+     },
+     "loadN": {
+      "means": "Its size, one number",
+      "unit": "N"
+     },
+     "reactionsNote": {
+      "means": "When CalculiX reads the reactions short of the load"
+     },
+     "files": {
+      "means": "The folder of the study"
+     },
+     "worst": {
+      "means": "The member with the least safety"
+     },
+     "verdict": {
+      "means": "A few words (\"least safety 2.4, Rafter\", or below 1 \"past yield: safety 0.8, Post\")"
+     },
+     "bodies": {
+      "means": "The labels of the bodies it was made from, when given"
+     },
+     "elements": {
+      "means": "Elements"
+     },
+     "note": {
+      "means": "A note"
+     },
+     "sectionForces": {
+      "means": "The worst section: atMm from the member's start, axialN, shearN, torqueNmm, momentNmm"
+     },
+     "safety": {
+      "means": "Yield over von Mises, where the material has a yield"
+     },
+     "deflectionMm": {
+      "means": "Across the member, from the line between its ends",
+      "unit": "mm"
+     },
+     "yieldNote": {
+      "means": "Which yield was used"
+     },
+     "stressFrom": {
+      "means": "section forces"
+     },
+     "reactionsShort": {
+      "means": "{sumN, loadN}: the reactions sum short of the load"
+     },
+     "results": {
+      "means": "false: no results found along a member"
+     }
+    },
+    "refusalNotes": [
+     "Refused: CalculiX (ccx) not found; set its path in FEM's preferences or AGENTLINK_CCX",
+     "Refused: no members, or no supports",
+     "Refused: an unknown section kind or material",
+     "Refused: a member end that is not [x, y, z]"
+    ],
+    "hints": [
+     "More: guide_read { topic: \"frame\" }"
+    ]
+   },
    "inputSchema": {
     "type": "object",
     "properties": {

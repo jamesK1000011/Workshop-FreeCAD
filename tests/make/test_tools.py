@@ -49,7 +49,7 @@ class Tools(unittest.TestCase):
         err, made = self.call("gen_make", {"params": BRIEF, "name": "Bin"})
         self.assertFalse(err, made)
         self.assertEqual(made["bodies"], ["Bin"])
-        self.assertIn("8 6x2 magnets", made["encased"]["what"])
+        self.assertEqual((8, "6x2 magnets"), (made["encased"]["count"], made["encased"]["what"]))
         err, c = self.call("body_check", {"body": "Bin"})
         self.assertTrue(c["valid"] and c["closed"] and c["solids"] == 1, c)
         self.assertEqual(c["narrow"], [], "no sliver faces")
@@ -76,11 +76,11 @@ class Tools(unittest.TestCase):
         self.assertEqual(r["process"], "printed")
         print("\nreview:", json.dumps(r["findings"]), "\nfigures:", json.dumps(r["figures"]), "\nprinting:", json.dumps(r.get("printing")))
         self.assertEqual(r["printing"]["pauses"][0]["afterLayer"], 12)
-        lip = [f for f in r["findings"] if "thin-wall" in f["says"] and f["at"][2] >= 28]
+        lip = [f for f in r["findings"] if f["rule"] == "thin-wall" and f["at"][2] >= 28]
         self.assertTrue(lip, "the lip's thin top is found")
         err, r2 = self.call("part_review", {"body": "Bin", "waive": [{"rule": "thin-wall", "at": f["at"], "reason": "stacking lip"} for f in lip]})
         print("waived:", json.dumps(r2["findings"]), r2["verdict"])
-        self.assertFalse(any("thin-wall" in f["says"] and f["at"][2] >= 28 for f in r2["findings"]))
+        self.assertFalse(any(f["rule"] == "thin-wall" and f["at"][2] >= 28 for f in r2["findings"]))
         # The waivers are kept: a check now says them waived.
         err, d = self.call("dfm_check", {"body": "Bin"})
         self.assertTrue(any(f.get("waived") for f in d["findings"]), d["findings"])

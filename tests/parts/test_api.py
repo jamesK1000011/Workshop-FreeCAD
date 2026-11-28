@@ -49,7 +49,7 @@ class Api(unittest.TestCase):
 
         out = api.make(self.doc, "project_box", {"length": 80, "width": 50, "height": 30}, name="Case")
         self.assertEqual(out["bodies"], ["Case", "Case lid"])
-        self.assertTrue(out["printerFit"].startswith("none, so holes"), out["printerFit"])
+        self.assertEqual(out["printerFit"], "none")
 
     def test_refusals_say_the_range(self):
         from workshop_parts.refusal import Refused

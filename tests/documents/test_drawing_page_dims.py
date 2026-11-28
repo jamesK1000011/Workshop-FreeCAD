@@ -75,7 +75,7 @@ class Broken(View):
 made[1] = ("top", Broken("Top", top.circles))
 done, missed = D._page_dims(doc, page, made, drawn, specs)
 OUT["done"] = [d["item"] for d in done]
-OUT["missed"] = [(m["view"], m["item"], m["why"]) for m in missed]
+OUT["missed"] = [(m["view"], m["item"], m["error"]) for m in missed]
 ''')
         self.assertEqual(out["done"], ["⌀21", "2× ⌀8 ⌴⌀13 ↧9"])
         self.assertEqual([m[:2] for m in out["missed"]], [["top", "4× ⌀6"], ["top", "⌀28"]])
@@ -89,7 +89,7 @@ D._wait_views = lambda vs: None
 D._template = lambda paper: (None, False)
 D.sheets.PAPER = {"A3": (420, 297)}
 D.sheets.extent_dims = lambda boxes, axes, ext: [("front", "z", (0, 0), (0, 47), 10, 47.0)]
-D._extent_dim = lambda doc, page, v, horizontal, mm: {"why": f"TechDraw measured 45 between the view's extreme vertices, not {mm:g}: left off"}
+D._extent_dim = lambda doc, page, v, horizontal, mm: {"why": "measuredOther", "measured": 45, "wanted": mm, "tried": 1}
 D.views.VIEWS = {"front": ((0, -1, 0), (1, 0, 0)), "top": ((0, 0, 1), (1, 0, 0))}
 D._page_dims = lambda *a, **k: [][ "front"]
 class FakeDoc:
@@ -103,7 +103,7 @@ OUT["res"] = res
         res = out["res"]
         self.assertIsInstance(res, dict)
         why = [m["why"] for m in res["notOnPage"]]
-        self.assertIn("not 47", why[0])  # the overall size's own reason kept
+        self.assertEqual("measuredOther", why[0])  # the overall size's own reason kept
         self.assertEqual(len(why), 1 + 4)  # and every callout named after it
         self.assertEqual(res["notOnPage"][2]["item"], "2× ⌀8 ⌴⌀13 ↧9")
         self.assertEqual(res["dimensions"], [])
@@ -167,11 +167,11 @@ got = D._extent_dim(doc, page, View(verts, []), False, 47)
 OUT["got"] = got.get("measured")
 OUT["removed"] = len(removed)
 bad = D._extent_dim(doc, page, View(verts, []), False, 60)
-OUT["bad"] = bad["why"]
+OUT["bad"] = bad["why"] + str(bad["wanted"])
 """)
         self.assertEqual(out["got"], 47)
         self.assertEqual(out["removed"], 1)  # the extremes tried, measured 54.68, taken off
-        self.assertIn("not 60", out["bad"])
+        self.assertIn("60", out["bad"])
 
     CIRC = PAGE + r"""
 # The front view as TechDraw holds it: centred on the part's bounding box
@@ -209,11 +209,11 @@ del front.projectPoint
 sp_ = hsp("2× ⌀8", holes3["2× ⌀8"]); sp_.pop("centre3")
 sp2 = {**hsp("⌀9", holes3["2× ⌀8"]), "radius": 4.5, "value": 9.0}; sp2.pop("centre3")
 done, missed = D._page_dims(doc, page, made, drawn, [sp_, sp2])
-OUT["done"] = [(d["item"], d["measured"], d.get("warning", "")) for d in done]
+OUT["done"] = [(d["item"], d["measured"], d.get("placedOn", "")) for d in done]
 OUT["missed"] = [m["item"] for m in missed]
 """)
         self.assertEqual([d[:2] for d in out["done"]], [["2× ⌀8", 8.0]])
-        self.assertIn("check it is the hole meant", out["done"][0][2])
+        self.assertEqual("nearestCircle", out["done"][0][2])
         self.assertEqual(out["missed"], ["⌀9"])  # no circle of that size: still left off, said
 
 

@@ -35,7 +35,7 @@ class ListLimit(unittest.TestCase):
         self.assertEqual(len(r["documents"]), 10)
         self.assertEqual(r["documents"][0]["document"], "Part000")
         self.assertEqual(r["total"], 120)
-        self.assertIn("110 more", r["more"])
+        self.assertEqual(110, r["more"])
         self.assertNotIn("matched", r)
 
     def test_limit_and_zero_for_all(self):

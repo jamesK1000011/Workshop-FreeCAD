@@ -113,7 +113,7 @@ def baseplate_shape(p, cal):
                     cutters.append(tool)
         if sizes["depth"] > fl - 0.4:
             raise ValueError(f"floor: at least {sizes['depth'] + 0.4:.1f} mm, so 0.4 mm stays under the magnet holes ({sizes['depth']} mm deep).")
-        magnets = {"count": 4 * len(centres), "hole": sizes["hole"], "depth": sizes["depth"], "what": "6x2 magnets, pressed in from above"}
+        magnets = {"count": 4 * len(centres), "hole": sizes["hole"], "depth": sizes["depth"], "what": "6x2 magnets"}
     shape = g.cut_all(plate, cutters)
     return shape, {"pockets": len(centres), "height": round(H, 3), "magnets": magnets}
 
@@ -219,7 +219,7 @@ def project_box(p, cal):
         info["bosses"] = {"screw": p["screw"], "at": [[round(x, 3), round(y, 3)] for (x, y) in at], "boss": round(2 * br, 3), "pilot": round(pilot, 3), "pilotDepth": round(depth, 3), "lidHole": round(clear, 3)}
     box = g.cut_all(g.prism(0, 0, L, D, r, 0, H), [cavity] + pilots)
     lid = lid_shape(L, D, r, w, p["lid"], p["lip"], p["clearance"], notches, lid_holes, at=(L + p["gap"], 0.0))
-    info["lid"] = {"plate": p["lid"], "lip": p["lip"], "clearance": p["clearance"], "at": [L + p["gap"], 0.0], "note": "Printed top down; turn it over about X to put it on."}
+    info["lid"] = {"plate": p["lid"], "lip": p["lip"], "clearance": p["clearance"], "at": [L + p["gap"], 0.0]}
     return box, lid, info
 
 
@@ -326,11 +326,11 @@ def board_box(p, cal):
                 raise ValueError(f"openings.{i}: runs into the corner — at and width keep it inside the {side} wall.")
             xs = (-L / 2 - 1, -iw / 2 + 1) if side == "left" else (iw / 2 - 1, L / 2 + 1)
             cuts.append(Part.makeBox(xs[1] - xs[0], hi - lo, z1 - z0, V(xs[0], lo, z0)))
-        opened.append({"side": side, "from": round(lo, 3), "to": round(hi, 3), "z": [round(z0, 3), round(min(z1, H), 3)], **({"note": "open at the rim"} if z1 > H else {})})
+        opened.append({"side": side, "from": round(lo, 3), "to": round(hi, 3), "z": [round(z0, 3), round(min(z1, H), 3)], **({"openAtRim": True} if z1 > H else {})})
     if cuts:
         box = g.cut_all(box, cuts)
     if opened:
         info["openings"] = opened
     lid = lid_shape(L, D, r, w, p["lid"], p["lip"], p["clearance"], at=(L + p["gapLid"], 0.0))
-    info["lid"] = {"plate": p["lid"], "lip": p["lip"], "clearance": p["clearance"], "at": [round(L + p["gapLid"], 3), 0.0], "note": "Printed top down; turn it over about X to put it on."}
+    info["lid"] = {"plate": p["lid"], "lip": p["lip"], "clearance": p["clearance"], "at": [round(L + p["gapLid"], 3), 0.0]}
     return box, lid, info

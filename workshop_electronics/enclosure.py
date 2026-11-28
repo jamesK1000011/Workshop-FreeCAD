@@ -199,11 +199,11 @@ def board_box(p, cal):
                 raise ValueError(f"openings.{i}: runs into the corner — at and width keep it inside the {side} wall.")
             xs = (-L / 2 - 1, -iw / 2 + 1) if side == "left" else (iw / 2 - 1, L / 2 + 1)
             cuts.append(Part.makeBox(xs[1] - xs[0], hi - lo, z1 - z0, V(xs[0], lo, z0)))
-        opened.append({"side": side, "from": round(lo, 3), "to": round(hi, 3), "z": [round(z0, 3), round(min(z1, H), 3)], **({"note": "open at the rim"} if z1 > H else {})})
+        opened.append({"side": side, "from": round(lo, 3), "to": round(hi, 3), "z": [round(z0, 3), round(min(z1, H), 3)], **({"openAtRim": True} if z1 > H else {})})
     if cuts:
         box = g.cut_all(box, cuts)
     if opened:
         info["openings"] = opened
     lid = lid_shape(L, D, r, w, p["lid"], p["lip"], p["clearance"], at=(L + p["gapLid"], 0.0))
-    info["lid"] = {"plate": p["lid"], "lip": p["lip"], "clearance": p["clearance"], "at": [round(L + p["gapLid"], 3), 0.0], "note": "Printed top down; turn it over about X to put it on."}
+    info["lid"] = {"plate": p["lid"], "lip": p["lip"], "clearance": p["clearance"], "at": [round(L + p["gapLid"], 3), 0.0]}
     return box, lid, info

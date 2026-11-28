@@ -146,9 +146,9 @@ def own_pack(s, a):
     if warnings:
         out["warnings"] = warnings
     if unsound:
-        out["unsound"] = {"bodies": unsound, "note": "body_check says these are not sound: fix them before sharing."}
+        out["unsound"] = {"bodies": unsound, "from": "body_check"}
     if leaks:
-        out["personal"] = {"files": sorted(set(leaks)), "note": "A path or user name is still in these files' first lines: check them before sharing."}
+        out["personal"] = {"files": sorted(set(leaks)), "in": "firstLines"}
     return out
 
 

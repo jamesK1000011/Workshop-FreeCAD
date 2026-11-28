@@ -6,6 +6,8 @@ agent (it may name tools and their arguments), so that part is dropped
 here and the menu path said instead. Pure Python, no FreeCAD, no Qt."""
 import re
 
+from workshop_make import finding_words as fw
+
 _NO_SETUP = re.compile(r"^(?P<body>.+?) is in no print setup\b")
 # A part of an agent-facing message: tool syntax ({ … }) or a tool's name.
 _AGENT = re.compile(r"[{}]|\b[a-z]+_[a-z_]+\b|\bsetup (add|set|remove)\b")
@@ -80,6 +82,59 @@ def volume(v):
     return f"{v:.1f} mm³" if abs(v) < 1000 else f"{v / 1000:.1f} cm³"
 
 
+def basis_says(v):
+    """The "as" record of a mass figure (how it was found) in a line, for a
+    person: "solid", "printed: 2 walls, …", "sliced by …"."""
+    if not isinstance(v, dict):
+        return str(v or "")
+    b = v.get("basis")
+    if b == "solid":
+        return "solid"
+    if b == "sliced":
+        parts = [f"sliced by {v.get('slicer') or 'the slicer'}: {v.get('grams')} g"]
+        if v.get("partOnly"):
+            parts.append("the part only")
+            if v.get("supportGrams"):
+                parts.append(f"supports {v['supportGrams']} g more")
+            if v.get("otherGrams"):
+                parts.append(f"prime tower and flush {v['otherGrams']} g more")
+        else:
+            parts.append("all the G-code's filament, brim and supports included")
+        text = ", ".join(parts)
+        if v.get("estimateGrams") is not None:
+            text += f"; the estimate from walls and infill was {v['estimateGrams']:.1f} g"
+        return text
+    walls, top, bottom = v.get("walls"), v.get("topLayers"), v.get("bottomLayers")
+    if v.get("layerHeight") is not None:
+        text = (f"printed: {walls} walls, {top} top and {bottom} bottom layers of {v['layerHeight']} mm, {v.get('infillPct'):.0f}% infill — "
+                f"{v.get('solidPct'):.0f}% of the solid, from {v.get('read') or 'nothing read: taken as solid'} "
+                "(an estimate; the slicer's figure is the authority)")
+    else:
+        text = (f"printed: {walls} walls, {top} top and {bottom} bottom layers, {v.get('infillPct'):.0f}% infill "
+                "(an estimate; the shells' mass on the surface)")
+    if v.get("calibratedScale") is not None:
+        text += f"; calibrated ×{v['calibratedScale']:.3f} to a weighed print of {v.get('weighedBody')} ({v.get('weighedGrams')} g)"
+    return text
+
+
+def unjudged_says(u):
+    """One "unjudged" record in words."""
+    if not isinstance(u, dict):
+        return str(u).split(":", 1)[-1].strip()
+    r = u.get("reason")
+    if r == "noWallReading":
+        return "no wall reading"
+    if r == "waived":
+        return f"the least wall is waived, and the check reads walls only under {u.get('readsUnder')} mm"
+    if r == "stale":
+        return "stale — the body changed since the solve; fea_solve again"
+    if r == "nothingSolved":
+        return "nothing solved"
+    if r == "noSheet":
+        return "give sheet [w, h] mm (or set the cut setup's sheet) to check it fits"
+    return str(r)
+
+
 def figures_line(fig):
     """Part review's figures as the panel's footer line, each with its unit
     and the material by its display name: "Volume 24.0 cm³ · Mass 9.6 g ·
@@ -99,7 +154,7 @@ def figures_line(fig):
     if "safety" in fig:
         bits.append(f"Safety factor {_g(fig['safety'])}")
     if fig.get("as"):
-        a = str(fig["as"])
+        a = basis_says(fig["as"])
         bits.append("As " + a if a.startswith("printed") else "Made " + a)
     shown = ("volume", "mass", "encasedMass", "material", "wall", "safety", "as")
     bits += [f"{k} {v}" for k, v in fig.items() if k not in shown]
@@ -136,7 +191,7 @@ def dfm(out):
     if open_:
         lines.append("")
         for f in open_[:8]:
-            lines.append(f"{SEVERITY.get(f.get('severity'), 'Note')}: {f.get('says') or f.get('rule', '')}")
+            lines.append(f"{SEVERITY.get(f.get('severity'), 'Note')}: {fw.says(f, out) or f.get('rule', '')}")
         if len(open_) > 8:
             lines.append(f"…and {len(open_) - 8} more.")
     waived = len(out.get("findings") or []) - len(open_)
@@ -167,9 +222,9 @@ def review(out):
     if finds:
         lines.append("")
         for f in finds:
-            lines.append(f"{SEVERITY.get(f.get('severity'), 'Note')}: {f.get('says', '')}")
+            lines.append(f"{SEVERITY.get(f.get('severity'), 'Note')}: {fw.says(f, out)}")
     for u in out.get("unjudged") or []:
-        lines.append(f"Not judged: {u.split(':', 1)[-1].strip()}")
+        lines.append(f"Not judged: {unjudged_says(u)}")
     line = f"{verdict} Part review: {_count(len(finds), 'finding')}."
     return verdict, "\n".join(lines), line
 
@@ -184,17 +239,18 @@ def mass(out):
     for b in bodies:
         com = b.get("com") or []
         lines += ["", f"{b.get('body')}: {_mass(b.get('mass'))}",
-                  f"Material: {material_name(b.get('material'))}, {_g(b.get('density'), 'g/cm³')}",
+                  f"Material: {material_name(str(b.get('material') or '') + (' (assumed)' if b.get('materialAssumed') else ''))}, {_g(b.get('density'), 'g/cm³')}",
                   f"Volume: {_g(b.get('volume'), 'mm³', 1)}",
                   "Centre of mass: " + (", ".join(_g(c, n=2) for c in com) + " mm" if com else "–"),
-                  f"Made as: {str(b.get('as', '')).split(' (')[0]}"]
+                  f"Made as: {basis_says(b.get('as', '')).split(' (')[0]}"]
         pr = (b.get("inertia") or {}).get("principal")
         if pr:
             lines.append("Principal inertia: " + ", ".join(_g(x, n=1) for x in pr) + " g·mm²")
         for e in b.get("encased") or []:
             lines.append(f"Encased: {e.get('count')} × {e.get('what')}, {_mass(e.get('mass'))}")
-    if out.get("printedNote"):
-        lines += ["", out["printedNote"]]
+    if out.get("bandFactor"):
+        lines += ["", (f"As printed is an estimate from walls and infill, a lower guide: the slicer's figure can be {out['bandFactor'][0]} to {out['bandFactor'][1]} times it "
+                       "(massBand). Slice the body alone (slice or slice_with) and this tool uses the slicer's figure instead.")]
     line = verdict if len(bodies) == 1 else verdict[:-1] + ": " + "; ".join(f"{b.get('body')} {_mass(b.get('mass'))}" for b in bodies) + "."
     return verdict, "\n".join(lines), line
 
@@ -247,7 +303,14 @@ def _hole(out):
              else "cut as a shape: a plain Part solid, not in a Part Design Body")
     s = f"{size} {what} in {out.get('body')}{how} ({route})."
     s += " " + calibration_clause(out.get("printerFit"), out.get("allowance"))
-    side = str(out.get("headSide") or "").split(" (dir runs")[0]
+    side = ""
+    if out.get("head"):
+        if out.get("onSketch"):
+            side = f"{out['head']} on the face the sketch is on (FreeCAD's Hole goes into the material from the sketch)"
+        elif out.get("face"):
+            side = f"{out['head']} on the face at {out['face']}, facing {out['facing']}"
+        else:
+            side = f"{out['head']} on the face through {out.get('headAt')}, facing {out.get('facing')}"
     if side:
         s += " " + side[0].upper() + side[1:].rstrip(".") + "."
     if out.get("sound") is False:
@@ -279,8 +342,8 @@ def _setup(out):
 def _embed(out):
     p, pause = out.get("pocket") or {}, out.get("pause") or {}
     s = f"Pocket for {out.get('what')} in {out.get('body')}, {_g(p.get('depth'), 'mm')} deep; the print pauses after layer {pause.get('afterLayer')} (Z {_g(pause.get('z'), 'mm')}) to put it in."
-    if out.get("warning"):
-        s += " " + out["warning"].split(" — ")[0] + "."
+    if out.get("thinSides"):
+        s += " The wall beside or under the pocket is under the least wall: it may break through."
     return s
 
 

@@ -79,7 +79,7 @@ OUT["cf_used"] = used.get("filament")
         self.assertEqual(out["used"]["filament"], "petg")
         self.assertGreater(out["used"]["density"], 1.0)
         self.assertLess(out["used"]["density"], 2.0)
-        self.assertIn("this slice only", r["material"])
+        self.assertTrue(r["materialThisSliceOnly"])
         self.assertEqual(out["recorded"], {"Bracket": "steel-1018"})
         self.assertEqual(out["writes"], [])
         code, msg = out["bad"]["err"]
@@ -121,7 +121,7 @@ try:
 except Exception as e:
     OUT["bad"] = getattr(e, "code", repr(e))
 ''')
-        self.assertIn("this slice only", out["r"]["material"])
+        self.assertTrue(out["r"]["materialThisSliceOnly"])
         self.assertEqual(out["f"], "tpu")
         self.assertEqual(out["recorded"], {"Bracket": "steel-1018"})
         self.assertEqual(out["writes"], [])

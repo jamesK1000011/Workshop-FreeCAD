@@ -27,14 +27,14 @@ class Mass(unittest.TestCase):
         self.assertEqual(b["com"], [20.0, 10.0, 5.0])
         ixx = 9.92 * (20 ** 2 + 10 ** 2) / 12
         self.assertAlmostEqual(b["inertia"]["aboutCom"][0][0], ixx, delta=0.5)
-        self.assertEqual(b["as"], "solid")
+        self.assertEqual(b["as"], {"basis": "solid"})
 
     def test_2_printed_is_lighter(self):
         self.call("setup", {"action": "add", "type": "print", "bodies": ["Block"], "settings": {"walls": 2, "infill": 20}})
         err, r = self.call("mass_properties", {"body": "Block"})
         b = r["bodies"][0]
         print("\nprinted:", json.dumps(b))
-        self.assertTrue(b["as"].startswith("printed"))
+        self.assertEqual(b["as"]["basis"], "printed")
         self.assertLess(b["mass"], 9.92)
         self.assertGreater(b["mass"], 9.92 * 0.2)
         for got, want in zip(b["com"], [20, 10, 5]):
@@ -130,7 +130,7 @@ class Mass(unittest.TestCase):
         self.assertAlmostEqual(cal["scale"], 1.1, delta=0.01)
         _e, after = self.call("mass_properties", {"body": "Coupon"})
         self.assertAlmostEqual(after["bodies"][0]["mass"], expected * 1.1, delta=0.02)
-        self.assertIn("calibrated", after["bodies"][0]["as"])
+        self.assertIn("calibratedScale", after["bodies"][0]["as"])
         err, far = self.call("mass_calibrate", {"body": "Coupon", "grams": expected * 10})
         self.assertTrue(err)
         self.call("mass_calibrate", {"body": "Coupon", "reset": True})

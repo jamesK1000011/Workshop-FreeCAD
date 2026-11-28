@@ -94,7 +94,6 @@ def hole_sizes(size, F=None):
         pass
     if out:
         out["units"] = "mm"
-        out["note"] = "tapHole: the drill for a tapped thread; nominal: the thread's own diameter, not a pass hole (hw_hole { kind: \"clearance\" } sizes that, ISO 273)."
     return out
 
 
@@ -133,7 +132,7 @@ def types(query=None, standard=None, kind=None, ftype=None, size=None, limit=40)
         rows = [r for r in rows if all(w in f"{r['type']} {r['what']} {r['group']} {r['kind']}".lower() for w in words)]
     out = {"count": len(rows), "types": [{k: r[k] for k in ("type", "kind", "what")} for r in rows[:limit]], "source": SOURCE}
     if len(rows) > limit:
-        out["more"] = f"{len(rows) - limit} more: narrow with query, standard or kind."
+        out["more"] = len(rows) - limit
     if not rows:
         out["kinds"] = sorted({_row(F, k)["kind"] for k in _table(F)})
         out["standards"] = sorted({_row(F, k)["standard"] for k in _table(F)})
@@ -730,9 +729,8 @@ def bom_sheet(doc):
         sh.set(f"B{i}", str(r["qty"]))
     doc.recompute()
     hid = [o.Label for o in fasteners_in(doc) if not getattr(o, "Visibility", True)]
-    why = (f"{', '.join(hid[:3])}{' …' if len(hid) > 3 else ''} hidden: Fasteners' own BOM would leave {'it' if len(hid) == 1 else 'them'} out"
-           if hid else "its command needs the window")
-    return {"sheet": sh.Label, "by": f"Workshop (Fasteners' BOM layout; {why})"}
+    why = {"hidden": hid[:3], "hiddenCount": len(hid)} if hid else {"reason": "needsWindow"}
+    return {"sheet": sh.Label, "by": "Workshop", **why}
 
 
 def restore(doc):
@@ -800,7 +798,6 @@ def read_print_settings():
     for which in ("nut", "screw"):
         out[which] = [_clean(g.GetFloat(PRINT_KEYS[which + "A"], PRINT_DEFAULTS[which + "A"])),
                       _clean(g.GetFloat(PRINT_KEYS[which + "B"], PRINT_DEFAULTS[which + "B"]))]
-    out["formula"] = "printed thread diameter = d x A + B (nut: inside threads, screw: outside); used when mode is 3dprint"
     out["source"] = SOURCE + " 3D Print Settings"
     return out
 
@@ -934,16 +931,16 @@ def hole_screw(doc, hole_args, hole_out, spec):
     spec = {} if spec is True else dict(spec or {})
     kind, size = hole_args.get("kind"), hole_args.get("size", "M3")
     if kind not in HOLE_SCREW:
-        return {"screwNote": f"No screw for a {kind} hole."}
+        return {"screwNote": {"reason": "noScrewForKind", "kind": kind}}
     at = hole_args.get("at")
     if not (isinstance(at, (list, tuple)) and len(at) == 3):
-        return {"screwNote": "The screw goes in with at: one hole at a known point (not a sketch's circles)."}
+        return {"screwNote": {"reason": "needsAt"}}
     F = fs.load()
     import FreeCAD
 
     ftype = _check_type(F, spec.get("type") or HOLE_SCREW[kind])
     if str(size) not in [str(x) for x in F.screwMaker.GetAllDiams(ftype)]:
-        return {"screwNote": f"{ftype} has no {size}: give screw.type one that has (fastener_types {{ type }} lists sizes)."}
+        return {"screwNote": {"reason": "noSize", "type": ftype, "size": str(size)}}
     body = _obj(doc, hole_out.get("body"))
     shape = body.Shape
     # at and dir are the document's (global); body.Shape is in the frame of
@@ -963,7 +960,7 @@ def hole_screw(doc, hole_args, hole_out, spec):
         biggest, need = True, plate
     elif kind == "nut_trap":
         if not plate:
-            return {"screwNote": "A nut trap's screw comes from the far side: give a through hole."}
+            return {"screwNote": {"reason": "needsThrough", "kind": kind}}
         p, inward, need = p + d * plate, False, plate
     elif kind == "insert":
         need = float(sizes.get("depth") or 0)
@@ -972,7 +969,7 @@ def hole_screw(doc, hole_args, hole_out, spec):
     idx, edge = _circle_at(shape, p, d, biggest)
     if idx is None:
         q = to_global(body, p)
-        return {"screwNote": f"No round edge of the hole found on its axis at {[round(v, 2) for v in (q.x, q.y, q.z)]}: fastener_add {{ edges: [{{ body, near: [x, y, z] }}] }} puts one on an edge you pick."}
+        return {"screwNote": {"reason": "noEdge", "at": [round(v, 2) for v in (q.x, q.y, q.z)]}}
     length = spec.get("length") or (need if need and need > 0 else None)
     container = None
     try:
@@ -999,9 +996,9 @@ def hole_screw(doc, hole_args, hole_out, spec):
     if need:
         out["lengthNeeded"] = _clean(need)
     if kind == "insert":
-        out["note"] = "Length is the insert's depth: add the thickness of what it clamps (fastener_set { length })."
+        out["lengthIs"] = "insertDepth"
     elif kind == "nut_trap":
-        out["note"] = "From the far side, into the nut in the trap."
+        out["from"] = "farSide"
     out["credit"] = CREDIT
     return {"screw": out}
 

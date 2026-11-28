@@ -406,6 +406,15 @@ def slice_figure(doc, label, stats):
     return rec.get("modelGrams") or rec["grams"], rec
 
 
+def slice_fields(rec):
+    """The slice figure as a record: slicer, grams (the part's own), and
+    what else the G-code held."""
+    return {"slicer": rec.get("slicer") or None, "grams": rec.get("modelGrams") or rec["grams"],
+            "partOnly": bool(rec.get("modelGrams")),
+            **({"supportGrams": rec["supportGrams"]} if rec.get("modelGrams") and rec.get("supportGrams") else {}),
+            **({"otherGrams": rec["otherGrams"]} if rec.get("modelGrams") and rec.get("otherGrams") else {})}
+
+
 def slice_words(rec):
     """How a slice figure was found, in a short line."""
     parts = [f"sliced by {rec.get('slicer') or 'the slicer'}: {rec.get('modelGrams') or rec['grams']} g"]

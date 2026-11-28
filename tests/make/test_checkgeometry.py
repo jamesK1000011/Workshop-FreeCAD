@@ -47,7 +47,7 @@ OUT["old"] = geo.freecad_check(Old())
         self.assertEqual(g["checkedBy"], "FreeCAD's Check Geometry")
         self.assertFalse(b["ok"])
         self.assertEqual(b["checkGeometry"], ["Face 3: BRepCheck_NotClosed", "Edge 7: BRepCheck_InvalidCurveOnSurface"])
-        self.assertIn("FreeCAD's Check Geometry", b["problems"][0])
+        self.assertEqual(b["problems"][0]["problem"], "checkGeometry")
         # Passing Check Geometry is not all a print needs: closed, one solid.
         self.assertTrue(o["valid"])
         self.assertEqual(len(o["problems"]), 2)

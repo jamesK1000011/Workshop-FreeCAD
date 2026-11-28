@@ -60,7 +60,7 @@ OUT["size"] = len(json.dumps(first))
 ''')
         f = out["first"]
         self.assertEqual(f["from"], ["/presets/system", "/presets/user"])
-        self.assertIn("next", f)
+        self.assertNotIn("next", f)
         self.assertEqual(f["filament"]["count"], 91)
         self.assertEqual(f["filament"]["own"], 1)
         self.assertEqual(f["filament"]["presets"][0], {"name": "My PETG", "own": True})
@@ -72,7 +72,7 @@ OUT["size"] = len(json.dumps(first))
         # said once: the folders and next are not repeated
         self.assertNotIn("from", out["again"])
         self.assertNotIn("next", out["again"])
-        self.assertEqual(out["again"]["saidBefore"], ["from", "next"])
+        self.assertEqual(out["again"]["saidBefore"], ["from"])
         # a kind or a query shows more; limit up to 500 shows everything
         self.assertEqual(len(out["fil"]["filament"]["presets"]), 1 + 50)
         self.assertEqual(list(k for k in out["fil"] if k in ("machine", "process", "filament")), ["filament"])

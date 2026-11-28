@@ -89,7 +89,7 @@ OUT["broken"] = [sorted(paths), why.get("dxf", "")]
         self.assertIn("template", out["no_template"][1]["svg"])
         self.assertIn("template", out["no_template"][1]["pdf"])
         self.assertEqual(out["broken"][0], ["pdf", "svg"])
-        self.assertIn("no views", out["broken"][1])
+        self.assertIn("no views", out["broken"][1]["error"])
 
 
 if __name__ == "__main__":

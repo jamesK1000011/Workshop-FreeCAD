@@ -374,7 +374,7 @@ def read_results(book, frd, dat, workdir="", gravity=None):
     for m in book["members"]:
         ns = member_nodes(m, els, xyz)
         if not ns:
-            rows.append({"member": m["name"], "note": "no results found along it"})
+            rows.append({"member": m["name"], "results": False})
             continue
         sig = [ccx_io.normal_stress(stress[nd], m["t"]) for nd, _ in ns if nd in stress]
         vm = [ccx_io.von_mises(stress[nd]) for nd, _ in ns if nd in stress]
@@ -417,8 +417,7 @@ def read_results(book, frd, dat, workdir="", gravity=None):
     tot = [sum(v[c] for v in book["nodal"].values()) for c in range(3)]
     got = [sum((sp["reactionN"] or [0, 0, 0])[c] for sp in sups) for c in range(3)]
     if any(abs(got[c] + tot[c]) > 0.02 * max(1.0, max(abs(x) for x in tot)) for c in range(3)):
-        out["reactionsNote"] = (f"the reactions add to {[round(x, 1) for x in got]} N against {[round(-x, 1) for x in tot]} N of load: "
-                                "CalculiX reads beam supports short here — use the load total, and member stresses, which are sound")
+        out["reactionsShort"] = {"sumN": [round(x, 1) for x in got], "loadN": [round(-x, 1) for x in tot]}
     out["loadTotalN"] = [round(x, 1) for x in tot]
     return out
 

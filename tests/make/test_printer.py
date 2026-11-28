@@ -317,7 +317,7 @@ class PrinterTools(unittest.TestCase):
         Mock.log.clear()
         err, r = self.call("printer_send", {"printer": "Octo", "file": "hot.gcode"})
         self.assertTrue(r["pending"], r)
-        self.assertIn("450", r["issues"][0]["why"])
+        self.assertEqual(450, r["issues"][0]["value"])
         self.assertFalse(any(x["method"] == "POST" for x in Mock.log))
         self.approve(r)
         err, r = self.call("printer_send", {"printer": "Octo", "file": "hot.gcode"})

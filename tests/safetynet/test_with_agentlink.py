@@ -158,7 +158,7 @@ class WithAgentLink(unittest.TestCase):
         rec = r["recovered"][0]
         self.assertIn("(recovered", rec["as"])
         self.assertEqual(rec["file"], path)
-        self.assertIn("lost", rec)
+        self.assertIn("lostMinutes", rec)
         nd = FreeCAD.getDocument(rec["document"])
         self.assertNotEqual(os.path.abspath(nd.FileName), os.path.abspath(path))
         # The original is still open: refused before any approval is asked.

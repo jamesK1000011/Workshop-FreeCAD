@@ -42,7 +42,7 @@ def wall(s, a):
     fin = allv[np.isfinite(allv)]
     hi = min(reach, max(2.0, 2 * float(np.median(fin)))) if len(fin) else reach
     return {"layers": layers, "unit": "mm", "cmap": "jet_r", "worst": "min", "label": "WALL", "range": [0.0, round(hi, 1)],
-            "note": f"The wall at each spot: straight in from the surface to where the material ends; {reach:g} mm or more reads {reach:g}. Red is thin."}
+            "reach": reach}
 
 
 ABOUT = "The wall thickness at each spot of the parts (red thin)."

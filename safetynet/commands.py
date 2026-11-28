@@ -288,7 +288,7 @@ class Rollback(_Cmd):
             return
         out = call("pref_rollback", {"to": ch})
         if out:
-            say(out.get("note") or f"Rolled back to {out.get('rolledBackTo')}.", "Settings rolled back")
+            say(f"Rolled back to {out.get('rolledBackTo')}.", "Settings rolled back")
 
 
 class Macros(_Cmd):

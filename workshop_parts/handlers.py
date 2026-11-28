@@ -44,7 +44,7 @@ def run(s, generator, a, step):
     out["step"] = len(s.steps)
     mags = out.pop("encased", None)
     if mags:
-        out["encased"] = {"what": f"{mags['count']} {mags['what']}", "pauseAt": mags["top"], "note": "The magnet holes open onto the bed: press the magnets in after printing, or drop them in at the pause and print over them."}
+        out["encased"] = {"what": mags["what"], "count": mags["count"], "pauseAt": mags["top"]}
     return out
 
 

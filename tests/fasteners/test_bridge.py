@@ -276,7 +276,7 @@ OUT["bad"] = f.hole_after({"kind": "clearance", "size": "M3", "at": [0, 0, 10], 
 ''')
         self.assertIsNone(out["none"])
         self.assertEqual(out["with"]["screw"]["type"], "ISO4762")
-        self.assertIn("NOPE1", out["bad"]["screwNote"])
+        self.assertIn("NOPE1", out["bad"]["screwNote"]["error"])
 
 
 def fasteners_commands():
@@ -421,4 +421,4 @@ OUT["bom"] = api.bom_text(s)
 from workshop_make.handlers import fits
 OUT["note"] = fits._screw(None, {"screw": True}, {"body": "Box"})
 ''')
-        self.assertIn("not installed", out["note"]["screwNote"])
+        self.assertEqual("notInstalled", out["note"]["screwNote"]["reason"])

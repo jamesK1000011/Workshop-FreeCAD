@@ -93,7 +93,7 @@ def setup_after(a, out, s):
             eff["filament"] = ft[min(int(po.get("extruder") or 1), len(ft)) - 1]
         d = PS.describe(eff, s.body(label).Shape)
         st["print"] = {"project": pr["project"], "object": po["name"], **{k: d[k] for k in ("shellMm", "solidShare", "stiffnessFactor", "strengthFactor", "layerFactor")},
-                       "settings": d["settings"], "advice": d["advice"]}
+                       "settings": d["settings"]}
         if not build:
             build = build_dir((setup or {}).get("up", "+z"))
     elif keep and prev.get("print"):
@@ -103,9 +103,9 @@ def setup_after(a, out, s):
     store.write(s.doc, KEY, st)
     out["study"] = st
     if build:
-        out["printed"] = f"Built along {build}: the safety across the layers is judged at {(st.get('print') or {}).get('layerFactor', LAYER_FACTOR)}× yield."
+        out["printed"] = {"buildDir": build, "factor": (st.get("print") or {}).get("layerFactor", LAYER_FACTOR)}
     if st.get("print"):
-        out["printSettings"] = st["print"]
+        out["printSettings"] = {k: v for k, v in st["print"].items() if k != "advice"}
     return out
 
 
@@ -165,17 +165,12 @@ def solve_after(a, out, s):
         out["acrossLayers"] = {"tensileMPa": round(max(0.0, sn[i]), 3), **where, "buildDir": bd, "factor": lf}
         if y:
             out["acrossLayers"]["safety"] = round(lf * y / sn[i], 2) if sn[i] > 0 else None
-        out["acrossLayers"]["note"] = (f"Printed layers are weaker across than along: the tension along the build direction is judged against {LAYER_FACTOR}× yield. "
-                                       "A simplification — the real factor depends on printer, material and settings.")
     smax = (out.get("vonMisesMax") or {}).get("MPa") or 0
     if st.get("print") and y and smax > 0:
         pp = st["print"]
         dmax = (out.get("displacementMax") or {}).get("mm") or 0
         out["asPrinted"] = {"safety": round(pp["strengthFactor"] * y / smax, 2), "displacementMm": round(dmax / pp["stiffnessFactor"], 4),
-                            "from": f"{pp['object']} in {os.path.basename(pp['project'])}: shell {pp['shellMm']} mm, solid share {pp['solidShare']}",
-                            "note": "Solved on the solid body, scaled by the print's estimated knock-downs: a feasibility check, never a sign-off."}
-        if out["asPrinted"]["safety"] < 2 and pp.get("advice"):
-            out["asPrinted"]["stronger"] = pp["advice"]
+                            "from": {"object": pp["object"], "project": os.path.basename(pp["project"]), "shellMm": pp["shellMm"], "solidShare": pp["solidShare"]}}
     return out
 
 

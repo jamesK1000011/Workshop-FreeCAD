@@ -376,7 +376,7 @@ def on_edge(doc, obj, sub):
 
 # ---- after a recompute ----------------------------------------------------------------------
 
-REATTACHED = {}  # {(doc, name): sentence} said once in describe()
+REATTACHED = {}  # {(doc, name): {object, edge, was}} said once in describe()
 
 
 def _warn(msg):
@@ -403,6 +403,7 @@ def check(doc, o, fix=True):
             cur = (None, None)
         if obj is None:
             state, why = "lost", f"{a['object']}, the object it was on, is gone"
+            why_rec = {"reason": "objectGone", "object": a["object"]}
         elif cur[0] is obj and _same(geometry(obj, cur[1]), a):
             if cur[1] != a.get("edge"):
                 a["edge"] = cur[1]
@@ -412,6 +413,7 @@ def check(doc, o, fix=True):
                 at = [round(x, 2) for x in a["c"]]
                 state, why = "lost", (f"{obj.Label}.{a['edge']} is no longer its hole's edge (⌀{round(2 * a['r'], 3)} at {at}) and no round edge "
                                       f"of that size is within {reach(a['r'])} mm — the hole was moved or removed")
+                why_rec = {"reason": "edgeLost", "object": obj.Label, "edge": a["edge"], "diameter": round(2 * a["r"], 3), "at": at, "reach": reach(a["r"])}
             elif not fix:
                 state = "pending"
             else:
@@ -431,15 +433,15 @@ def check(doc, o, fix=True):
                 except Exception:  # noqa: BLE001
                     pass
                 state = "reattached"
-                REATTACHED[(getattr(doc, "Name", ""), o.Name)] = (
-                    f"FreeCAD renumbered {obj.Label}'s edges after an edit: put back on its hole, {obj.Label}.{new} (was {was}).")
+                REATTACHED[(getattr(doc, "Name", ""), o.Name)] = {"object": obj.Label, "edge": new, "was": was}
         rec["state"] = "lost" if state == "lost" else ("reattached" if state == "reattached" or rec.get("state") == "reattached" else
                                                         ("pending" if state == "pending" else "kept"))
         if state == "lost":
             msg = f"{rec.get('label') or o.Label} lost its hole: {why}. It is not attached to its hole — fastener_set {{ objects: [\"{rec.get('label') or o.Label}\"], edge }} puts it on one."
-            if rec.get("lost") != msg:
+            lost_rec = {"fastener": rec.get("label") or o.Label, **why_rec}
+            if rec.get("lost") != lost_rec:
                 _warn(msg)
-            rec["lost"] = msg
+            rec["lost"] = lost_rec
         elif state in ("ok", "reattached"):
             rec.pop("lost", None)
             # Follow a hole that moved a little (within reach) next time too.

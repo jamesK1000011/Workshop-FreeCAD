@@ -151,9 +151,9 @@ def plan(copies, now=None, keep=3, max_age_days=7, scratch_days=1, open_names=()
             if why:
                 out["keep"].append({**c, "why": why})
                 continue
-            why = ("past the newest %d" % keep if i >= keep else "over %g days old" % max_age_days if age > max_age_days else
-                   "never-saved, over %g days old" % scratch_days if c.get("scratch") and age > scratch_days else None)
-            out["go" if why else "keep"].append({**c, "why": why or "kept"})
+            why, extra = ((("pastNewest", {"limit": keep}) if i >= keep else ("tooOld", {"days": max_age_days}) if age > max_age_days else
+                           ("scratchTooOld", {"days": scratch_days}) if c.get("scratch") and age > scratch_days else (None, {})))
+            out["go" if why else "keep"].append({**c, "why": why or "kept", **extra})
     return out
 
 

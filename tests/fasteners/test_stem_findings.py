@@ -65,7 +65,7 @@ OUT["cb"] = api.hole_screw(doc, {"kind": "counterbore", "size": "M6", "at": [67,
 OUT["off"] = api.hole_screw(doc, {"kind": "clearance", "size": "M6", "at": [75, 11.5, 4], "dir": "-z"}, {"body": "Stem", "through": 20}, True)
 ''')
         self.assertEqual(out["cb"]["screw"]["attachedTo"], "Stem.Edge3")
-        self.assertIn("on its axis", out["off"]["screwNote"])
+        self.assertEqual("noEdge", out["off"]["screwNote"]["reason"])
 
 
 if __name__ == "__main__":

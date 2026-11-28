@@ -55,7 +55,7 @@ def stack(items):
 M = {k: {f: (tuple(v[f]) if isinstance(v[f], list) else v[f]) for f in ("clear", "head", "csk", "nut", "insert")}
      for k, v in _data.load(_DATA, "metric-hardware", package="workshop_make")["entries"].items()}
 KINDS = ("clearance", "counterbore", "countersink", "nut_trap", "insert", "magnet")
-TYPICAL_INSERT = "Workshop Make (typical heat-set insert figures)"
+TYPICAL_INSERT = "Workshop Make"
 
 
 def insert_figures(size):
@@ -119,7 +119,7 @@ def hole_tool(kind, size, at, d, depth, fit, cal):
     if kind == "insert":
         ins_d, ins_l, src, note = insert_figures(size)
         hd, hdep = ins_d + add, ins_l + 0.5
-        return Part.makeCylinder(hd / 2, hdep + 0.05, back, d), {"hole": round(hd, 3), "depth": round(hdep, 3), "insertSource": src, "note": note}
+        return Part.makeCylinder(hd / 2, hdep + 0.05, back, d), {"hole": round(hd, 3), "depth": round(hdep, 3), "insertSource": src}
     clear = m["clear"][FIT_INDEX.get(fit, 1)] + add
     shaft = Part.makeCylinder(clear / 2, depth + 0.05, back, d)
     sizes = {"clearance": round(clear, 3), "depth": round(depth, 3)}

@@ -130,18 +130,13 @@ def soundness(shape):
     if found is None:  # an older FreeCAD: its validity flag alone
         found = [] if shape.isValid() else ["the shape is not valid"]
     if found:
-        problems.append("FreeCAD's Check Geometry finds the shape broken (" + "; ".join(found[:3])
-                        + (f"; and {len(found) - 3} more" if len(found) > 3 else "") + "): a boolean or loft left it so. Rebuild the last step.")
+        problems.append({"problem": "checkGeometry", "count": len(found), "first": found[:3]})
     if not closed:
-        problems.append("The shape is not closed: it has open edges, so it has no inside to print or weigh.")
+        problems.append({"problem": "notClosed"})
     if len(shape.Solids) != 1:
-        problems.append(f"{len(shape.Solids)} solids where one is meant: pieces that do not touch, or none.")
+        problems.append({"problem": "solids", "count": len(shape.Solids)})
     if narrow:
-        problems.append(
-            f"{len(narrow)} face{'s' if len(narrow) != 1 else ''} under 0.01 mm wide — a sliver two faces a hair apart leave: "
-            + ", ".join(f"{n['index']} ({n['width']} mm at {n['centroid']})" for n in narrow[:5])
-            + ". Overlap the pieces clearly, or carry a cutter on along its slope."
-        )
+        problems.append({"problem": "narrowFaces", "count": len(narrow), "faces": [n["index"] for n in narrow[:5]]})
     return {
         "valid": not found,
         "checkedBy": "FreeCAD's Check Geometry",

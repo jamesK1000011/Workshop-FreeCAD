@@ -114,7 +114,7 @@ for bad in (("magnet", "6"), ("clearance", "M5")):
         self.assertEqual(out["cb_custom"], "Counterbore")  # kept as FreeCAD's plain counterbore
         # FreeCAD has no table for inserts and magnets: a plain hole at size.
         self.assertEqual(out["ins_type"], ["None", "Dimension"])
-        self.assertIn("insert", out["ins"]["note"])
+        self.assertIn("insertSource", out["ins"])
         self.assertAlmostEqual(out["mag"]["hole"], 6.2)
         self.assertAlmostEqual(out["mag"]["depth"], 2.2)
         self.assertIn("6x2", out["refused"][0])
@@ -151,12 +151,12 @@ OUT["old_way"] = h.Diameter
         c = out["got"]["clearance 0.2"]
         self.assertAlmostEqual(c["d"], 4.7)
         self.assertEqual(c["type"], "None")
-        self.assertIn("Diameter", c["ans"]["allowanceOn"])
+        self.assertIn("Diameter", c["ans"]["allowanceOn"]["props"])
         self.assertIn("M4 clearance, ISO 273 medium 4.5 mm + 0.2 mm", c["label2"])
         cs = out["got"]["countersink 0.2"]
         self.assertAlmostEqual(cs["cd"], 9.2)
         self.assertEqual(cs["ans"]["cutBeforeAllowance"], 9.0)
-        self.assertIn("HoleCutDiameter", cs["ans"]["allowanceOn"])
+        self.assertIn("HoleCutDiameter", cs["ans"]["allowanceOn"]["props"])
         # No allowance: FreeCAD's own sized hole, as it was.
         self.assertEqual(out["got"]["clearance 0.0"]["type"], "ISOMetricProfile")
         self.assertAlmostEqual(out["got"]["countersink 0.0"]["cd"], 9.0)
@@ -173,10 +173,10 @@ OUT["slant"] = H.head_side("clearance", [1, 2, 3], (1, 1, 0))
 OUT["sketch"] = H.head_side("clearance", None, (0, 0, -1))
 ''')
         self.assertEqual((out["wall"]["face"], out["wall"]["facing"]), ("x=0", "-x"))
-        self.assertTrue(out["wall"]["headSide"].startswith("countersink on the face at x=0, facing -x"))
-        self.assertTrue(out["top"]["headSide"].startswith("counterbore on the face at z=12.5, facing +z"))
+        self.assertEqual(out["wall"]["head"], "countersink")
+        self.assertEqual((out["top"]["head"], out["top"]["face"], out["top"]["facing"]), ("counterbore", "z=12.5", "+z"))
         self.assertEqual(out["slant"]["facing"], [-0.7071, -0.7071, 0.0])
-        self.assertIn("sketch", out["sketch"]["headSide"])
+        self.assertTrue(out["sketch"]["onSketch"])
 
 
 class Route(unittest.TestCase):
@@ -221,7 +221,6 @@ OUT["by_none"] = api._named(D2(), "Nothing")
         self.assertEqual(out["pd"]["route"], "PartDesign Hole")
         self.assertEqual(out["pd"]["features"], ["HoleSketch", "Hole"])
         self.assertEqual(out["pd"]["removed"], 10.0)
-        self.assertIn("double-click", out["pd"]["note"])
         self.assertEqual(out["seen"], {"kind": "clearance", "face": "Face6", "at": [1, 2, 3]})
         self.assertIn("PartDesign Body only", out["plain_sketch"])
         self.assertEqual(out["by_name"], "the sketch")
