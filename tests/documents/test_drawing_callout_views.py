@@ -15,6 +15,26 @@ from _stubs import run
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+
+def card_text(e):
+    """All the words of an entry's card (the hub's reading); the hub is not
+    needed: without it the lines are joined here the same way."""
+    try:
+        from agentlink.tooldata import card_text as hub_card_text
+        return hub_card_text(e)
+    except ImportError:
+        pass
+    c = e.get("card")
+    if not isinstance(c, dict):
+        return e.get("description", "")
+    out = [c.get("does", "")]
+    for k, n in (c.get("inputNotes") or {}).items():
+        out += [f"{k}: {n.get('means', '')}"] + [f"{k}: {f}" for f in n.get("forms") or []]
+    out += [x.get("line", "") for x in c.get("links") or []] + list(c.get("effects") or [])
+    out += [f"{k}: {r.get('means', '')}" for k, r in (c.get("returns") or {}).items()]
+    out += list(c.get("refusalNotes") or []) + list(c.get("hints") or [])
+    return " ".join(x for x in out if x)
+
 SCENE = r'''
 from workshop_documents.handlers import drawing as D
 from workshop_documents import sheets
@@ -101,11 +121,11 @@ class ShortCard(unittest.TestCase):
         for rel in ("workshop_documents", "workshop_make", "workshop_electronics", "workshop_fasteners"):
             with open(os.path.join(ROOT, rel, "data", "tools.json"), encoding="utf-8") as f:
                 for name, e in json.load(f)["entries"].items():
-                    self.assertLess(len(e["description"].split()), 800, name)
+                    self.assertLess(len(card_text(e).split()), 800, name)
 
     def test_the_guide_holds_the_rest(self):
         with open(os.path.join(ROOT, "workshop_documents", "data", "tools.json"), encoding="utf-8") as f:
-            card = json.load(f)["entries"]["drawing_make"]["description"]
+            card = card_text(json.load(f)["entries"]["drawing_make"])
         with open(os.path.join(ROOT, "workshop_documents", "guides", "drawing.md"), encoding="utf-8") as f:
             guide = f.read()
         self.assertNotIn("Behaviour, in full", card)

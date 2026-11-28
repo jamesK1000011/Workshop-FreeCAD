@@ -288,9 +288,9 @@ workshop_make/fam_mill.py
 workshop_make/fam_printer.py
 workshop_make/fam_slicing.py
 workshop_make/fam_thread.py
-workshop_make/finding_words.py
 workshop_make/families.py
 workshop_make/fcmaterials.py
+workshop_make/finding_words.py
 workshop_make/fits.py
 workshop_make/frame.py
 workshop_make/gcodecheck.py

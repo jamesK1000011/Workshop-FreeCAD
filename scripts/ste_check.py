@@ -113,15 +113,68 @@ def _json_names(schema):
     return out
 
 
+def _hub():
+    """The hub's tooldata (card_text, card_words), found on PYTHONPATH or
+    beside this checkout; None when the hub is not there."""
+    try:
+        from agentlink import tooldata, cards
+        return tooldata, cards
+    except ImportError:
+        return None
+
+
+def _typed(card):
+    """The typed parts of a card's records (unit, default, min, max, values,
+    a link's condition), which card_words does not give: a unit or a number
+    kept as a field is kept."""
+    out = []
+    for n in (card.get("inputNotes") or {}).values():
+        for k in ("unit", "default", "min", "max", "values"):
+            if k in n:
+                out.append(json.dumps(n[k], ensure_ascii=False) if not isinstance(n[k], str) else n[k])
+        for k in ("default", "min", "max"):  # a number with its unit, as the text had it
+            if k in n and n.get("unit") and not isinstance(n[k], (str, list, bool)):
+                out.append(f"{n[k]} {n['unit']}")
+        for k in ("default", "min", "max"):  # 15 and deg: 15°
+            if k in n and n.get("unit") == "deg" and not isinstance(n[k], (str, list, bool)):
+                out.append(f"{n[k]}°")
+        for k in ("default", "min", "max"):  # 300000 as the text wrote it: 300,000
+            if isinstance(n.get(k), int) and not isinstance(n[k], bool) and abs(n[k]) >= 1000:
+                out.append(f"{n[k]:,}")
+    for r in (card.get("returns") or {}).values():
+        if r.get("unit"):
+            out.append(str(r["unit"]))
+    for L in card.get("links") or []:
+        if L.get("when"):
+            out.append(str(L["when"]))
+    return " ".join(out)
+
+
+def _entry_texts(e):
+    """(lint text, words) of a data entry: the lint text is each card line as
+    a sentence; the words are all the card's words (lines, input descriptions,
+    refusals). An entry without a card: its description."""
+    hub = _hub()
+    if isinstance(e.get("card"), dict) and hub:
+        td, cards = hub
+        lines = [x if x[-1] in ".!?" else x + "." for x in cards.lines(e["card"])]
+        return " ".join(lines), td.card_words(e) + " " + _typed(e["card"])
+    if isinstance(e.get("card"), dict):
+        raise SystemExit("ste_check: this entry has a card; put the hub (agentlink) on PYTHONPATH")
+    d = e.get("description", "")
+    return d, d
+
+
 def current():
-    """{tool: {src, description, inputs}} as the files hold them now."""
+    """{tool: {src, description, words, inputs}} as the files hold them now."""
     out = {}
     for path in sorted(glob.glob(os.path.join(ROOT, "**", "data", "tools.json"), recursive=True)):
         if "/tests/" in path or "/.git/" in path:
             continue
         with open(path, encoding="utf-8") as f:
             for name, e in json.load(f)["entries"].items():
-                out[name] = {"src": os.path.relpath(path, ROOT), "description": e.get("description", ""),
+                lint_text, words_text = _entry_texts(e)
+                out[name] = {"src": os.path.relpath(path, ROOT), "description": lint_text, "words": words_text,
                              "inputs": sorted(set(_json_names(e.get("inputSchema") or {})))}
     for rel in PY_SOURCES:
         path = os.path.join(ROOT, rel)
@@ -309,7 +362,7 @@ def preservation(descs, originals):
         if name not in descs:
             faults.append((name, "tool", "the tool is gone"))
             continue
-        old, new = o["description"], descs[name]["description"]
+        old, new = o["description"], descs[name].get("words", descs[name]["description"])
         if name in GUIDE_SECTIONS:
             sec = guide_section(name)
             if sec is None:

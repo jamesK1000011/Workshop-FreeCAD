@@ -21,6 +21,26 @@ except ImportError:
 
 from workshop_make import datafiles as data  # noqa: E402
 
+
+def card_text(e):
+    """All the words of an entry's card (the hub's reading); the hub is not
+    needed: without it the lines are joined here the same way."""
+    try:
+        from agentlink.tooldata import card_text as hub_card_text
+        return hub_card_text(e)
+    except ImportError:
+        pass
+    c = e.get("card")
+    if not isinstance(c, dict):
+        return e.get("description", "")
+    out = [c.get("does", "")]
+    for k, n in (c.get("inputNotes") or {}).items():
+        out += [f"{k}: {n.get('means', '')}"] + [f"{k}: {f}" for f in n.get("forms") or []]
+    out += [x.get("line", "") for x in c.get("links") or []] + list(c.get("effects") or [])
+    out += [f"{k}: {r.get('means', '')}" for k, r in (c.get("returns") or {}).items()]
+    out += list(c.get("refusalNotes") or []) + list(c.get("hints") or [])
+    return " ".join(x for x in out if x)
+
 DATA = os.path.join(ROOT, "workshop_make", "data")
 
 
@@ -49,7 +69,9 @@ class Data(unittest.TestCase):
             # No length budget on a description (the owner's ruling of 16 Nov
             # 2026: quality and correctness first); it says what the tool
             # does, its inputs, its traps and what the reply means.
-            self.assertGreaterEqual(len(t["description"]), 200, name)
+            # Since 28 Nov 2026 the words are a card of records: its lines
+            # joined are what the length is read from.
+            self.assertGreaterEqual(len(card_text(t)), 200, name)
             self.assertFalse(t["inputSchema"].get("additionalProperties", False), name)
             # The optional fields Agent Link's format takes: the FreeCAD
             # workbench the tool belongs to, the commands it does the work of.

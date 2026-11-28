@@ -78,7 +78,8 @@ def _read_py(path):
 def _read_json(path):
     with open(path, encoding="utf-8") as f:
         entries = json.load(f)["entries"]
-    return [(name, e.get("group"), e.get("description", "")) for name, e in entries.items()]
+    # A card's one-line summary is its "does" record; an entry with no card keeps its description.
+    return [(name, e.get("group"), (e.get("card") or {}).get("does") or e.get("description", "")) for name, e in entries.items()]
 
 
 def read(path):

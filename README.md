@@ -158,49 +158,49 @@ separate add-ons):
 |---|---|---|
 | `gen_make` | parts | Make a Gridfinity bin to size as a new body. |
 | `gen_part` | parts | Make a standard part to size, each piece its own new body. |
-| `fit` | fits | Give sizes for parts that fit together, and keep the fit calibration of the printer. |
-| `hw_hole` | fits | Make a hole for hardware in a body. |
-| `thread_lookup` | thread | Read thread sizes in mm from FreeCAD's own PartDesign Hole tables. |
-| `thread_identify` | thread | Find what thread a hole or shaft is. |
-| `thread_cut` | thread | Thread an existing hole with FreeCAD's PartDesign Hole. |
-| `hw_embed` | embed | Encase a bought part mid-print. |
-| `hw_embed_list` | embed | List the parts encased in a body. |
-| `hw_unembed` | embed | Take an encased part out again, by its id. |
-| `hw_pauses` | embed | List every pause that the print of a body needs, on the layer grid of its print setup. |
-| `setup` | make | Record how each part is made, with the document. |
-| `part_spec` | make | Keep with the document the limits that every part of it must meet, and what parts are made of. |
-| `dfm_check` | make | Check if a body is printable as it stands, +z up, with the nozzle and printer of its print setup. |
-| `part_review` | make | Give one verdict on a part. |
-| `slice` | make | Slice a body that is in a print setup with the slicer on this computer. |
-| `mass_calibrate` | mass | Calibrate mass to a weighed print. |
-| `mass_properties` | mass | Read the mass, centre of mass and inertia of each body in its material. |
-| `mass_target` | mass | Read how far a body is from a target. |
-| `mass_ballast` | mass | Lay out closed, upright, round ballast pockets inside a body. |
-| `slicer_presets` | slice | Read and use the slicer presets of the person, as data. |
-| `slice_with` | slice | Slice a body or a mesh in a print setup with a named slicer, by its command line. |
-| `slice_read` | slice | Read back an OrcaSlicer or Bambu Studio project. |
-| `slice_open` | slice | Open a project in the slicer's own window, for the person. |
-| `printer_add` | printer | Keep a printer on the network by name. |
-| `printer_list` | printer | List the printers that printer_add keeps. |
-| `printer_status` | printer | Read the state of a printer now, over the network. |
-| `printer_send` | printer | Upload a G-code file to a printer. |
-| `printer_pause` | printer | Pause the running job of the printer. |
-| `printer_stop` | printer | Stop the job of the printer. |
-| `cut_check` | cut | Check if a body in a cut setup can be cut from sheet. |
-| `cut_export` | cut | Write the flat profiles of sheet bodies as DXF and SVG in mm, laid out on a sheet. |
-| `tube_cutlist` | cut | Write a cut list for a weldment of round tubes, as markdown and CSV in the output folder. |
-| `mill_check` | mill | Check if a body in a mill setup can be milled. |
-| `mill_export` | mill | Write the STEP file of a milled body and its setup sheet to the folder of the session. |
-| `fea_frame` | strength | Solve a frame of straight members with beam elements. |
-| `kicad_import` | electronics | Read a KiCad board into the document. |
-| `board_enclosure` | electronics | Make an enclosure round a board that kicad_import read, placed round it where it stands. |
-| `pcb_order_package` | electronics | Package the fabrication files of a board for ordering. |
-| `printed_channel` | electronics | Cut a channel inside a body along a path, for a wire or a conductive trace. |
-| `drawing_make` | drawing | Make a dimensioned drawing of bodies in one call, and its SVG, PDF and DXF files. |
-| `drawing_exploded` | drawing | Make an assembly manual. |
-| `patent_figures` | drawing | Make patent-style figures FIG. |
-| `patent_draft` | drawing | Write a Markdown draft of a patent description and a claims skeleton to the folder of the session. |
-| `library_pack` | share | Pack bodies to share as one zip in the folder of the session. |
+| `fit` | fits | Gives sizes for parts that fit together, and keeps the fit calibration of the printer. |
+| `hw_hole` | fits | Makes a hole for hardware in a body. |
+| `thread_lookup` | thread | Reads thread sizes in mm from FreeCAD's own PartDesign Hole tables. |
+| `thread_identify` | thread | Finds what thread a hole or shaft is. |
+| `thread_cut` | thread | Threads an existing hole with FreeCAD's PartDesign Hole. |
+| `hw_embed` | embed | Encases a bought part mid-print. |
+| `hw_embed_list` | embed | Lists the parts encased in a body. |
+| `hw_unembed` | embed | Takes an encased part out again, by its id. |
+| `hw_pauses` | embed | Lists every pause that the print of a body needs, on the layer grid of its print setup. |
+| `setup` | make | Records how each part is made, with the document. |
+| `part_spec` | make | Keeps with the document the limits that every part of it must meet, and what parts are made of. |
+| `dfm_check` | make | Checks if a body is printable as it stands, +z up, with the nozzle and printer of its print setup. |
+| `part_review` | make | Gives one verdict on a part. |
+| `slice` | make | Slices a body that is in a print setup with the slicer on this computer. |
+| `mass_calibrate` | mass | Calibrates mass to a weighed print. |
+| `mass_properties` | mass | Reads the mass, centre of mass and inertia of each body in its material. |
+| `mass_target` | mass | Reads how far a body is from a target. |
+| `mass_ballast` | mass | Lays out closed, upright, round ballast pockets inside a body. |
+| `slicer_presets` | slice | Reads and uses the slicer presets of the person, as data. |
+| `slice_with` | slice | Slices a body or a mesh in a print setup with a named slicer, by its command line. |
+| `slice_read` | slice | Reads back an OrcaSlicer or Bambu Studio project. |
+| `slice_open` | slice | Opens a project in the slicer's own window, for the person. |
+| `printer_add` | printer | Keeps a printer on the network by name. |
+| `printer_list` | printer | Lists the printers that printer_add keeps. |
+| `printer_status` | printer | Reads the state of a printer now, over the network. |
+| `printer_send` | printer | Uploads a G-code file to a printer. |
+| `printer_pause` | printer | Pauses the running job of the printer. |
+| `printer_stop` | printer | Stops the job of the printer. |
+| `cut_check` | cut | Checks if a body in a cut setup can be cut from sheet. |
+| `cut_export` | cut | Writes the flat profiles of sheet bodies as DXF and SVG in mm, laid out on a sheet. |
+| `tube_cutlist` | cut | Writes a cut list for a weldment of round tubes, as markdown and CSV in the output folder. |
+| `mill_check` | mill | Checks if a body in a mill setup can be milled. |
+| `mill_export` | mill | Writes the STEP file of a milled body and its setup sheet to the folder of the session. |
+| `fea_frame` | strength | Solves a frame of straight members with beam elements. |
+| `kicad_import` | electronics | Reads a KiCad board into the document. |
+| `board_enclosure` | electronics | Makes an enclosure round a board that kicad_import read, placed round it where it stands. |
+| `pcb_order_package` | electronics | Packages the fabrication files of a board for ordering. |
+| `printed_channel` | electronics | Cuts a channel inside a body along a path, for a wire or a conductive trace. |
+| `drawing_make` | drawing | Makes a dimensioned drawing of bodies in one call, and its SVG, PDF and DXF files. |
+| `drawing_exploded` | drawing | Makes an assembly manual. |
+| `patent_figures` | drawing | Makes patent-style figures FIG. |
+| `patent_draft` | drawing | Writes a Markdown draft of a patent description and a claims skeleton to the folder of the session. |
+| `library_pack` | share | Packs bodies to share as one zip in the folder of the session. |
 | `history_checkpoint` | core | Save a copy of the document now. |
 | `history_restore` | core | Go back to a checkpoint. |
 | `macro_save` | safety | Save the changing calls of this session as a FreeCAD macro. |
@@ -212,11 +212,11 @@ separate add-ons):
 | `app_recover` | safety | Get documents back after a crash or a hang. |
 | `pref_history` | safety | List the settings changes that Agent Link made, newest first. |
 | `pref_rollback` | safety | Put the settings of FreeCAD back as they were before a change. |
-| `fastener_types` | fasteners (with Fasteners Workbench installed) | Read the types, sizes and lengths of Fasteners Workbench, from its own tables. |
+| `fastener_types` | fasteners (with Fasteners Workbench installed) | Reads the types, sizes and lengths of Fasteners Workbench, from its own tables. |
 | `fastener_add` | fasteners (with Fasteners Workbench installed) | A Fasteners Workbench screw, nut, washer or insert, attached to round edges or loose. |
-| `fastener_set` | fasteners (with Fasteners Workbench installed) | Change Fasteners parts in place, as Fasteners' own Change Parameters, Flip and Move do. |
+| `fastener_set` | fasteners (with Fasteners Workbench installed) | Changes Fasteners parts in place, as Fasteners' own Change Parameters, Flip and Move do. |
 | `fastener_list` | fasteners (with Fasteners Workbench installed) | The Fasteners parts in the document and their bill of materials. |
-| `fastener_print` | fasteners (with Fasteners Workbench installed) | Read or set the 3D-print thread settings of Fasteners Workbench. |
+| `fastener_print` | fasteners (with Fasteners Workbench installed) | Reads or sets the 3D-print thread settings of Fasteners Workbench. |
 <!-- tools:end -->
 
 ## Troubleshooting
