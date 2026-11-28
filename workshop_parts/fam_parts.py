@@ -88,7 +88,7 @@ def tools(session):
                  "It has no feature history to edit: make it again with other params instead. "
                  "It takes a second or two; bins of many cells with dividers take a little longer. "
                  "magnets: true leaves four 6 x 2 mm holes under each cell, open to the bed. "
-                 "The magnet holes open onto the bed: press the magnets in after printing, or drop them in at the pause and print over them. "
+                 "The magnet holes open onto the bed: press the magnets in after printing. Or drop them in at the pause and print over them. "
                  "encased { what, count, pauseAt mm } gives the height. "
                  "hw_pauses lists it once the bin is in a print setup, and slice writes the pause. "
                  + reply + ". It also holds encased." + health)

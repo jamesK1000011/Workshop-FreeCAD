@@ -61,31 +61,37 @@
     ],
     "returns": {
      "board": {
-      "means": "Its label"
+      "means": "The label of the board body made"
      },
      "size": {
-      "means": "[x, y]"
+      "means": "[x, y] board outline size",
+      "unit": "mm"
      },
      "thickness": {
-      "means": "Thickness"
+      "means": "Board thickness",
+      "unit": "mm"
      },
      "copperLayers": {
-      "means": "Copper layers"
+      "means": "How many copper layers the board has",
+      "unit": "count"
      },
      "holes": {
-      "means": "Per hole: at, d, kind"
+      "means": "[{ at: [x, y], d, kind }] each hole in the board",
+      "unit": "mm"
      },
      "footprints": {
-      "means": "How many"
+      "means": "How many footprints the board has",
+      "unit": "count"
      },
      "tall": {
-      "means": "Per tall component: ref, value, side, height, from"
+      "means": "[{ ref, value, side, height, from }] each tall component and where its height comes from",
+      "unit": "mm"
      },
      "edgeConnectors": {
-      "means": "The connectors that board_enclosure opens the walls for"
+      "means": "[{ ref, value, side, from, to, over }] footprints at the outline, with the side they meet"
      },
      "bodies": {
-      "means": "The bodies made"
+      "means": "[labels] of the bodies made: the board, then its components"
      },
      "noHeight": {
       "means": "the parts with no known height: { count, refs [first 20] }"
@@ -95,13 +101,11 @@
       "unit": "count"
      },
      "moved": {
-      "means": "How far the board moved"
+      "means": "[x, y] the move that put the board middle at the origin",
+      "unit": "mm"
      },
      "step": {
-      "means": "The step"
-     },
-     "health": {
-      "means": "the shared health check after the call: { recompute, fault, shapes, sketches, measured, window, addons }, or \"nothing new\""
+      "means": "The undo step number of this call"
      }
     },
     "refusalNotes": [
@@ -245,26 +249,31 @@
      "Each call adds a new box and lid",
      "The answer of a changing call can also hold health from the shared check",
      "The lid is laid beside the box, printed top down; turn it over about X to put it on.",
-     "A connector with no known height gets the guessed height: give it as heights in kicad_import, or openings by hand."
+     "A connector with no known height gets a 5 mm opening",
+     "Give its height in kicad_import, or openings by hand"
     ],
     "returns": {
      "board": {
-      "means": "The board"
+      "means": "The label of the imported board the box is for"
      },
      "bodies": {
-      "means": "[box, lid]"
+      "means": "[box, lid] the labels of the bodies made"
      },
      "outside": {
-      "means": "[x, y, z]"
+      "means": "[x, y, z] outside size of the box",
+      "unit": "mm"
      },
      "standoff": {
-      "means": "Standoff height"
+      "means": "Height of the standoffs under the board",
+      "unit": "mm"
      },
      "headroom": {
-      "means": "Headroom"
+      "means": "Room above the board's tallest part",
+      "unit": "mm"
      },
      "standoffs": {
-      "means": "screw, at, diameter, pilot, pilotDepth"
+      "means": "{ screw, at, diameter, pilot, pilotDepth } the screw posts; absent without any",
+      "unit": "mm"
      },
      "openings": {
       "means": "Per opening: ..., for: the connector's ref or \"given\""
@@ -273,19 +282,16 @@
       "means": "calibrated: the calibration kept with the document; none: no calibration kept, holes assumed to print 0.2 mm small"
      },
      "sound": {
-      "means": "{ label: true|false }"
+      "means": "{ label: true | false } whether each body is a sound solid"
      },
      "openingHeightGuessed": {
       "means": "connectors with no known height: { refs, mm: the height used }"
      },
      "step": {
-      "means": "The step"
+      "means": "The undo step number of this call"
      },
-     "health": {
-      "means": "the shared health check after the call: { recompute, fault, shapes, sketches, measured, window, addons }, or \"nothing new\""
-     },
-     "openAtRim": {
-      "means": "true on an opening that runs open at the rim (in openings)"
+     "openings.openAtRim": {
+      "means": "true on an opening that runs open at the rim"
      }
     },
     "refusalNotes": [
@@ -426,19 +432,19 @@
     ],
     "returns": {
      "gerberZip": {
-      "means": "Path"
+      "means": "Path of the zip of Gerber and drill files"
      },
      "package": {
-      "means": "Path"
+      "means": "Path of the order zip: Gerber zip, ORDER.md, assembly and other files"
      },
      "orderSheet": {
-      "means": "Path"
+      "means": "Path of the ORDER.md sheet"
      },
      "vendor": {
-      "means": "The vendor"
+      "means": "The name of the board house the sheet is for"
      },
      "board": {
-      "means": "size, layers, thickness"
+      "means": "{ size, layers, thickness } of the board"
      },
      "files": {
       "means": "{ kind: how many }"
@@ -447,10 +453,16 @@
       "means": "the kicad-cli result { errors, warnings, unconnected, first }, or { run: false, reason: noKicadCli | noKicadPcb | failed, error }"
      },
      "warnings": {
-      "means": "codes: noOutlineGerber (the board house cannot cut the board without an outline Gerber: Edge_Cuts, .gko, .gm1), noDrillFile (a board with holes needs a .drl file), assemblyNeedsBomAndCpl (assembly needs both a BOM and a placement file, one is given)"
+      "means": "codes: noOutlineGerber, noDrillFile, assemblyNeedsBomAndCpl"
      },
-     "note": {
-      "means": "A note"
+     "warnings.noOutlineGerber": {
+      "means": "The board house cannot cut the board without an outline Gerber: Edge_Cuts, .gko, .gm1"
+     },
+     "warnings.noDrillFile": {
+      "means": "A board with holes needs a .drl file"
+     },
+     "warnings.assemblyNeedsBomAndCpl": {
+      "means": "Assembly needs both a BOM and a placement file, and one is given"
      }
     },
     "refusalNotes": [
@@ -460,7 +472,8 @@
      "Refused: a board that was not imported"
     ],
     "hints": [
-     "Run Inspect › Design Rules Checker in KiCad before ordering when drc did not run, and fix its errors and unconnected items."
+     "When drc did not run, run Inspect › Design Rules Checker in KiCad before ordering",
+     "Fix its errors and unconnected items"
     ]
    },
    "inputSchema": {
@@ -631,46 +644,45 @@
      "The answer of a changing call can also hold health from the shared check",
      "ohms is R = ρ·L/A on the channel's section, from typical resistivities; the filament's sheet is the authority.",
      "Printed traces read higher across layers, several times up the Z axis.",
-     "The wire's ohms are for solid copper at 20 °C; its insulation adds to the diameter, so check the wire's own."
+     "The ohms of a wire are for solid copper at 20 °C",
+     "The insulation of a wire adds to the diameter, so check the wire's own"
     ],
     "returns": {
      "body": {
-      "means": "The body"
+      "means": "The label of the body the channel is cut in"
      },
      "bodies": {
-      "means": "The bodies (the trace too)"
+      "means": "[labels] the body, then the trace body when one is made"
      },
      "length": {
       "means": "Channel length",
       "unit": "mm"
      },
      "section": {
-      "means": "shape, size, areaMm2"
+      "means": "{ shape, size, areaMm2 } the channel's cross-section"
      },
      "ends": {
-      "means": "[open | blind, ...]"
+      "means": "[open | blind, ...] one per end of the path"
      },
      "bend": {
-      "means": "The bend"
+      "means": "The radius the path corners are rounded to",
+      "unit": "mm"
      },
      "removed": {
       "means": "Volume removed",
       "unit": "mm³"
      },
      "sound": {
-      "means": "Whether the body is sound"
+      "means": "true: the body is a sound solid after the cut"
      },
      "conductor": {
       "means": "{ fill, resistivityOhmCm, ohms } for filament or paint; { fill, ohms: null, reason: noResistivity, material, materials } when the resistivity is not known; wire { awg, diameter, ohms, channelAtLeast, fits }"
      },
      "printerFit": {
-      "means": "The fit calibration used"
+      "means": "calibrated or none: the printer fit calibration used"
      },
      "step": {
-      "means": "The step"
-     },
-     "health": {
-      "means": "the shared health check after the call: { recompute, fault, shapes, sketches, measured, window, addons }, or \"nothing new\""
+      "means": "The undo step number of this call"
      }
     },
     "refusalNotes": [

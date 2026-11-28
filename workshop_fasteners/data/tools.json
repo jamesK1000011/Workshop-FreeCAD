@@ -76,14 +76,43 @@
       "means": "{ any, default } for one cut to length"
      },
      "hole": {
-      "means": "The pass and tap hole diameters"
+      "means": "{ tapHole, nominal, units: mm }: tap hole and nominal diameter of the size",
+      "unit": "mm"
      },
      "insert": {
-      "means": "The hole and depth of an IUT heat-set insert"
+      "means": "{ hole, depth, outer, insert, source } of the IUT heat-set insert, for IUTHeatInsert",
+      "unit": "mm"
      },
      "more": {
       "means": "how many types are not shown",
       "unit": "count"
+     },
+     "type": {
+      "means": "The Fasteners type name, with one type asked for"
+     },
+     "kind": {
+      "means": "What kind of fastener the type is, as Fasteners names it"
+     },
+     "group": {
+      "means": "The group the type is listed in"
+     },
+     "standard": {
+      "means": "The standard the type belongs to"
+     },
+     "what": {
+      "means": "Fasteners' one-line help for the type"
+     },
+     "size": {
+      "means": "The size asked for, when one size of a type is read"
+     },
+     "source": {
+      "means": "Where the figures come from: Fasteners Workbench"
+     },
+     "kinds": {
+      "means": "[kind, ...] every kind listed; only when no type matches"
+     },
+     "standards": {
+      "means": "[standard, ...] every standard listed; only when no type matches"
      }
     },
     "refusalNotes": [
@@ -136,7 +165,7 @@
       "means": "The type name of Fasteners, for example ISO4762"
      },
      "size": {
-      "means": "A size such as M3; it wins over the hole; left out on edges, Fasteners matches it to the diameter of the edge"
+      "means": "A size such as M3; it wins over the hole"
      },
      "length": {
       "means": "The nearest length the type comes in",
@@ -151,7 +180,7 @@
       "default": "simple"
      },
      "edges": {
-      "means": "Round edges; one fastener is attached to each: \"Plate.Edge7\", or { body, near: [x, y, z] }: a point on the round edge, or the hole's centre (within 1 mm of either; at a centre, the nearest centre, then the hole's outer rim)",
+      "means": "Round edges; one fastener is attached to each",
       "forms": [
        "\"Plate.Edge7\"",
        "{ body, near: [x, y, z] }"
@@ -161,12 +190,16 @@
       "means": "Where the loose fastener goes [x, y, z]; the origin when left out"
      },
      "match": {
-      "means": "outer: the edge is a pass hole, and the screw goes through. inner: a tap hole, and its thread fits it",
+      "means": "outer or inner: the kind of hole the edge is",
       "values": [
-       "inner",
-       "outer"
+       "outer",
+       "inner"
       ],
-      "default": "outer"
+      "default": "outer",
+      "forms": [
+       "outer: the edge is a pass hole, and the screw goes through",
+       "inner: a tap hole, and its thread fits it"
+      ]
      },
      "invert": {
       "means": "true turns it end for end",
@@ -203,6 +236,14 @@
       ],
       "rel": "with",
       "line": "match tells if the edge is a pass hole or a tap hole"
+     },
+     {
+      "inputs": [
+       "size",
+       "edges"
+      ],
+      "rel": "with",
+      "line": "Left out on edges, Fasteners matches the size to the diameter of the edge"
      }
     ],
     "effects": [
@@ -215,7 +256,8 @@
      "On a PartDesign Hole, that can be into the plate",
      "The shape cannot always tell the open side (a rim with material on both sides)",
      "Then it is as Fasteners places it",
-     "A size given on the wall of a counterbore goes on the edge of the bore at its floor; attachNote says so",
+     "A size given on the wall of a counterbore goes on the edge of the bore at its floor",
+     "attachNote says so",
      "Kept on its hole: each attached fastener also keeps the geometry of the edge (centre, axis, radius)",
      "A later PartDesign feature can renumber the edges of the Body",
      "The fastener is then put back on the same round edge (reattached)",
@@ -224,17 +266,37 @@
      "Labels read \"M8x25-Screw\", \"M8x25-Screw 2\" ..., numbered per size and kept",
      "Fasteners itself relabels at every recompute",
      "Fasteners Workbench: Shai Seger; screw_maker: Ulrich Brammer",
-     "The answer of a changing call can also hold health from the shared check"
+     "The answer of a changing call can also hold health from the shared check",
+     "At a centre, near takes the nearest centre, then the hole's outer rim"
     ],
     "returns": {
      "made": {
-      "means": "Per fastener: object, label, type, kind, size, length, thread (simple | real), matchOuter, invert (Fasteners' own Invert), offset, attachedTo (\"Plate.Edge7\"), edgeDiameter, headSide (open side, or in the material when turned end for end), shankOut (mm the shank stands out of the hole's far rim: a screw longer than its hole), at, bom (its BOM line), hidden, attachNote, hole (kept | reattached | lost), reattached, lost, adopted"
+      "means": "Per fastener: object, label, type, kind, size, length, matchOuter, offset, edgeDiameter, at, hidden, shankOut, attachNote, reattached, lost, adopted"
      },
      "source": {
-      "means": "The source"
+      "means": "Where the fastener data comes from: Fasteners Workbench"
      },
-     "health": {
-      "means": "the shared health check after the call: { recompute, fault, shapes, sketches, measured, window, addons }, or \"nothing new\""
+     "made.thread": {
+      "means": "simple | real"
+     },
+     "made.invert": {
+      "means": "Fasteners' own Invert"
+     },
+     "made.attachedTo": {
+      "means": "The edge it is on, for example \"Plate.Edge7\""
+     },
+     "made.headSide": {
+      "means": "The open side, or in the material when turned end for end"
+     },
+     "made.shankOut": {
+      "means": "mm the shank stands out of the hole's far rim: a screw longer than its hole",
+      "unit": "mm"
+     },
+     "made.bom": {
+      "means": "Its BOM line"
+     },
+     "made.hole": {
+      "means": "kept | reattached | lost"
      }
     },
     "refusalNotes": [
@@ -334,7 +396,7 @@
       ]
      },
      "invert": {
-      "means": "true turns it end for end from seated, with its head into the material; false seats it, with its head on the open side"
+      "means": "true turns it end for end from seated; false seats it"
      },
      "offset": {
       "means": "Along its axis",
@@ -375,7 +437,15 @@
        "invert"
       ],
       "rel": "with",
-      "line": "On a move to another edge, it is turned end for end there only when it was before, or when invert says so"
+      "line": "On a move to another edge, it is turned end for end there only when it was before"
+     },
+     {
+      "inputs": [
+       "edge",
+       "invert"
+      ],
+      "rel": "with",
+      "line": "On a move to another edge, it is turned end for end there when invert says so"
      },
      {
       "inputs": [
@@ -395,21 +465,34 @@
      "It is then recomputed once more, so the health check of the next call does not list it",
      "Fasteners Workbench: Shai Seger; screw_maker: Ulrich Brammer",
      "The answer of a changing call can also hold health from the shared check",
-     "A restore gives Fasteners saved where Fasteners Workbench was not loaded its proxy back."
+     "A restore gives Fasteners saved where Fasteners Workbench was not loaded its proxy back.",
+     "With invert true, the head goes into the material",
+     "With invert false, the head is on the open side"
     ],
     "returns": {
      "changed": {
-      "means": "Per fastener: object, label, type, kind, size, length, thread (simple | real), matchOuter, invert (Fasteners' own Invert), offset, attachedTo (\"Plate.Edge7\"), edgeDiameter, headSide (open side, or in the material when turned end for end), shankOut, at, bom (its BOM line), hidden, attachNote, hole (kept | reattached | lost), reattached, lost, adopted"
-     },
-     "shankOut": {
-      "means": "The shank stands out of the far rim of the hole",
-      "unit": "mm"
+      "means": "Per fastener: object, label, type, kind, size, length, matchOuter, offset, edgeDiameter, at, hidden, shankOut, attachNote, reattached, lost, adopted"
      },
      "restored": {
       "means": "the fasteners that got their proxy back (empty when none needed it)"
      },
-     "health": {
-      "means": "the shared health check after the call: { recompute, fault, shapes, sketches, measured, window, addons }, or \"nothing new\""
+     "changed.thread": {
+      "means": "simple | real"
+     },
+     "changed.invert": {
+      "means": "Fasteners' own Invert"
+     },
+     "changed.attachedTo": {
+      "means": "The edge it is on, for example \"Plate.Edge7\""
+     },
+     "changed.headSide": {
+      "means": "The open side, or in the material when turned end for end"
+     },
+     "changed.bom": {
+      "means": "Its BOM line"
+     },
+     "changed.hole": {
+      "means": "kept | reattached | lost"
      }
     },
     "refusalNotes": [
@@ -500,7 +583,9 @@
      "Each fastener is listed once, hidden ones too (hidden: true)",
      "The links and arrays of it that Fasteners counts are listed too",
      "Before listing, each attached fastener is checked against its hole",
-     "hole kept: on its hole. reattached: put back on the same circle after FreeCAD renumbered the edges. lost: its hole moved or was removed",
+     "hole kept: on its hole",
+     "hole reattached: put back on the same circle after FreeCAD renumbered the edges",
+     "hole lost: its hole moved or was removed",
      "A lost fastener is also under warnings",
      "Fasteners from before Workshop kept them are taken in as the document opens or recomputes",
      "They come from older documents, or were added with Fasteners' own buttons",
@@ -511,17 +596,18 @@
      "Without sheet, it is a read",
      "The reattaching above is the keeper's own doing, not this call's",
      "Fasteners Workbench: Shai Seger; screw_maker: Ulrich Brammer",
-     "Fasteners' own BOM leaves a hidden fastener out and needs the window; then Workshop writes the sheet (Type, Qty), which counts it."
+     "Fasteners' own BOM leaves a hidden fastener out and needs the window",
+     "Then Workshop writes the sheet (Type, Qty), which counts the hidden fastener"
     ],
     "returns": {
      "fasteners": {
-      "means": "Per fastener: object, label, type, kind, size, length, thread (simple | real), matchOuter, invert, offset, attachedTo (\"Plate.Edge7\"), edgeDiameter, at, bom (its BOM line), hidden, attachNote, hole (kept | reattached | lost), reattached, lost, adopted"
+      "means": "Per fastener: object, label, type, kind, size, length, matchOuter, offset, edgeDiameter, at, hidden, attachNote, reattached, lost, adopted"
      },
      "bom": {
       "means": "Per item: item (\"ISO4762 Screw M3x12\"), qty"
      },
      "warnings": {
-      "means": "Lost fasteners"
+      "means": "[lost note of each lost fastener: { fastener, reason: objectGone | edgeLost, object, edge, diameter, at, reach }]"
      },
      "sheet": {
       "means": "The BOM spreadsheet, with sheet: true"
@@ -539,11 +625,26 @@
      "reason": {
       "means": "needsWindow: the Fasteners BOM command needs the window"
      },
-     "lost": {
-      "means": "a fastener that lost its hole: { fastener, reason: objectGone | edgeLost, object, edge, diameter mm, at [x,y,z], reach mm }"
+     "source": {
+      "means": "Where the fastener data comes from: Fasteners Workbench"
      },
-     "reattached": {
-      "means": "the edge was renumbered and the fastener put back: { object, edge, was }"
+     "fasteners.thread": {
+      "means": "simple | real"
+     },
+     "fasteners.invert": {
+      "means": "Fasteners' own Invert"
+     },
+     "fasteners.attachedTo": {
+      "means": "The edge it is on, for example \"Plate.Edge7\""
+     },
+     "fasteners.headSide": {
+      "means": "The open side, or in the material when turned end for end"
+     },
+     "fasteners.bom": {
+      "means": "Its BOM line"
+     },
+     "fasteners.hole": {
+      "means": "kept | reattached | lost"
      }
     },
     "hints": [
@@ -622,24 +723,23 @@
      "This is slow when there are many",
      "When mode is 3dprint, the modelled threads of thread_cut in a printed body take the nut figures as their clearance",
      "history_undo does not undo it: it is a preference, not part of the document",
-     "Fasteners Workbench: Shai Seger; screw_maker: Ulrich Brammer",
-     "The printed thread diameter is d x A + B (nut: inside threads, screw: outside); it is used when mode is 3dprint."
+     "Fasteners Workbench: Shai Seger; screw_maker: Ulrich Brammer"
     ],
     "returns": {
      "mode": {
-      "means": "standard | 3dprint"
+      "means": "standard or 3dprint: how Fasteners makes threads"
      },
      "nut": {
-      "means": "[A, B]"
+      "means": "[A, B]: a printed nut thread's diameter is d x A + B"
      },
      "screw": {
-      "means": "[A, B]"
+      "means": "[A, B]: a printed screw thread's diameter is d x A + B"
      },
      "source": {
-      "means": "The source"
+      "means": "Where the settings come from: Fasteners Workbench, 3D Print Settings"
      },
      "redone": {
-      "means": "The fasteners recomputed after a set"
+      "means": "[label of each threaded fastener recomputed after a set]"
      }
     },
     "refusalNotes": [

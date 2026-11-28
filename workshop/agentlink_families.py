@@ -50,6 +50,12 @@ def _load():
         except Exception as e:  # noqa: BLE001
             LEFT_OUT[part] = f"{type(e).__name__}: {e}"
             sys.stderr.write(f"Workshop: {part}'s tools left out — {LEFT_OUT[part]}\n")
+            try:  # said by session_state leftOut and the update's check too, not the Report view alone
+                from agentlink import extstate
+
+                extstate.left_out(f"workshop.{part}", e, "import")
+            except Exception:  # noqa: BLE001 — an Agent Link without extstate
+                pass
             continue
         FAMILIES.extend(fams)
         LOADED.append(part)

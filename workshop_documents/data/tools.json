@@ -88,7 +88,12 @@
       "means": "The title of the sheet"
      },
      "file": {
-      "means": "Where the files go: a name in the session's folder, or a path (absolute: its folder made; or under the session's folder)"
+      "means": "Where the files go",
+      "forms": [
+       "a name in the session's folder",
+       "an absolute path: its folder is made",
+       "a path under the session's folder"
+      ]
      },
      "dims": {
       "means": "Feature dimensions with tolerances or ISO 286 fits",
@@ -98,17 +103,17 @@
       ]
      },
      "holes": {
-      "means": "true: every round hole called out in a view that sees it end on (front, right, top ...), grouped by size (\"4× ⌀3.4\"); or the name of a view: only that view's",
+      "means": "Which round holes to call out",
       "forms": [
-       "true",
-       "a view name"
+       "true: every round hole seen end on in a view (front, right, top ...)",
+       "the name of a view: only that view's holes"
       ]
      },
      "holeFits": {
       "means": "A fit per hole diameter for the callouts: { \"6\": \"H7\" }"
      },
      "titleBlock": {
-      "means": "Title block fields: title, partNumber, revision, material, finish, drawnBy, date, checkedBy, company, generalTolerance (ISO 2768-m to start); filled into TechDraw's title block and the files' own"
+      "means": "Title block fields: title, partNumber, revision, material, finish, drawnBy, date, checkedBy, company, generalTolerance"
      },
      "coarse": {
       "means": "TechDraw's coarse (polygon) lines for the views: faster on a large assembly",
@@ -191,8 +196,14 @@
      "A changing tool cannot run as a job",
      "Vertex and edge numbers of a view change when the model does, so dimensions are made here, not carried over",
      "The answer of a changing call can also hold health from the shared check",
-     "The drawing is the TechDraw page (edit it in TechDraw: its views, section, dimensions and title block are TechDraw's own). The files are the page's exports where TechDraw can write them (filesFrom: techdrawPage); the rest come from Workshop's sheet writer (filesFrom: sheetWriter), which also draws the hole callouts and overall sizes the page has as TechDraw dimensions.",
-     "Ask the person for their titleBlock, and never make a name up"
+     "The files are the page's exports where TechDraw can write them (filesFrom: techdrawPage)",
+     "The other files come from Workshop's sheet writer (filesFrom: sheetWriter)",
+     "The sheet writer also draws the hole callouts and overall sizes that the page has as TechDraw dimensions",
+     "Ask the person for their titleBlock, and never make a name up",
+     "Hole callouts are grouped by size, for example \"4× ⌀3.4\"",
+     "With holes true, a hole is called out in a view that sees it end on",
+     "generalTolerance starts as ISO 2768-m",
+     "The titleBlock fields are filled into TechDraw's title block and the files' own"
     ],
     "returns": {
      "files": {
@@ -202,25 +213,26 @@
       "means": "per file kind: techdrawPage, or {from: sheetWriter, why: needsWindow | wroteNothing | templateLeftOut | noViewGeometry | noPage | failed, error}"
      },
      "paper": {
-      "means": "The paper"
+      "means": "The paper chosen: A4 or A3"
      },
      "scale": {
       "means": "The scale, as \"1:2\""
      },
      "projection": {
-      "means": "The projection"
+      "means": "first or third: the projection of the views"
      },
      "projectionFrom": {
       "means": "Which source set the projection, and why"
      },
      "fill": {
-      "means": "Fill"
+      "means": "Share of the free sheet area the views cover, 0 to 1"
      },
      "views": {
       "means": "Per view: view, at, size, scale"
      },
      "dimensions": {
-      "means": "The dimensions"
+      "means": "[{ view, axis, mm }] overall sizes, then each asked one { view, kind, value, label }",
+      "unit": "mm"
      },
      "section": {
       "means": "view, label, plane, cutFaces, cutLineIn"
@@ -229,16 +241,16 @@
       "means": "Per hole group: view, diameter, count, label, from, features, calloutOff"
      },
      "holeTable": {
-      "means": "The hole table"
+      "means": "{ at: [x, y] on the sheet, rows } for holes no view sees end on"
      },
      "calloutsOff": {
-      "means": "Callouts that are off"
+      "means": "[{ view, label, why: noCircle, diameter }] callouts left off the sheet"
      },
      "titleBlock": {
-      "means": "The title block"
+      "means": "The title block's fields as drawn: title, scale, projection, generalTolerance, material, sheet, date"
      },
      "techdrawPage": {
-      "means": "The page's label"
+      "means": "The label of the TechDraw page made"
      },
      "page": {
       "means": "The state of the TechDraw page: views, notOnPage [{ view, type, value, item, why }], viewsInExport and settled among others"
@@ -247,41 +259,35 @@
       "means": "why there is no page: {reason: notAsked | notMade, error}"
      },
      "timing": {
-      "means": "Times",
+      "means": "{ sheet, page, export, settle, turns, turnMs, total, sheetSplit, sheetLines } of where the time went",
       "unit": "ms"
      },
-     "note": {
-      "means": "A note"
-     },
      "step": {
-      "means": "The step"
+      "means": "The undo step number of this call"
      },
      "lines": {
-      "means": "Which line kind was used, and why"
-     },
-     "health": {
-      "means": "the shared health check after the call: { recompute, fault, shapes, sketches, measured, window, addons }, or \"nothing new\""
-     },
-     "notOnPage": {
-      "means": "the dimensions and callouts TechDraw did not place: view, item, why (timeLimit | refused | failed | noVertices | onePoint | measuredOther | viewNotOnPage | noGeometry | noReference), error, measured, wanted, tried"
-     },
-     "sectionNote": {
-      "means": "the section view is not on the page: {reason, error}; the files have it"
-     },
-     "holeTableNote": {
-      "means": "the hole table is not on the page: {reason, error}; the files have it"
-     },
-     "calloutOff": {
-      "means": "a hole callout left off the sheet because no circle of its diameter is drawn where the hole is in that view: {reason: noCircle, diameter, view}"
+      "means": "{ coarse, from, edges, viewLimit, sheetLines } the line detail used and why"
      },
      "lines.sheetLines": {
       "means": "forMissingFiles | notNeeded | withViews"
      },
-     "placedOn": {
-      "means": "nearestCircle: a callout placed on the view's circle of its size nearest the hole because its own place did not match"
+     "page.notOnPage": {
+      "means": "[{ view, type, value, item?, why: timeLimit | refused | failed | noVertices | onePoint | measuredOther | viewNotOnPage | noGeometry | noReference, error?, measured?, wanted?, tried? }] dimensions and callouts TechDraw did not place"
      },
-     "wanted": {
-      "means": "the value the callout was drawn for, when TechDraw measured another",
+     "page.sectionNote": {
+      "means": "{ reason, error }: the section view is not on the page; the files have it"
+     },
+     "page.holeTableNote": {
+      "means": "{ reason, error }: the hole table is not on the page; the files have it"
+     },
+     "holes.calloutOff": {
+      "means": "{ reason: noCircle, diameter, view }: no circle of that diameter is drawn where the hole is in that view"
+     },
+     "page.dimensions.placedOn": {
+      "means": "nearestCircle: a callout was put on the view's circle of its size nearest the hole"
+     },
+     "page.dimensions.wanted": {
+      "means": "The value the dimension was drawn for, when TechDraw measured another",
       "unit": "mm"
      }
     },
@@ -440,7 +446,7 @@
       "means": "The heading of the manual"
      },
      "page": {
-      "means": "A TechDraw page of the Assembly's Exploded View (true by default; in an Assembly), else of the last step's picture",
+      "means": "A TechDraw page of the Assembly's Exploded View (in an Assembly), else of the last step's picture",
       "default": true
      }
     },
@@ -468,17 +474,19 @@
      "The page has a balloon per item and the bill of materials",
      "Each call adds another Exploded View and page",
      "Outside an Assembly, route says that the steps use Workshop's own exploded shapes",
-     "Outside an Assembly, unless page: false, a blank TechDraw page shows the picture of the last step as a symbol; pageShows says which step",
+     "Outside an Assembly, a blank TechDraw page shows the picture of the last step as a symbol, unless page: false",
+     "pageShows says which step",
      "So the window shows the result",
      "With page: false, nothing is added, and the call is still one (empty) undo step",
      "So a history_undo straight after it takes back nothing in the document",
      "Each part is lifted over where it is in the document",
      "The answer of a changing call can also hold health from the shared check",
-     "With no FreeCAD Assembly the steps are drawn from Workshop's own exploded shapes; put the parts in an Assembly for FreeCAD's own Exploded View, editable there."
+     "With no FreeCAD Assembly the steps are drawn from Workshop's own exploded shapes",
+     "Parts listed in apart are lifted over their place in the document"
     ],
     "returns": {
      "manual": {
-      "means": "The .md path"
+      "means": "Path of the assembly manual, a .md file"
      },
      "steps": {
       "means": "Per step: step, title, adds [{ item, part, qty }], svg"
@@ -487,13 +495,11 @@
       "means": "Per item: item, part, bodies, size, material, massG, madeBy"
      },
      "explode": {
-      "means": "The explode length"
+      "means": "How far each part is moved, from the explode input or worked out",
+      "unit": "mm"
      },
      "notInAnyStep": {
       "means": "Bodies that are in no step"
-     },
-     "warnings": {
-      "means": "Names parts that lie apart from the ones before them"
      },
      "route": {
       "means": "FreeCAD Assembly Exploded View, or Workshop's own exploded shapes"
@@ -502,25 +508,23 @@
       "means": "why the own shapes were used: {reason: noAssembly | notMade, error}"
      },
      "explodedView": {
-      "means": "In an Assembly"
+      "means": "The label of the Exploded View made in the FreeCAD Assembly"
      },
      "assembly": {
-      "means": "In an Assembly"
+      "means": "The label of the Assembly that holds the Exploded View"
      },
      "moves": {
-      "means": "In an Assembly"
+      "means": "How many parts the Exploded View moves",
+      "unit": "count"
      },
      "page": {
-      "means": "The page"
+      "means": "The label of the TechDraw page made from the steps"
      },
      "pageNote": {
       "means": "the TechDraw page was not made: {reason, error}"
      },
      "pageShows": {
       "means": "what the TechDraw page shows: {step}"
-     },
-     "health": {
-      "means": "the shared health check after the call: { recompute, fault, shapes, sketches, measured, window, addons }, or \"nothing new\""
      },
      "apart": {
       "means": "the parts lying apart from the parts before them, not where they go",
@@ -533,7 +537,10 @@
     "hints": [
      "Delete the old Exploded Views and pages (object_delete) before you make it again",
      "Put the parts where they go first",
-     "Parts listed in apart are lifted over their place in the document: put them there first (object_set Placement; a lid printed top down turns over about X), then draw again; view_render shows where they are."
+     "Put the parts listed in apart over their place in the document first, with object_set Placement",
+     "A lid printed top down turns over about X",
+     "Then draw again; view_render shows where the parts are",
+     "Put the parts in an Assembly for FreeCAD's own Exploded View, editable there"
     ]
    },
    "inputSchema": {
@@ -610,7 +617,7 @@
       ]
      },
      "numerals": {
-      "means": "A reference numeral per body: { \"body\": n }, with the body named by its label or its object's name as bodies takes it; each a whole number over 0, and each its own",
+      "means": "A reference numeral per body",
       "forms": [
        "{ \"body\": n }"
       ]
@@ -644,7 +651,10 @@
      "It takes seconds per figure (exact hidden-line removal), longer for a detailed assembly",
      "patent_draft uses the numerals and figures of the last call in this session",
      "The answer of a changing call can also hold health from the shared check",
-     "Black line art, no shading or hidden lines, on A4 within the USPTO's margins; numerals 3.5 mm high with lead lines to a face of each part. Each figure is an ordinary TechDraw page (page), its numerals TechDraw balloons with no bubble, editable in TechDraw; the files are its exports where TechDraw can write them (filesFrom)."
+     "numerals names a body by its label or its object's name, as bodies takes it",
+     "Each numeral is a whole number over 0, and each its own",
+     "The settled key is in a figure's row only when a mark stayed (left)",
+     "Or when a mark can still come after the call (late), or nothing could be watched"
     ],
     "returns": {
      "figures": {
@@ -654,34 +664,51 @@
       "means": "{ label: n }"
      },
      "list": {
-      "means": "The numerals file"
+      "means": "Path of the numerals list, a .md file"
      },
      "notSeenIn": {
-      "means": "Parts with no numeral in a view"
+      "means": "{ body: [views] } parts that have no numeral in those views"
      },
      "timing": {
       "means": "Whole call: figures, turns, turnMs, total",
       "unit": "ms"
      },
-     "note": {
-      "means": "A note"
-     },
-     "settled": {
-      "means": "In a figure's row, only in three cases (a mark stayed (left), a mark can still come after the call (late), or nothing could be watched): cleared, waited, exportMs, turns, turnMs, seen, late, left"
-     },
      "figures.timing": {
-      "means": "In each figure's row: sheet (Workshop's own projection and labels), page (the TechDraw page, with the lines of its view waited for), export { wait, scene, svg, check, pdf } (TechDraw's SVG and PDF and what they need first), settle (the wait after the export), turns and turnMs (the turns of FreeCAD's event loop run for the figure, and the time inside them), total",
+      "means": "In each figure's row: sheet, page, export { wait, scene, svg, check, pdf }, settle, turns, turnMs, total",
       "unit": "ms"
      },
-     "health": {
-      "means": "the shared health check after the call: { recompute, fault, shapes, sketches, measured, window, addons }, or \"nothing new\""
-     },
      "paper": {
-      "means": "the sheet size"
+      "means": "The sheet size of the figures: A4"
      },
      "numeralMm": {
       "means": "height of the numerals",
       "unit": "mm"
+     },
+     "figures.settled": {
+      "means": "In a figure's row: cleared, waited, exportMs, turns, turnMs, seen, late, left"
+     },
+     "figures.timing.sheet": {
+      "means": "Workshop's own projection and labels",
+      "unit": "ms"
+     },
+     "figures.timing.page": {
+      "means": "The TechDraw page, with the lines of its view waited for",
+      "unit": "ms"
+     },
+     "figures.timing.export": {
+      "means": "TechDraw's SVG and PDF and what they need first",
+      "unit": "ms"
+     },
+     "figures.timing.settle": {
+      "means": "The wait after the export",
+      "unit": "ms"
+     },
+     "figures.timing.turns": {
+      "means": "The turns of FreeCAD's event loop run for the figure"
+     },
+     "figures.timing.turnMs": {
+      "means": "The time inside those turns",
+      "unit": "ms"
      }
     },
     "refusalNotes": [
@@ -780,19 +807,17 @@
     ],
     "returns": {
      "draft": {
-      "means": "The path"
+      "means": "Path of the draft, a .md file"
      },
      "numerals": {
-      "means": "The numerals"
+      "means": "{ label: n } the reference numerals used"
      },
      "figures": {
-      "means": "How many"
+      "means": "How many figures the draft refers to",
+      "unit": "count"
      },
      "adjoining": {
       "means": "[[a, b] ...]: which bodies adjoin"
-     },
-     "note": {
-      "means": "A note"
      }
     },
     "hints": [
@@ -927,25 +952,26 @@
     ],
     "returns": {
      "pack": {
-      "means": "The zip's path"
+      "means": "Path of the zip"
      },
      "files": {
-      "means": "The files"
+      "means": "[names] of the files in the zip"
      },
      "license": {
-      "means": "The license"
+      "means": "The license the pack carries"
      },
      "parts": {
-      "means": "Per part: files, size"
+      "means": "[{ files, size: [x, y, z] }] per part"
      },
      "bytes": {
-      "means": "Size of the zip"
+      "means": "Size of the zip",
+      "unit": "bytes"
      },
      "by": {
       "means": "Which provider made the pack"
      },
      "warnings": {
-      "means": "Warnings"
+      "means": "[lines] credit warnings from the license check"
      },
      "unsound": {
       "means": "bodies body_check says are not sound: {bodies, from}"
